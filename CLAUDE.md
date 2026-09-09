@@ -156,6 +156,12 @@ cem/
 - **Do not use `\b` in the request-classifier regex.** Go's `\b` is ASCII, so
   Turkish-initial words (`çevir`, `üret`) never matched even after a space —
   silently skipping the writer. Use `(^|[^\p{L}])…([^\p{L}]|$)`.
+- **The output filter must never alter content, only strip noise.** It once
+  dropped a line that repeated the previous one; in code that is the second
+  `}` of a closing block, and users received Go that did not compile
+  (`gofmt: expected '(', found main`). Collapsing runs of blank lines to one
+  breaks Python's two-line separation the same way. When a rule can touch the
+  answer itself, it does not belong here — fix the duplication at its source.
 - **Tool output is filtered before it reaches the user** (`noise.go`). AI CLIs
   print banners, session ids and internal logs around the actual answer.
   `--raw` disables filtering.

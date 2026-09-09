@@ -67,7 +67,13 @@ type GlobalConfig struct {
 	AutoUpdateTools *bool `yaml:"auto_update_tools,omitempty"`
 	// ToolsLastUpdate — son otomatik güncelleme denemesi (başarı/başarısızlık
 	// fark etmez; sık tekrar denemeyi engeller).
-	ToolsLastUpdate time.Time `yaml:"tools_last_update,omitempty"`
+	//
+	// time.Time DEĞİL, string: yaml.v3 zaman alanını çözemediğinde TÜM
+	// config'i reddediyor ve cem tek bir bozuk satır yüzünden hiç açılmıyordu
+	// — 'cem doctor' dahil. Elle düzenlenmiş ya da başka bir araçla yeniden
+	// yazılmış bir config bu hatayı kolayca üretiyor. Artık çözülemeyen
+	// damga yok sayılıyor: en fazla bir kez fazladan güncelleme kontrolü olur.
+	ToolsLastUpdate string `yaml:"tools_last_update,omitempty"`
 }
 
 type ProjectConfig struct {
@@ -281,6 +287,24 @@ var orderedToolKeys = []string{
 	"claude", "agy", "gpt", "cursor",
 }
 
+// lastToolUpdate — damgayı zamana çevirir; çözülemezse sıfır değer.
+func (g *GlobalConfig) lastToolUpdate() time.Time {
+	if g == nil || g.ToolsLastUpdate == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05.999999999-07:00", "2006-01-02 15:04:05"} {
+		if t, err := time.Parse(layout, g.ToolsLastUpdate); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
+// setLastToolUpdate — her zaman RFC3339 yazar.
+func (g *GlobalConfig) setLastToolUpdate(t time.Time) {
+	g.ToolsLastUpdate = t.Format(time.RFC3339)
+}
+
 // ─── Rol bazlı varsayılanlar ─────────────────────────────────────────────
 
 // Kullanıcı hiçbir şey ayarlamasa bile kurulum israfsız olmalı. Rol seçildiği
@@ -369,7 +393,14 @@ func loadGlobalConfig() (*GlobalConfig, error) {
 		return nil, err
 	}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("global config parse: %w", err)
+		// Tek bozuk satır cem'i tamamen kullanılamaz hâle getiriyordu; en
+		// azından nerede olduğunu ve nasıl kurtarılacağını söyleyelim.
+		return nil, fmt.Errorf("%s\n  %s\n  %s: %w",
+			L("global config okunamadı", "cannot read the global config"),
+			path,
+			L("düzelt ya da sil (cem setup yeniden oluşturur)",
+				"fix it or delete it (cem setup recreates it)"),
+			err)
 	}
 	if cfg.Tools == nil {
 		cfg.Tools = map[string]InstalledTool{}

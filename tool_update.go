@@ -97,7 +97,7 @@ func maybeAutoUpdateTools() {
 	if !autoUpdateEnabled(cfg) || len(cfg.Tools) == 0 {
 		return
 	}
-	if time.Since(cfg.ToolsLastUpdate) < toolUpdateInterval {
+	if time.Since(cfg.lastToolUpdate()) < toolUpdateInterval {
 		return
 	}
 
@@ -134,7 +134,7 @@ func maybeAutoUpdateTools() {
 
 	// Zaman damgasını ÖNCE yaz: güncelleme başarısız olsa bile her çalıştırmada
 	// yeniden denenip kullanıcıyı yavaşlatmasın.
-	cfg.ToolsLastUpdate = time.Now()
+	cfg.setLastToolUpdate(time.Now())
 	if err := saveGlobalConfig(cfg); err != nil {
 		return
 	}

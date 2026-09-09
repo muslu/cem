@@ -62,7 +62,7 @@ type noiseFilter struct {
 	buf      bytes.Buffer
 	stopped  bool
 	lastLine string
-	lastAt   bool // en son basılan satır boş muydu
+	blankRun int // arka arkaya kaç boş satır basıldı
 }
 
 // newNoiseFilter — toolKey'e uygun filtreyi kurar. raw=true ise çıktı hiç
@@ -104,12 +104,14 @@ func (f *noiseFilter) emit(line string) error {
 	}
 	trimmed := strings.TrimSpace(line)
 
-	// Boş satır: arka arkaya olanları teke indir, baştakileri at.
+	// Boş satır: baştakiler atılır, arka arkaya en fazla İKİ tanesi geçer.
+	// Teke indirmek cazip ama kod bozuyor: Python'da üst düzey tanımlar
+	// arasında iki boş satır PEP8 gereği, Markdown'da da anlamlı olabiliyor.
 	if trimmed == "" {
-		if f.lastAt || f.lastLine == "" {
+		if f.lastLine == "" || f.blankRun >= 2 {
 			return nil
 		}
-		f.lastAt = true
+		f.blankRun++
 		_, err := io.WriteString(f.out, "\n")
 		return err
 	}
@@ -118,12 +120,18 @@ func (f *noiseFilter) emit(line string) error {
 			return nil
 		}
 	}
-	// Aracın kendi tekrarı: aynı satırı peş peşe iki kez basmasın.
-	if trimmed == f.lastLine {
-		return nil
-	}
+	// BURADA "aynı satır peş peşe geldiyse ikincisini at" kuralı VARDI ve
+	// KALDIRILDI: kod çıktısını bozuyordu. Girintili bir blok kapanırken
+	// arka arkaya iki "}" satırı gelir; ikincisi atılınca kullanıcıya
+	// DERLENMEYEN kod gidiyordu (sahada görüldü: quicksort'ta for döngüsünün
+	// kapanışı yutuldu, gofmt "expected '(', found main" verdi).
+	//
+	// Bu kural aracın kendi cevabını iki kez basmasına karşı eklenmişti; o
+	// sorun artık kaynağında çözülü (codex --output-last-message ile sessiz
+	// çalışıyor, dedupeTrailingEcho writer prompt'unu temizliyor). Çıktının
+	// bütünlüğü, kozmetik tekrarları ayıklamaktan önce gelir.
 	f.lastLine = trimmed
-	f.lastAt = false
+	f.blankRun = 0
 	_, err := io.WriteString(f.out, line+"\n")
 	return err
 }

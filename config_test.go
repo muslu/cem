@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 )
 
 func TestActiveRoles_GlobalOnly(t *testing.T) {
@@ -114,5 +115,31 @@ func TestKnownTools_InstallCmdManagers(t *testing.T) {
 		if !allowed[mgr] {
 			t.Errorf("%s: beklenmeyen install yöneticisi %q (sadece npm/pip)", key, mgr)
 		}
+	}
+}
+
+// TestBozukZamanDamgasiConfigiDusurmez — sahada yaşandı: config'i başka bir
+// araçla yeniden yazmak tools_last_update'i Go'nun beklemediği biçime çevirdi
+// ve cem hiçbir komutu çalıştıramaz oldu ('cem doctor' dahil).
+func TestBozukZamanDamgasiConfigiDusurmez(t *testing.T) {
+	cfg := &GlobalConfig{ToolsLastUpdate: "2026-09-09 12:54:28.120944+03:00"}
+	if got := cfg.lastToolUpdate(); got.IsZero() {
+		t.Error("boşluklu damga çözülemedi — otomatik güncelleme her çalıştırmada tetiklenir")
+	}
+
+	bozuk := &GlobalConfig{ToolsLastUpdate: "dün öğleden sonra"}
+	if got := bozuk.lastToolUpdate(); !got.IsZero() {
+		t.Errorf("çözülemeyen damga için %v döndü, sıfır bekleniyordu", got)
+	}
+
+	var boş GlobalConfig
+	if !boş.lastToolUpdate().IsZero() {
+		t.Error("boş damga sıfır değil")
+	}
+
+	now := time.Date(2026, 9, 9, 12, 54, 28, 0, time.UTC)
+	cfg.setLastToolUpdate(now)
+	if cfg.ToolsLastUpdate != "2026-09-09T12:54:28Z" {
+		t.Errorf("RFC3339 yazılmadı: %q", cfg.ToolsLastUpdate)
 	}
 }

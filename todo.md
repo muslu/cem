@@ -159,3 +159,7 @@
       one in place (it skips reading, not writing).
 - [x] Cache correctness: key includes the working directory; clarification
       answers ('file not found, please share it') are never stored.
+- [x] Output filter corrupted code: the "drop a repeated line" rule ate the
+      second `}` of nested blocks. Removed, with tests. Blank-line collapsing
+      relaxed to two so Python spacing survives.
+- [x] A malformed timestamp in the config no longer bricks every command.

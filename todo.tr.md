@@ -114,3 +114,7 @@
       bırakmıyor (okumayı atlar, yazmayı değil).
 - [x] Önbellek doğruluğu: anahtar çalışma dizinini içeriyor; bilgi talebi
       cevapları ('dosya bulunamadı, paylaşın') hiç saklanmıyor.
+- [x] Çıktı filtresi kodu bozuyordu: "tekrar eden satırı at" kuralı iç içe
+      blokların ikinci `}` satırını yiyordu. Kaldırıldı, testi eklendi. Boş
+      satır tekilleştirmesi ikiye gevşetildi (Python aralıkları korunsun).
+- [x] Config'teki bozuk zaman damgası artık tüm komutları kilitlemiyor.
