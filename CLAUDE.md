@@ -172,6 +172,18 @@ cem/
   sandbox is read-only → nothing is produced and the writer is skipped.
   Measured on the same prompt: 49s and no files, versus 27.5s with two files
   and 10 passing tests after the fix.
+- **A question is not a task, even when the answer contains code.** "lua'da
+  hello world nasıl yazılır?" made the thinker show an example in a fenced
+  block; the writer took that for a job and dropped `hello.lua` into the
+  working directory — a file the user never asked for, plus a second AI call
+  on the bill. When the request matches no code-request keyword *and* looks
+  like a question, the writer is skipped (`looksLikeQuestion`). The polite
+  imperative is the exception and must stay one: "siler misin?" ends in a
+  question mark but expects a file, so `politeRequestRe` (`m[ıiuü]s[ıiu]n`,
+  `can you`, `please`) vetoes the question verdict. Extending the keyword
+  dictionary instead would mean listing every Turkish conjugation
+  (`sil`/`siler`/`silebilir`/…) — the request *shape* is the smaller thing to
+  match.
 - **Do not use `\b` in the request-classifier regex.** Go's `\b` is ASCII, so
   Turkish-initial words (`çevir`, `üret`) never matched even after a space —
   silently skipping the writer. Use `(^|[^\p{L}])…([^\p{L}]|$)`.

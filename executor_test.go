@@ -594,3 +594,42 @@ func TestToolStreamStdoutSpinneriDurdurur(t *testing.T) {
 		t.Fatalf("cevap ekrana ulaşmadı: %q", buf.String())
 	}
 }
+
+// Sahada görüldü (2026-09-09): "lua da helloworld nasıl yazılır?" sorusunda
+// thinker örneği bir kod bloğunda gösterdi, writer bunu görev sanıp çalışma
+// dizinine hello.lua bıraktı. Soru soran kullanıcı cevap bekler, dosya değil —
+// üstelik ikinci AI çağrısı da boşuna faturalanıyor.
+func TestSoruWriterAtlanir(t *testing.T) {
+	sorular := []string{
+		"lua da helloworld nasıl yazılır?",
+		"lua da helloworld nasil yazilir",
+		"goroutine nedir",
+		"how do i reverse a slice in go?",
+		"what is a channel",
+	}
+	for _, s := range sorular {
+		if looksLikeCodeRequest(s) {
+			t.Errorf("soru kod isteği sanıldı: %q", s)
+		}
+		if !looksLikeQuestion(s) {
+			t.Errorf("soru tanınmadı, writer gereksiz çalışır: %q", s)
+		}
+	}
+	// Rica kipi soru işaretiyle biter ama iştir: "siler misin?" dendiğinde
+	// dosya beklenir. Sözlük her fiil çekimini tutamıyor (siler/silebilir),
+	// bu yüzden asıl korumayı looksLikeQuestion'ın rica kontrolü veriyor.
+	isler := []string{
+		"pi'nin ilk 100 basamağını yazan script oluşturur musun?",
+		"bu importları siler misin? kullanılmıyorlar",
+		"can you write a retry helper?",
+		"şu testleri çalışır hale getirebilir misiniz?",
+	}
+	for _, s := range isler {
+		if looksLikeQuestion(s) {
+			t.Errorf("rica kipi bilgi sorusu sanıldı, writer atlanır: %q", s)
+		}
+	}
+	if looksLikeQuestion("") {
+		t.Error("boş metin soru sayıldı")
+	}
+}

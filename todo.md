@@ -183,3 +183,7 @@
       run that answered "nothing new to write"; a prompt dialog opens instead,
       as `plugin.xml` already claimed. Tab titles are stripped of markdown and
       emoji, and the output pane word-wraps instead of cutting lines off.
+- [x] A question no longer produces a file: "lua'da hello world nasıl
+      yazılır?" ran the writer (because the thinker's answer had a code block)
+      and left an unwanted `hello.lua` in the working directory. Questions skip
+      the writer; polite imperatives ("siler misin?") still don't.

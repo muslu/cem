@@ -138,3 +138,7 @@
       "yazılacak yeni kod yok" cevabı döndürüyordu; artık `plugin.xml`'in
       zaten söylediği gibi prompt kutusu açılıyor. Sekme başlıklarından
       markdown/emoji ayıklanıyor, çıktı paneli satırı kesmek yerine sarıyor.
+- [x] Soru artık dosya üretmiyor: "lua da helloworld nasıl yazılır?" isteğinde
+      düşünenin cevabında kod bloğu olduğu için yazan çalışıyor ve çalışma
+      dizinine istenmeyen `hello.lua` bırakıyordu. Sorularda yazan atlanıyor;
+      rica kipi ("siler misin?") iş sayılmaya devam ediyor.

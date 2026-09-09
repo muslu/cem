@@ -150,6 +150,21 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 				"\n  (nothing to write, writer skipped)")))
 			return nil
 		}
+		// Soru soruldu, iş verilmedi: cevabın içinde kod bloğu OLMASI writer'ı
+		// çağırmak için yeterli değil. "lua'da hello world nasıl yazılır?"
+		// isteğinde thinker örneği gösterdi, writer bunu görev sanıp çalışma
+		// dizinine hello.lua bıraktı — kullanıcının hiç istemediği bir dosya
+		// (sahada görüldü 2026-09-09) ve ikinci bir AI çağrısının faturası.
+		// Kod isteği sözlüğü eşleşmiyorsa ve cümle soruysa cevap zaten ekranda.
+		if !codeTask && looksLikeQuestion(input) {
+			fmt.Println(styleDim.Render(L(
+				"\n  (soru soruldu, dosya istenmedi — writer atlandı)",
+				"\n  (this was a question, not a task — writer skipped)")))
+			fmt.Println(styleDim.Render(L(
+				"    Kodun dosyaya yazılmasını istiyorsan görev gibi yaz: \"... yaz\" / \"... oluştur\".",
+				"    To get the code written to a file, phrase it as a task: \"write ...\".")))
+			return nil
+		}
 		// Thinker plan yerine bilgi istediyse (dosya yok, bağlam eksik)
 		// writer'ı çağırmak aynı soruyu ikinci kez sordurmaktan ibaret.
 		// Sahada görüldü: "add retries to client.go" — dosya yok; thinker
@@ -836,6 +851,45 @@ func looksLikeClarification(s string) bool {
 // looksLikeCodeRequest — input metni kod yazılması/üretilmesi gerektiğini ima ediyor mu.
 func looksLikeCodeRequest(s string) bool {
 	return codeRequestRe.MatchString(s)
+}
+
+// questionRe — "iş" değil "bilgi" isteyen kalıplar. codeRequestRe ile aynı
+// sınır tekniği: \b Go'da ASCII tabanlı, "nasıl" gibi Türkçe harf içeren
+// kelimelerde sessizce ıskalıyor.
+var questionRe = regexp.MustCompile(`(?i)(^|[^\p{L}])(` +
+	`nasıl|nasil|nedir|ne demek|neden|niçin|nicin|hangisi|` +
+	`mıdır|midir|mudur|müdür|` +
+	`how (do|does|can|to|is|are)|what (is|are|does)|what's|` +
+	`why (is|do|does|are)|which (is|one)|when (do|does)` +
+	`)([^\p{L}]|$)`)
+
+// politeRequestRe — soru KALIBIYLA verilen emir: "siler misin?", "yazar
+// mısınız", "can you add ...". Türkçe'de rica kipi soru ekiyle kurulur, bu
+// yüzden soru işareti tek başına "bilgi istendi" demek değildir. Sözlükteki
+// fiil köklerinin bütün çekimlerini (siler/silebilir/silsene...) listelemek
+// yerine rica kalıbının kendisini tanıyoruz.
+var politeRequestRe = regexp.MustCompile(`(?i)(^|[^\p{L}])(` +
+	`m[ıiuü]s[ıiu]n(?:[ıiuü]z)?|lütfen|lutfen|` +
+	`can you|could you|would you|will you|please` +
+	`)([^\p{L}]|$)`)
+
+// looksLikeQuestion — kullanıcı bir şey YAPILMASINI değil, ANLATILMASINI mı
+// istedi? Soru işareti tek başına yeterli sayılıyor ("X nasıl yazılır?"):
+// böyle bir istekte kullanıcı cevabı bekler, çalışma dizininde dosya değil.
+// Rica kipi bunun dışında — "siler misin?" soru işaretiyle biter ama iştir.
+// Karar YALNIZ looksLikeCodeRequest eşleşmediğinde kullanılır.
+func looksLikeQuestion(s string) bool {
+	t := strings.TrimSpace(s)
+	if t == "" {
+		return false
+	}
+	if politeRequestRe.MatchString(t) {
+		return false
+	}
+	if strings.HasSuffix(t, "?") {
+		return true
+	}
+	return questionRe.MatchString(t)
 }
 
 // fallbackInstallPath — araç PATH'da yoksa standart konumlarda arar.
