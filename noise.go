@@ -142,31 +142,3 @@ func filterText(toolKey, s string) string {
 	_ = nf.Close()
 	return strings.TrimRight(buf.String(), "\n")
 }
-
-// urlPassthrough — quiet modda stderr ekrana basılmaz; tek istisna, içinde
-// bağlantı geçen satırlardır. Bir araç OAuth için "şu adresi aç" diyorsa
-// kullanıcı onu görmeden ilerleyemez.
-type urlPassthrough struct {
-	out io.Writer
-	buf bytes.Buffer
-}
-
-var urlRe = regexp.MustCompile(`https?://\S+`)
-
-func (u *urlPassthrough) Write(p []byte) (int, error) {
-	n := len(p)
-	u.buf.Write(p)
-	for {
-		line, err := u.buf.ReadString('\n')
-		if err != nil {
-			u.buf.Reset()
-			u.buf.WriteString(line)
-			return n, nil
-		}
-		if urlRe.MatchString(line) {
-			if _, werr := io.WriteString(u.out, line); werr != nil {
-				return n, werr
-			}
-		}
-	}
-}

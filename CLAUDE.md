@@ -150,6 +150,14 @@ cem/
   request printed the same 28-line diff 4×). cem shows a spinner and prints
   only the final message the tool writes to the temp file. The raw stream is
   still captured for error-signature triage.
+- **In quiet mode stderr is never echoed to the screen.** codex writes both its
+  banner *and* the answer itself to stderr, so echoing it duplicates every
+  answer next to the one printed from the last-message file. A "pass through
+  lines containing a URL" compromise (so an interactive login link is not
+  missed) was tried and reverted: answers contain links too, and a
+  single-long-line answer leaks entirely. Login/error information still
+  surfaces — stderr's tail is printed when the run fails or produces no final
+  message.
 - **Auto-update runs detached** (`detachProcess`) and cannot write back to the
   config; version fields are refreshed on the *next* run in
   `maybeAutoUpdateTools`. Disable with `auto_update_tools: false`.

@@ -628,6 +628,7 @@ func runQuiet(toolKey string, rc *ResolvedConfig, input string, meta ToolMeta,
 	}
 
 	var out string
+	var stderrText string
 	if sp == nil {
 		sp = StartSpinner(label)
 	}
@@ -640,19 +641,24 @@ func runQuiet(toolKey string, rc *ResolvedConfig, input string, meta ToolMeta,
 		outTail := &tailWriter{n: 8 << 10}
 		cmd.Stdout = outTail
 		var errBuf bytes.Buffer
-		// Quiet modda stderr EKRANA BASILMAZ: codex hem banner'ını hem de
+		// Quiet modda stderr EKRANA HİÇ BASILMAZ: codex hem banner'ını hem de
 		// cevabın kendisini stderr'e yazıyor; ekrana verirsek dosyadan
-		// bastığımız final mesajla birlikte cevap iki kez görünür. Yine de
-		// kullanıcının beklediği tek şey kaçmasın diye interaktif login
-		// bağlantıları anında geçirilir.
-		sw := &stopWriter{sp: sp, inner: os.Stderr}
-		cmd.Stderr = io.MultiWriter(&errBuf, &urlPassthrough{out: sw})
+		// bastığımız final mesajla birlikte cevap İKİ KEZ görünür.
+		//
+		// Burada bir ara çözüm denendi ve geri alındı: "içinde bağlantı geçen
+		// satırları geçir" (interaktif login URL'i kaçmasın diye). Cevabın
+		// kendisi de link içerebiliyor ve tek uzun satır olduğunda çıktının
+		// tamamı sızıyor — sahada tam olarak bu oldu. Login/hata bilgisi
+		// zaten aşağıda gösteriliyor: hata varsa ya da araç final mesaj
+		// üretemediyse stderr'in son satırları basılır.
+		cmd.Stderr = &errBuf
 		cmd.Env = env
 		err := cmd.Run()
+		stderrText = errBuf.String()
 		if err == nil {
 			return nil
 		}
-		combined := errBuf.String() + "\n" + outTail.String()
+		combined := stderrText + "\n" + outTail.String()
 		if looksLikeRateLimit(combined) {
 			return errRateLimit
 		}
@@ -675,9 +681,11 @@ func runQuiet(toolKey string, rc *ResolvedConfig, input string, meta ToolMeta,
 
 	data, err := os.ReadFile(tmpPath)
 	if err != nil || len(bytes.TrimSpace(data)) == 0 {
-		// Araç final mesajı yazamadıysa sessiz kalmayalım.
+		// Araç final mesaj üretmediyse sessiz kalmayalım: çoğu zaman sebebi
+		// stderr'de duruyor (login isteği, kota uyarısı).
 		fmt.Println(styleDim.Render(L("  (araç final mesaj üretmedi — ham çıktı için: --raw)",
 			"  (the tool produced no final message — use --raw for the raw output)")))
+		printTail(filterText(toolKey, stderrText), 10)
 		return "", nil
 	}
 	out = strings.TrimRight(string(data), "\n")

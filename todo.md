@@ -134,3 +134,4 @@
       (green); the "Open source" line only shows on the banner screen and the
       global-config line is silent (project config still announced).
 - [ ] README / README.tr: document `cem lang`, `cem effort`, `--raw`.
+- [x] Quiet-mode double print: the URL passthrough leaked whole answers; removed.
