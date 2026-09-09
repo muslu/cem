@@ -151,6 +151,7 @@ var rolesCmd = &cobra.Command{
 			fmt.Println(styleSuccess.Render("✓ Proje rolleri güncellendi → .cem.yaml"))
 		} else {
 			rc.Global.Roles = current
+			applyRoleDefaults(rc.Global, rc.Global.Roles.Thinker, rc.Global.Roles.Writer)
 			if err := saveGlobalConfig(rc.Global); err != nil {
 				fmt.Println(styleError.Render("✗ " + err.Error()))
 				os.Exit(1)

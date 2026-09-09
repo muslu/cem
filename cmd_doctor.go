@@ -141,6 +141,51 @@ func runDoctor() {
 		tick("warn", L("~/.local/bin veya /usr/local/bin PATH'da değil", "neither ~/.local/bin nor /usr/local/bin is in PATH"))
 	}
 
+	// ─── Maliyet kurulumu ────────────────────────────────────────────────
+	// Deneyimsiz kullanıcı ayarları kurcalamasa bile israfsız çalışmalı;
+	// kurcalamışsa nerede para yaktığını burada görsün.
+	fmt.Println()
+	fmt.Println(styleBold.Render(L("  Maliyet kurulumu", "  Cost setup")))
+
+	if e := resolveEffort(roles.Writer, rc); e == "high" || e == "xhigh" || e == "max" {
+		tick("warn", fmt.Sprintf(L(
+			"writer düşünme seviyesi '%s' — yazan rol planı uyguluyor, düşürmek ucuzlatır (cem effort %s low)",
+			"writer effort is '%s' — the writer only implements the plan; lowering it is cheaper (cem effort %s low)"),
+			e, roles.Writer))
+	} else {
+		tick("ok", fmt.Sprintf(L("writer düşünme seviyesi: %s", "writer effort: %s"), orDefaultLabel(e)))
+	}
+
+	if e := resolveEffort(roles.Thinker, rc); e == "" || e == "low" || e == "minimal" {
+		tick("warn", fmt.Sprintf(L(
+			"thinker düşünme seviyesi '%s' — planı o çıkarıyor, yükseltmek kaliteyi artırır (cem effort %s high)",
+			"thinker effort is '%s' — it produces the plan; raising it improves quality (cem effort %s high)"),
+			orDefaultLabel(e), roles.Thinker))
+	} else {
+		tick("ok", fmt.Sprintf(L("thinker düşünme seviyesi: %s", "thinker effort: %s"), e))
+	}
+
+	for _, key := range []string{roles.Thinker, roles.Writer} {
+		if len(KnownTools[key].FastArgs) == 0 {
+			continue
+		}
+		if resolveFast(key, rc) {
+			tick("ok", fmt.Sprintf(L("%s hızlı modda (hook/izin kuralı yüklenmiyor)",
+				"%s runs in fast mode (hooks/permission rules not loaded)"), key))
+		} else {
+			tick("warn", fmt.Sprintf(L(
+				"%s hızlı mod kapalı — her çağrıda kullanıcı ayarları yeniden yükleniyor (cem fast %s on)",
+				"%s fast mode is off — user settings reload on every call (cem fast %s on)"), key, key))
+		}
+	}
+
+	if cacheEnabled("thinker", rc.Global) {
+		tick("ok", L("düşünme önbelleği açık — aynı soru ikinci kez faturalanmıyor",
+			"thinking cache is on — the same question is not billed twice"))
+	} else {
+		tick("warn", L("düşünme önbelleği kapalı (cache_disabled)", "thinking cache is off (cache_disabled)"))
+	}
+
 	fmt.Println()
 	summary := fmt.Sprintf(L("ok:%d  uyarı:%d  hata:%d", "ok:%d  warn:%d  fail:%d"), ok, warn, fail)
 	switch {
@@ -152,4 +197,12 @@ func runDoctor() {
 		fmt.Println("  " + styleSuccess.Render(L("● Sistem sağlıklı — ", "● Healthy — ")) + summary)
 	}
 	fmt.Println()
+}
+
+// orDefaultLabel — boş seviye için okunur etiket.
+func orDefaultLabel(e string) string {
+	if e == "" {
+		return L("CLI default", "CLI default")
+	}
+	return e
 }

@@ -173,7 +173,12 @@ cem/
   single-long-line answer leaks entirely. Login/error information still
   surfaces — stderr's tail is printed when the run fails or produces no final
   message.
-- **Fast mode is off by default** (`cem fast`, `ToolMeta.FastArgs`). It skips the
+- **Defaults are chosen to keep the user's bill down**, because an
+  inexperienced user never touches the config: thinker plans / writer
+  implements, thinker effort high + writer effort low (`applyRoleDefaults`),
+  thinking cached, fast mode on, writer skipped when there is nothing to write.
+  A new default must be argued in those terms. `cem doctor` audits the setup.
+- **Fast mode is ON by default** (`cem fast`, `ToolMeta.FastArgs`). It skips the
   tool's user settings — hooks, permission rules, MCP — and auto-approves file
   edits. Measured on claude 2.1.266, same task, file written in both runs:
   **124s normally, 8s in fast mode**; the difference is the user's hook/plugin

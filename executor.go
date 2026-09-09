@@ -156,6 +156,20 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 				"\n  (nothing to write, writer skipped)")))
 			return nil
 		}
+		// Thinker plan yerine bilgi istediyse (dosya yok, bağlam eksik)
+		// writer'ı çağırmak aynı soruyu ikinci kez sordurmaktan ibaret.
+		// Sahada görüldü: "add retries to client.go" — dosya yok; thinker
+		// "dosyayı paylaşın" dedi, writer 12.2s harcayıp aynı şeyi sordu.
+		if !hasCodeBlock(thought) && looksLikeClarification(thought) {
+			fmt.Println()
+			fmt.Println(styleWarn.Render(L(
+				"  ⚠ thinker plan yerine bilgi istedi — writer atlandı",
+				"  ⚠ the thinker asked for information instead of planning — writer skipped")))
+			fmt.Println(styleDim.Render(L(
+				"    Sorusunu yanıtlayıp tekrar çalıştır (veya -f ile dosyayı ver).",
+				"    Answer it and run again (or pass the file with -f).")))
+			return nil
+		}
 
 		// Düşünme bitti, yazma başlıyor: iki AI'ın çıktısı arka arkaya aktığı
 		// için görsel ayraç olmadan nerede bittiği anlaşılmıyor.
@@ -367,10 +381,13 @@ func resolveFast(toolKey string, rc *ResolvedConfig) bool {
 			return v
 		}
 	}
-	if t, ok := rc.Global.Tools[toolKey]; ok {
-		return t.Fast
+	if t, ok := rc.Global.Tools[toolKey]; ok && t.Fast != nil {
+		return *t.Fast
 	}
-	return false
+	// Ayarlanmamışsa AÇIK. Aynı görevde ölçüldü: 124s → 8s; farkın tamamı
+	// aracın kullanıcı ayarlarını (hook/plugin/MCP) her çağrıda yeniden
+	// yüklemesinden geliyor. Kendi hook'larına güvenen: cem fast <araç> off.
+	return true
 }
 
 // resolveEffort — toolKey için kullanılacak düşünme seviyesi. Öncelik
@@ -456,9 +473,12 @@ func printSeparator() {
 func describeToolRun(toolKey string, rc *ResolvedConfig) string {
 	model := resolveModel(toolKey, rc)
 	effort := resolveEffort(toolKey, rc)
+	// Hızlı mod artık varsayılan; her başlıkta tekrarlamak gürültü olurdu.
+	// Durumu 'cem fast' ve 'cem doctor' gösteriyor. Kapatıldığında ise
+	// çalıştırma belirgin şekilde yavaşlar, bu yüzden orada belirtiliyor.
 	suffix := ""
-	if resolveFast(toolKey, rc) {
-		suffix = " · fast"
+	if len(KnownTools[toolKey].FastArgs) > 0 && !resolveFast(toolKey, rc) {
+		suffix = " · " + L("tam ayarlar", "full settings")
 	}
 	switch {
 	case model == "" && effort == "":
@@ -732,6 +752,35 @@ var codeRequestRe = regexp.MustCompile(`(?i)(^|[^\p{L}])(` + codeRequestKeywords
 // hasCodeBlock — metin markdown kod bloğu içeriyor mu (``` veya satır başı 4-boşluk değil).
 func hasCodeBlock(s string) bool {
 	return strings.Contains(s, "```")
+}
+
+// clarificationRe — thinker'ın "şunu paylaşır mısın" kalıpları.
+var clarificationRe = regexp.MustCompile(`(?i)(paylaşır mısın|paylaşın|belirtir misin|` +
+	`hangi dosya|dosyayı ver|bulunmuyor|bulamadım|net değil|` +
+	`could you (share|provide)|please (share|provide)|which file|not found in the repo|` +
+	`i (could not|couldn't) find|need more (context|information))`)
+
+// looksLikeClarification — metin bir plan değil, bilgi talebi mi? İki işaret
+// birlikte aranıyor: açık bir talep kalıbı VEYA soru işaretiyle biten bir
+// kapanış. Tek başına soru işareti yetmiyor — planlar da soru cümlesi
+// içerebiliyor.
+func looksLikeClarification(s string) bool {
+	t := strings.TrimSpace(s)
+	if t == "" {
+		return false
+	}
+	if clarificationRe.MatchString(t) {
+		return true
+	}
+	lines := strings.Split(t, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		last := strings.TrimSpace(lines[i])
+		if last == "" {
+			continue
+		}
+		return strings.HasSuffix(last, "?")
+	}
+	return false
 }
 
 // looksLikeCodeRequest — input metni kod yazılması/üretilmesi gerektiğini ima ediyor mu.

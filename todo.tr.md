@@ -107,3 +107,6 @@
       124s → 8s ölçüldü. Varsayılan kapalı.
 - [x] Yazan rolde canlı süreli spinner; hook gürültüsü filtrelendi.
 - [x] Dile göre diyagramlar (`*.svg` İngilizce, `*.tr.svg` Türkçe).
+- [x] Hızlı mod artık varsayılan; rol bazlı seviye varsayılanları
+      (`applyRoleDefaults`); `cem doctor` maliyet kurulumunu denetliyor;
+      düşünen plan yerine bilgi istediyse yazan atlanıyor.

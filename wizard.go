@@ -155,6 +155,10 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 			fmt.Println(styleDim.Render("    Sonra: cem init"))
 		}
 	}
+	// Kullanıcı seviye sorusunu boş geçtiyse rol bazlı varsayılanı yaz —
+	// deneyimsiz kullanıcı da israfsız bir kurulumla çıksın.
+	applyRoleDefaults(cfg, thinker, writer)
+
 	fmt.Println()
 	printRolesTable(thinker, writer, &ResolvedConfig{Global: cfg})
 	fmt.Println()

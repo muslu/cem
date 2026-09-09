@@ -152,3 +152,6 @@
       124s → 8s on the same task. Off by default.
 - [x] Writer now shows a live spinner with elapsed time; hook noise filtered.
 - [x] Language-specific diagrams (`*.svg` English, `*.tr.svg` Turkish).
+- [x] Fast mode is now the default; role-based effort defaults
+      (`applyRoleDefaults`); `cem doctor` audits the cost setup; the writer is
+      skipped when the thinker asked for information instead of planning.

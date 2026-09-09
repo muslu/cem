@@ -27,8 +27,9 @@ type InstalledTool struct {
 	// codex: minimal..xhigh). Boş ise CLI kendi default'unu kullanır.
 	Effort string `yaml:"effort,omitempty"`
 	// Fast — hızlı mod: aracın kullanıcı ayarlarını (hook, izin kuralı, MCP)
-	// yüklemesini atla. Bkz. ToolMeta.FastArgs.
-	Fast bool `yaml:"fast,omitempty"`
+	// yüklemesini atla. nil = ayarlanmamış → VARSAYILAN AÇIK (ölçülen fark
+	// 124s → 8s). Kapatmak için: cem fast <araç> off. Bkz. ToolMeta.FastArgs.
+	Fast *bool `yaml:"fast,omitempty"`
 }
 
 // APIKey — bir provider için saklanan tek bir API key. Label opsiyonel (insan
@@ -278,6 +279,61 @@ var KnownTools = map[string]ToolMeta{
 // KnownTools map iterasyonu rastgele; UI tutarlılığı için bu liste kullanılır.
 var orderedToolKeys = []string{
 	"claude", "agy", "gpt", "cursor",
+}
+
+// ─── Rol bazlı varsayılanlar ─────────────────────────────────────────────
+
+// Kullanıcı hiçbir şey ayarlamasa bile kurulum israfsız olmalı. Rol seçildiği
+// anda maliyet-optimal düşünme seviyesi yazılır:
+//
+//	thinker → planı O çıkarıyor; derin düşünsün, çıktısı zaten kısa
+//	writer  → planı uyguluyor; derin düşünmesine gerek yok, çıktısı uzun
+//
+// Model seçimi bilinçli olarak CLI'ın kendi varsayılanına bırakılıyor:
+// sağlayıcılar model adlarını sık değiştiriyor, sabit bir ad yazmak
+// kullanıcıyı erişemediği bir modele kilitleyebilir (sahada yaşandı:
+// gpt-5-mini ChatGPT hesabıyla, gpt-5.5 ücretsiz planla çalışmıyor).
+
+// defaultEffortForRole — rol için önerilen seviye; araç desteklemiyorsa "".
+func defaultEffortForRole(toolKey, role string) string {
+	meta, ok := KnownTools[toolKey]
+	if !ok || len(meta.Efforts) == 0 || len(meta.EffortArgs) == 0 {
+		return ""
+	}
+	want := "high"
+	if role == "writer" {
+		want = "low"
+	}
+	for _, e := range meta.Efforts {
+		if e == want {
+			return e
+		}
+	}
+	return ""
+}
+
+// applyRoleDefaults — rol atandığında (setup / cem roles) boş bırakılmış
+// seviyeleri doldurur. Kullanıcının açık seçimini ASLA ezmez.
+func applyRoleDefaults(cfg *GlobalConfig, thinker, writer string) {
+	if cfg.Tools == nil {
+		return
+	}
+	for _, pair := range []struct{ key, role string }{
+		{thinker, "thinker"},
+		{writer, "writer"},
+	} {
+		if pair.key == "" {
+			continue
+		}
+		t, ok := cfg.Tools[pair.key]
+		if !ok || t.Effort != "" {
+			continue
+		}
+		if e := defaultEffortForRole(pair.key, pair.role); e != "" {
+			t.Effort = e
+			cfg.Tools[pair.key] = t
+		}
+	}
 }
 
 // ─── Yollar ──────────────────────────────────────────────────────────────────

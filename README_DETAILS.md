@@ -17,6 +17,24 @@ Everything beyond the [README](README.md). Türkçe:
 
 ---
 
+## 0. Defaults that keep the bill down
+
+You do not have to configure anything. Out of the box cem is set up so the
+expensive model decides and the cheap one types:
+
+| Default | Why |
+|---|---|
+| In pair mode the thinker **does not write code** | otherwise both models solve the task and the same work is billed twice |
+| Thinker effort **high**, writer effort **low** | the thinker produces the plan; the writer only implements it |
+| The thinker's answers are **cached** | asking the same thing twice does not pay for the same reasoning twice |
+| The writer is **not** cached | it creates files; replaying its answer would leave none behind |
+| **Fast mode on** | the tool's hooks/permission rules are not reloaded on every call — measured 124s → 8s |
+| The writer is **skipped** when there is nothing to write | no code task, or the thinker asked for missing information |
+| Tool banners and logs are **filtered** | they also inflate the prompt handed to the writer |
+
+`cem doctor` checks this setup and says where you are paying more than you
+need to. Every default can be overridden — see the sections below.
+
 ## 1. Install
 
 **macOS / Linux / WSL:**

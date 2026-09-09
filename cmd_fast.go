@@ -104,7 +104,7 @@ func setGlobalFast(rc *ResolvedConfig, toolKey string, on bool, meta ToolMeta) {
 		rc.Global.Tools = map[string]InstalledTool{}
 	}
 	t := rc.Global.Tools[toolKey]
-	t.Fast = on
+	t.Fast = &on
 	rc.Global.Tools[toolKey] = t
 	if err := saveGlobalConfig(rc.Global); err != nil {
 		fmt.Println(styleError.Render("✗ " + err.Error()))

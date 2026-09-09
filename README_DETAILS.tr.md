@@ -17,6 +17,24 @@
 
 ---
 
+## 0. Faturayı düşük tutan varsayılanlar
+
+Hiçbir şey ayarlamana gerek yok. cem kutudan çıktığı hâliyle pahalı model karar
+verecek, ucuz model yazacak şekilde kurulu:
+
+| Varsayılan | Neden |
+|---|---|
+| Pair modunda düşünen **kod yazmaz** | yoksa iki model de görevi çözer, aynı iş iki kez faturalanır |
+| Düşünen seviyesi **high**, yazan **low** | planı düşünen çıkarır; yazan yalnızca uygular |
+| Düşünenin cevapları **önbelleğe alınır** | aynı soruyu ikinci kez sormak aynı akıl yürütmeyi ikinci kez ödemek olmasın |
+| Yazan **önbelleğe alınmaz** | dosya oluşturuyor; cevabı tekrar basmak ortada dosya bırakmazdı |
+| **Hızlı mod açık** | aracın hook/izin kuralları her çağrıda yeniden yüklenmez — ölçüldü: 124s → 8s |
+| Yazılacak bir şey yoksa yazan **atlanır** | kod işi değilse ya da düşünen eksik bilgi sorduysa |
+| Araç banner ve logları **filtrelenir** | yazana giden prompt'u da şişiriyorlar |
+
+`cem doctor` bu kurulumu denetler ve gereğinden fazla ödediğin yeri söyler.
+Tüm varsayılanlar değiştirilebilir — aşağıdaki bölümlere bak.
+
 ## 1. Kurulum
 
 **macOS / Linux / WSL:**

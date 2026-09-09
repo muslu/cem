@@ -153,8 +153,10 @@ func rcWith(tools map[string]InstalledTool, proj *ProjectConfig) *ResolvedConfig
 // TestBuildArgsClaudeEffortPromptuYutmaz — claude'da -p PROMPT pozisyonel;
 // --effort ile --model, -p'den ÖNCE gelmeli yoksa prompt kaybolur.
 func TestBuildArgsClaudeEffortPromptuYutmaz(t *testing.T) {
+	// Hızlı mod kapalı: sadece model + effort + -p + prompt.
+	off := false
 	rc := rcWith(map[string]InstalledTool{
-		"claude": {Model: "sonnet", Effort: "xhigh"},
+		"claude": {Model: "sonnet", Effort: "xhigh", Fast: &off},
 	}, nil)
 	got := buildArgs(KnownTools["claude"], "claude", rc, "merhaba")
 	want := []string{"--model", "sonnet", "--effort", "xhigh", "-p", "merhaba"}
@@ -166,8 +168,18 @@ func TestBuildArgsClaudeEffortPromptuYutmaz(t *testing.T) {
 			t.Fatalf("args = %q\nwant %q", got, want)
 		}
 	}
-	if got[len(got)-1] != "merhaba" {
-		t.Error("prompt son argüman değil")
+
+	// Hızlı mod açıkken de prompt EN SONDA kalmalı: -p argümanını yutarsa
+	// istek yolda kaybolur.
+	rcFast := rcWith(map[string]InstalledTool{
+		"claude": {Model: "sonnet", Effort: "xhigh"},
+	}, nil)
+	gotFast := buildArgs(KnownTools["claude"], "claude", rcFast, "merhaba")
+	if gotFast[len(gotFast)-1] != "merhaba" {
+		t.Errorf("prompt son argüman değil: %q", gotFast)
+	}
+	if i := indexOf(gotFast, "-p"); i != len(gotFast)-2 {
+		t.Errorf("-p prompt'tan hemen önce değil: %q", gotFast)
 	}
 }
 
@@ -217,6 +229,7 @@ func TestProjeEffortGlobaliEzer(t *testing.T) {
 }
 
 func TestDescribeToolRun(t *testing.T) {
+	// Hızlı mod varsayılan: başlıkta belirtilmez.
 	cases := []struct{ model, effort, want string }{
 		{"sonnet", "high", "sonnet · high"},
 		{"sonnet", "", "sonnet"},
@@ -228,6 +241,13 @@ func TestDescribeToolRun(t *testing.T) {
 		if got := describeToolRun("claude", rc); got != c.want {
 			t.Errorf("model=%q effort=%q → %q, beklenen %q", c.model, c.effort, got, c.want)
 		}
+	}
+
+	// Kapatıldığında görünür olmalı: kullanıcı yavaşlığın sebebini bilsin.
+	off := false
+	rc := rcWith(map[string]InstalledTool{"claude": {Model: "sonnet", Fast: &off}}, nil)
+	if got := describeToolRun("claude", rc); !contains(got, "settings") && !contains(got, "ayarlar") {
+		t.Errorf("hızlı mod kapalıyken başlıkta belirtilmedi: %q", got)
 	}
 }
 
@@ -365,7 +385,7 @@ func TestFormatDuration(t *testing.T) {
 // claude'da -p prompt'u yutuyor.
 func TestFastArgsSirasi(t *testing.T) {
 	rc := rcWith(map[string]InstalledTool{
-		"claude": {Model: "sonnet", Effort: "low", Fast: true},
+		"claude": {Model: "sonnet", Effort: "low"},
 	}, nil)
 	got := buildArgs(KnownTools["claude"], "claude", rc, "görev")
 	joined := strings.Join(got, " ")
@@ -382,28 +402,64 @@ func TestFastArgsSirasi(t *testing.T) {
 	}
 }
 
-// TestFastVarsayilanKapali — kullanıcının izin kurallarını sessizce atlamamalı.
-func TestFastVarsayilanKapali(t *testing.T) {
+// TestFastVarsayilanAcik — ayarlanmamışsa hızlı mod açık olmalı (ölçülen
+// 124s → 8s), açıkça kapatıldığında argümanlar hiç eklenmemeli.
+func TestFastVarsayilanAcik(t *testing.T) {
 	rc := rcWith(map[string]InstalledTool{"claude": {Model: "sonnet"}}, nil)
-	if resolveFast("claude", rc) {
-		t.Error("hızlı mod varsayılan olarak açık")
+	if !resolveFast("claude", rc) {
+		t.Error("hızlı mod varsayılan olarak kapalı")
 	}
-	for _, a := range buildArgs(KnownTools["claude"], "claude", rc, "x") {
+
+	off := false
+	rcOff := rcWith(map[string]InstalledTool{"claude": {Model: "sonnet", Fast: &off}}, nil)
+	if resolveFast("claude", rcOff) {
+		t.Error("cem fast claude off dikkate alınmadı")
+	}
+	for _, a := range buildArgs(KnownTools["claude"], "claude", rcOff, "x") {
 		if a == "--setting-sources" || a == "--permission-mode" {
 			t.Errorf("kapalıyken hızlı mod argümanı sızdı: %q", a)
 		}
 	}
-	// Araç desteklemiyorsa config'te true olsa bile uygulanmaz.
-	rcGpt := rcWith(map[string]InstalledTool{"gpt": {Fast: true}}, nil)
+
+	// Araç desteklemiyorsa (FastArgs boş) hiçbir zaman açılmaz.
+	on := true
+	rcGpt := rcWith(map[string]InstalledTool{"gpt": {Fast: &on}}, nil)
 	if resolveFast("gpt", rcGpt) {
 		t.Error("FastArgs tanımsız araçta hızlı mod açıldı")
 	}
 }
 
+// TestRolVarsayilanlari — deneyimsiz kullanıcı hiçbir şey ayarlamasa bile
+// thinker derin, writer ucuz çalışmalı.
+func TestRolVarsayilanlari(t *testing.T) {
+	if got := defaultEffortForRole("claude", "thinker"); got != "high" {
+		t.Errorf("thinker varsayılanı %q, beklenen high", got)
+	}
+	if got := defaultEffortForRole("claude", "writer"); got != "low" {
+		t.Errorf("writer varsayılanı %q, beklenen low", got)
+	}
+	if got := defaultEffortForRole("agy", "thinker"); got != "" {
+		t.Errorf("seviye desteklemeyen araç için %q döndü", got)
+	}
+
+	cfg := &GlobalConfig{Tools: map[string]InstalledTool{
+		"gpt":    {},
+		"claude": {Effort: "xhigh"}, // kullanıcının açık seçimi
+	}}
+	applyRoleDefaults(cfg, "gpt", "claude")
+	if cfg.Tools["gpt"].Effort != "high" {
+		t.Errorf("thinker'a varsayılan yazılmadı: %q", cfg.Tools["gpt"].Effort)
+	}
+	if cfg.Tools["claude"].Effort != "xhigh" {
+		t.Error("kullanıcının açık seçimi ezildi")
+	}
+}
+
 // TestProjeFastGlobaliEzer — .cem.yaml global'i ezmeli (false dahil).
 func TestProjeFastGlobaliEzer(t *testing.T) {
+	on := true
 	rc := rcWith(
-		map[string]InstalledTool{"claude": {Fast: true}},
+		map[string]InstalledTool{"claude": {Fast: &on}},
 		&ProjectConfig{Fast: map[string]bool{"claude": false}},
 	)
 	if resolveFast("claude", rc) {
