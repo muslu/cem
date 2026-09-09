@@ -67,9 +67,19 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		thinkerLabel := roles.Thinker + " (" + describeToolRun(roles.Thinker, rc) + ")"
 		// Header'ı ÖNCE bas — çıktı streaming geldiği için kullanıcı kimin
 		// konuştuğunu hemen bilsin.
+		// Plan talimatı SADECE kod görevlerinde uygulanır. Aksi halde writer'ı
+		// atlama kararı bozulurdu: thinker plan yazdığı için çıktıda kod bloğu
+		// olmaz, istek de kod isteğine benzemiyorsa (aşağıdaki kontrol) ne plan
+		// ne kod kalırdı. Kod isteği değilse thinker serbest çalışır ve
+		// hasCodeBlock kontrolü eskisi gibi anlamlı olur.
+		codeTask := looksLikeCodeRequest(input)
+		thinkerInput := input
+		if codeTask {
+			thinkerInput = buildThinkerPrompt(input)
+		}
 		printAIHeader("thinker", roles.Thinker, rc)
 		sp := StartSpinner("🧠 " + thinkerLabel + L(" düşünüyor...", " is thinking..."))
-		thought, err := captureToolWithSpinner(roles.Thinker, rc, input, sp)
+		thought, err := captureToolWithSpinner(roles.Thinker, rc, thinkerInput, sp)
 		sp.Stop() // stopWriter da durdurmuş olabilir; Stop() idempotent (sync.Once)
 		if err != nil {
 			return err
@@ -84,7 +94,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 				"\n  (writer = thinker, second call skipped)")))
 			return nil
 		}
-		if !hasCodeBlock(thought) && !looksLikeCodeRequest(input) {
+		if !codeTask && !hasCodeBlock(thought) {
 			fmt.Println(styleDim.Render(L("\n  (yazılacak kod yok, writer atlandı)",
 				"\n  (nothing to write, writer skipped)")))
 			return nil
@@ -99,6 +109,43 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		return runTool(roles.Writer, rc, writerInput, "✍️")
 	}
 	return fmt.Errorf("bilinmeyen mod")
+}
+
+// buildThinkerPrompt — pair modunda thinker'a giden metin.
+//
+// Talimatsız bırakıldığında thinker görevi baştan sona ÇÖZÜYOR: kodu tam
+// olarak yazıyor, sonra writer aynı kodu bir kez daha yazıyor (ölçüldü:
+// "pi'nin ilk 100 basamağını yazan script" isteğinde her ikisi de eksiksiz
+// script üretti). Aynı iş iki kez faturalanıyor — üstelik thinker rolüne
+// bilerek daha pahalı/derin model konuyor.
+//
+// Bu yüzden thinker'dan KOD değil PLAN isteniyor: pahalı model kararları
+// verir, ucuz model yazar. ModeThink'te (tek başına 'cem "soru"') bu talimat
+// UYGULANMAZ — orada kullanıcı doğrudan cevabı ister.
+func buildThinkerPrompt(task string) string {
+	if Lang() == LangEN {
+		return strings.Join([]string{
+			"Another AI will write the code for this task. Do NOT write the",
+			"implementation yourself. Produce a short, concrete plan instead:",
+			"which file(s), which functions and signatures, which algorithm or",
+			"approach, and the edge cases that matter. Bullet points, no essay,",
+			"no trade-off discussion. Short signatures or a few key lines are",
+			"fine; a complete implementation is not.",
+			"",
+			"=== TASK ===",
+			task,
+		}, "\n")
+	}
+	return strings.Join([]string{
+		"Bu görevin kodunu BAŞKA bir AI yazacak. Sen implementasyonu yazma.",
+		"Onun yerine kısa ve somut bir plan çıkar: hangi dosya(lar), hangi",
+		"fonksiyonlar ve imzalar, hangi algoritma/yaklaşım, hangi kenar durumlar",
+		"önemli. Madde madde, uzun anlatım yok, trade-off tartışması yok. Kısa",
+		"imza ya da birkaç kritik satır olabilir; eksiksiz implementasyon olmaz.",
+		"",
+		"=== GÖREV ===",
+		task,
+	}, "\n")
 }
 
 // dedupeTrailingEcho — bazı CLI'lar final mesajı stream'in sonunda BİR KEZ
@@ -520,7 +567,19 @@ func withKeyRotation(meta ToolMeta, cfg *GlobalConfig, fn func(env []string) err
 }
 
 // codeRequestRe — input'ta kod yazma niyetini gösteren kelimeler (TR + EN).
-var codeRequestRe = regexp.MustCompile(`(?i)\b(yaz|kod|script|fonksiyon|class|method|implement|kodla|oluştur|üret|döndür|export|function|code|write|build|generate|refactor|debug|fix)\b`)
+// codeRequestKeywords — pair modunda "bu bir kod işi mi" kararının sözlüğü.
+// Karar iki yeri etkiliyor: thinker'a plan talimatı verilip verilmeyeceği ve
+// writer'ın atlanıp atlanmayacağı.
+const codeRequestKeywords = `yaz|kod|kodla|script|fonksiyon|class|method|implement|` +
+	`oluştur|üret|döndür|export|function|code|write|build|generate|refactor|debug|fix|` +
+	// Kod işi olduğu hâlde "yaz" geçmeyen istekler.
+	`optimize|optimizasyon|düzelt|ekle|sil|kaldır|taşı|dönüştür|çevir|test|port|` +
+	`add|remove|rename|update|migrate|patch|extend|convert|wrap|hook`
+
+// codeRequestRe — kelime sınırı için \b KULLANILMAZ: Go'nun \b'si ASCII
+// tabanlı, "çevir"/"üret" gibi Türkçe harfle başlayan kelimeler bir boşluktan
+// sonra gelse bile hiç eşleşmiyordu (sessizce: writer atlanıyordu).
+var codeRequestRe = regexp.MustCompile(`(?i)(^|[^\p{L}])(` + codeRequestKeywords + `)([^\p{L}]|$)`)
 
 // hasCodeBlock — metin markdown kod bloğu içeriyor mu (``` veya satır başı 4-boşluk değil).
 func hasCodeBlock(s string) bool {

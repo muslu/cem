@@ -156,7 +156,7 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 		}
 	}
 	fmt.Println()
-	printRolesTable(thinker, writer)
+	printRolesTable(thinker, writer, &ResolvedConfig{Global: cfg})
 	fmt.Println()
 
 	return nil
@@ -173,16 +173,28 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 //	│ cem roles claude agy   global'i değiştir │
 //	│ cem init               proje config'i    │
 //	└──────────────────────────────────────────┘
-func printRolesTable(thinker, writer string) {
+func printRolesTable(thinker, writer string, rc *ResolvedConfig) {
 	// İlk kolon (ikon + rol adı): max genişlik = "✍️  writer "
 	// İkinci kolon (model adı kombosu): thinker / writer / pair
 	// Üçüncü kolon: örnek komut
 	ask := L(`cem "soru"`, `cem "question"`)
 	task := L(`cem -w "görev"`, `cem -w "task"`)
 	pairTask := L(`cem -p "görev"`, `cem -p "task"`)
+	// Rolün yanında model + düşünme seviyesi: pair'de amaç genelde "pahalı
+	// model düşünsün, ucuz model yazsın" olduğu için kurulumun doğru olup
+	// olmadığı tek bakışta görünmeli.
+	tDesc, wDesc := thinker, writer
+	if rc != nil {
+		if d := describeToolRun(thinker, rc); d != "default" {
+			tDesc = thinker + " · " + d
+		}
+		if d := describeToolRun(writer, rc); d != "default" {
+			wDesc = writer + " · " + d
+		}
+	}
 	rows := [][3]string{
-		{"🧠 thinker", thinker, ask},
-		{"✍️  writer ", writer, task},
+		{"🧠 thinker", tDesc, ask},
+		{"✍️  writer ", wDesc, task},
 		{"🤝 pair    ", thinker + " → " + writer, pairTask},
 	}
 	helpRows := [][2]string{
@@ -901,7 +913,7 @@ func ShowRoles(rc *ResolvedConfig) {
 			styleDim.Render("(proje — global override)")
 	}
 
-	printRolesTable(roles.Thinker, roles.Writer)
+	printRolesTable(roles.Thinker, roles.Writer, rc)
 	fmt.Println(src)
 	fmt.Println()
 

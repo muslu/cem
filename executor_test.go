@@ -254,3 +254,31 @@ func TestEffortSeviyeleriArtanSirada(t *testing.T) {
 		}
 	}
 }
+
+// TestKodIstegiSozlugu — pair modunda writer'ın atlanıp atlanmayacağına bu
+// karar veriyor; "yaz" geçmeyen kod istekleri de yakalanmalı.
+func TestKodIstegiSozlugu(t *testing.T) {
+	kodİstekleri := []string{
+		"bu dosyayı optimize et",
+		"şu fonksiyonu refactor et",
+		"testleri ekle",
+		"kullanılmayan importları sil",
+		"bu tipi Go'ya çevir",
+		"add a retry to the client",
+		"rename the handler",
+	}
+	for _, s := range kodİstekleri {
+		if !looksLikeCodeRequest(s) {
+			t.Errorf("kod isteği sayılmadı, writer atlanır: %q", s)
+		}
+	}
+	kodOlmayan := []string{
+		"muslu yüksektepe kimdir",
+		"bu mimarinin artıları neler",
+	}
+	for _, s := range kodOlmayan {
+		if looksLikeCodeRequest(s) {
+			t.Errorf("kod isteği sanıldı: %q", s)
+		}
+	}
+}

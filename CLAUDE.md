@@ -142,6 +142,16 @@ cem/
 - **Effort and model flags must land before `-p`** for tools with
   `ModelBeforeRun: true` (claude, cursor): `-p` takes the prompt as its
   argument, so anything inserted between them swallows the prompt.
+- **In pair mode the thinker is told NOT to write code** (`buildThinkerPrompt`).
+  Left alone it solves the task end to end and the writer then rewrites the
+  same code — the same work billed twice, on the deliberately more expensive
+  model. The instruction is applied **only when the request looks like a code
+  task** (`looksLikeCodeRequest`): otherwise the thinker produces a plan with
+  no code block, the skip-writer check sees no code, and the user ends up with
+  neither plan nor code.
+- **Do not use `\b` in the request-classifier regex.** Go's `\b` is ASCII, so
+  Turkish-initial words (`çevir`, `üret`) never matched even after a space —
+  silently skipping the writer. Use `(^|[^\p{L}])…([^\p{L}]|$)`.
 - **Tool output is filtered before it reaches the user** (`noise.go`). AI CLIs
   print banners, session ids and internal logs around the actual answer.
   `--raw` disables filtering.

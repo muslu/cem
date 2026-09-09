@@ -92,3 +92,5 @@
 - [x] Quiet modda çift basım: URL geçiş kuralı cevabın tamamını sızdırıyordu, kaldırıldı.
 - [x] `cem model` komutu (`cem effort` ile simetrik); plugin artık çıktıdaki
       her URL için auth balonu göstermiyor.
+- [x] Pair modu: thinker plan çıkarır, writer kodu yazar (önceden ikisi de tam
+      kodu yazıyordu). Roller tablosu artık rol başına model · seviye gösteriyor.
