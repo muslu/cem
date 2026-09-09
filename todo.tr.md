@@ -123,3 +123,5 @@
 - [x] Çalıştırma başlıklarında saat var; pair toplamında tam tarih.
 - [x] IntelliJ ayarlarına düşünme seviyesi + hızlı mod eklendi, model listesi
       tazelendi (gpt-5.6-terra).
+- [x] Kod-isteği sözlüğü Türkçe karaktersiz yazımı da tanıyor (olustur,
+      duzelt, cevir): eksik varyantlar 49 saniyelik boş bir koşu üretiyordu.

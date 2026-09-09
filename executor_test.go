@@ -546,3 +546,24 @@ func TestCacheKeyDizineDuyarli(t *testing.T) {
 		t.Error("farklı dizinde aynı anahtar üretildi — bir projenin cevabı diğerine sızar")
 	}
 }
+
+// TestAsciiTurkceKodIstegi — terminalde Türkçe karakter kullanmamak yaygın.
+// "olustur" listede yokken zincirin tamamı sessizce kırılıyordu: istek kod
+// işi sayılmıyor, thinker'a plan talimatı gitmiyor, araç emri kendisi
+// uygulamaya kalkıp sandbox'a takılıyor, writer atlanıyor.
+func TestAsciiTurkceKodIstegi(t *testing.T) {
+	istekler := []string{
+		"retry_dekorator.py olustur: ustel backoff ile yeniden deneyen dekorator",
+		"bu fonksiyonu duzelt",
+		"su tipi Go'ya cevir",
+		"kullanilmayan importlari kaldir",
+		"dosyalari yeni dizine tasi",
+		"json'a donustur",
+		"ilk n asal sayiyi uret",
+	}
+	for _, s := range istekler {
+		if !looksLikeCodeRequest(s) {
+			t.Errorf("ASCII Türkçe kod isteği tanınmadı: %q", s)
+		}
+	}
+}

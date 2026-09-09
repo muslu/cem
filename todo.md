@@ -168,3 +168,5 @@
 - [x] Run headers carry a timestamp; pair total shows the full date.
 - [x] IntelliJ settings gained reasoning effort + fast mode, and the model list
       was refreshed (gpt-5.6-terra).
+- [x] Request classifier accepts ASCII-written Turkish (olustur, duzelt,
+      cevir): the missing variants silently produced a 49s run with no output.

@@ -159,6 +159,14 @@ cem/
   task** (`looksLikeCodeRequest`): otherwise the thinker produces a plan with
   no code block, the skip-writer check sees no code, and the user ends up with
   neither plan nor code.
+- **The request classifier must accept ASCII-written Turkish** (`olustur`,
+  `duzelt`, `cevir`). Typing Turkish without diacritics in a terminal is
+  common, and a missing variant breaks a five-step chain silently: the request
+  is not treated as a code task → the thinker never gets the "plan, do not
+  write code" instruction → the tool tries to execute the order itself → its
+  sandbox is read-only → nothing is produced and the writer is skipped.
+  Measured on the same prompt: 49s and no files, versus 27.5s with two files
+  and 10 passing tests after the fix.
 - **Do not use `\b` in the request-classifier regex.** Go's `\b` is ASCII, so
   Turkish-initial words (`çevir`, `üret`) never matched even after a space —
   silently skipping the writer. Use `(^|[^\p{L}])…([^\p{L}]|$)`.

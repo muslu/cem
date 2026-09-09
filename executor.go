@@ -769,7 +769,13 @@ const codeRequestKeywords = `yaz|kod|kodla|script|fonksiyon|class|method|impleme
 	`oluştur|üret|döndür|export|function|code|write|build|generate|refactor|debug|fix|` +
 	// Kod işi olduğu hâlde "yaz" geçmeyen istekler.
 	`optimize|optimizasyon|düzelt|ekle|sil|kaldır|taşı|dönüştür|çevir|test|port|` +
-	`add|remove|rename|update|migrate|patch|extend|convert|wrap|hook`
+	`add|remove|rename|update|migrate|patch|extend|convert|wrap|hook|` +
+	// Türkçe karakterlerin ASCII yazımı. Terminalde "olustur", "duzelt",
+	// "cevir" yazmak çok yaygın ve bunlar listede yokken zincirin tamamı
+	// sessizce kırılıyordu: istek kod işi sayılmıyor → thinker'a "plan çıkar"
+	// talimatı gitmiyor → araç emri kendisi uygulamaya kalkıp sandbox'a
+	// takılıyor → writer atlanıyor. Sahada tam olarak bu yaşandı.
+	`olustur|uret|dondur|duzelt|kaldir|tasi|donustur|cevir`
 
 // codeRequestRe — kelime sınırı için \b KULLANILMAZ: Go'nun \b'si ASCII
 // tabanlı, "çevir"/"üret" gibi Türkçe harfle başlayan kelimeler bir boşluktan
@@ -784,6 +790,7 @@ func hasCodeBlock(s string) bool {
 // clarificationRe — thinker'ın "şunu paylaşır mısın" kalıpları.
 var clarificationRe = regexp.MustCompile(`(?i)(paylaşır mısın|paylaşın|belirtir misin|` +
 	`hangi dosya|dosyayı ver|bulunmuyor|bulamadım|net değil|` +
+	`paylasir misin|paylasin|hangi dosya|dosyayi ver|bulamadim|net degil|` +
 	`could you (share|provide)|please (share|provide)|which file|not found in the repo|` +
 	`i (could not|couldn't) find|need more (context|information))`)
 
