@@ -11,6 +11,11 @@ import (
 var version = "dev"
 
 func main() {
+	// Dil, cobra Execute'dan ÖNCE belirlenmeli: help/menü metinleri
+	// paket-init'te sabitlendiği için applyLang() onları yeniden yazar.
+	preloadLang()
+	applyLang()
+
 	bin := filepath.Base(os.Args[0])
 	// Windows uzantısını at: cem.exe → cem
 	bin = strings.TrimSuffix(bin, ".exe")

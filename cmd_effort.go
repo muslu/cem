@@ -15,7 +15,7 @@ var effortHere bool
 // codex -c model_reasoning_effort); agy/cursor için flag yok.
 var effortCmd = &cobra.Command{
 	Use:   "effort [tool] [level]",
-	Short: "Show or change reasoning effort (düşünme seviyesi)",
+	Short: "Show or change reasoning effort",
 	Long: `  cem effort                    → mevcut seviyeleri göster
   cem effort gpt high           → global ayarla
   cem effort claude xhigh       → global ayarla
@@ -37,27 +37,28 @@ var effortCmd = &cobra.Command{
 		toolKey := args[0]
 		meta, ok := KnownTools[toolKey]
 		if !ok {
-			fmt.Println(styleError.Render("✗ bilinmeyen araç: " + toolKey))
-			fmt.Println(styleDim.Render("  geçerli: " + strings.Join(orderedToolKeys, ", ")))
+			fmt.Println(styleError.Render(L("✗ bilinmeyen araç: ", "✗ unknown tool: ") + toolKey))
+			fmt.Println(styleDim.Render(L("  geçerli: ", "  valid: ") + strings.Join(orderedToolKeys, ", ")))
 			os.Exit(1)
 		}
 		if len(meta.Efforts) == 0 || len(meta.EffortArgs) == 0 {
 			fmt.Println(styleWarn.Render(fmt.Sprintf(
-				"  ⚠ %s CLI'sı düşünme seviyesi seçimini desteklemiyor", meta.Name)))
+				L("  ⚠ %s CLI'sı düşünme seviyesi seçimini desteklemiyor",
+					"  ⚠ %s CLI does not support reasoning-effort selection"), meta.Name)))
 			os.Exit(1)
 		}
 
 		if len(args) == 1 {
-			fmt.Printf("  %s geçerli seviyeler: %s\n",
+			fmt.Printf(L("  %s geçerli seviyeler: %s\n", "  %s valid levels: %s\n"),
 				styleBold.Render(meta.Name), strings.Join(meta.Efforts, ", "))
-			fmt.Println(styleDim.Render("  ayarlamak için: cem effort " + toolKey + " " + meta.Efforts[len(meta.Efforts)-1]))
+			fmt.Println(styleDim.Render(L("  ayarlamak için: cem effort ", "  to set: cem effort ") + toolKey + " " + meta.Efforts[len(meta.Efforts)-1]))
 			return
 		}
 
 		level := strings.ToLower(strings.TrimSpace(args[1]))
 		if level != "default" && !validEffort(meta, level) {
-			fmt.Println(styleError.Render("✗ geçersiz seviye: " + level))
-			fmt.Println(styleDim.Render("  geçerli: " + strings.Join(meta.Efforts, ", ") + ", default"))
+			fmt.Println(styleError.Render(L("✗ geçersiz seviye: ", "✗ invalid level: ") + level))
+			fmt.Println(styleDim.Render(L("  geçerli: ", "  valid: ") + strings.Join(meta.Efforts, ", ") + ", default"))
 			os.Exit(1)
 		}
 		if level == "default" {
@@ -93,11 +94,12 @@ func setGlobalEffort(rc *ResolvedConfig, toolKey, level string, meta ToolMeta) {
 		os.Exit(1)
 	}
 	if level == "" {
-		fmt.Printf("  %s %s düşünme seviyesi: CLI default\n",
+		fmt.Printf(L("  %s %s düşünme seviyesi: CLI default\n",
+			"  %s %s reasoning effort: CLI default\n"),
 			styleSuccess.Render("✓"), styleBold.Render(meta.Name))
 		return
 	}
-	fmt.Printf("  %s %s düşünme seviyesi: %s%s\n",
+	fmt.Printf(L("  %s %s düşünme seviyesi: %s%s\n", "  %s %s reasoning effort: %s%s\n"),
 		styleSuccess.Render("✓"), styleBold.Render(meta.Name),
 		styleBold.Render(level), styleDim.Render(effortHint(level)))
 }
@@ -130,7 +132,7 @@ func setProjectEffort(rc *ResolvedConfig, toolKey, level string) {
 
 func orDefault(s string) string {
 	if s == "" {
-		return "(kaldırıldı)"
+		return L("(kaldırıldı)", "(removed)")
 	}
 	return s
 }
@@ -138,13 +140,13 @@ func orDefault(s string) string {
 // showEfforts — kurulu araçların aktif seviyelerini ve kaynağını listeler.
 func showEfforts(rc *ResolvedConfig) {
 	fmt.Println()
-	fmt.Println(styleBold.Render("  Düşünme seviyeleri"))
+	fmt.Println(styleBold.Render(L("  Düşünme seviyeleri", "  Reasoning effort")))
 	fmt.Println()
 	for _, key := range orderedToolKeys {
 		meta := KnownTools[key]
 		if len(meta.Efforts) == 0 || len(meta.EffortArgs) == 0 {
 			fmt.Printf("  %s %-8s %s\n", styleDim.Render("○"), key,
-				styleDim.Render("seviye seçimi desteklenmiyor"))
+				styleDim.Render(L("seviye seçimi desteklenmiyor", "effort selection not supported")))
 			continue
 		}
 		active := resolveEffort(key, rc)
@@ -163,7 +165,8 @@ func showEfforts(rc *ResolvedConfig) {
 	}
 	fmt.Println()
 	fmt.Println(styleDim.Render("  cem effort gpt xhigh        → global"))
-	fmt.Println(styleDim.Render("  cem effort --here gpt high  → sadece bu proje"))
+	fmt.Println(styleDim.Render(L("  cem effort --here gpt high  → sadece bu proje",
+		"  cem effort --here gpt high  → this project only")))
 	fmt.Println()
 }
 

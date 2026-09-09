@@ -22,7 +22,7 @@ var keysAddCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		provider := normalizeProvider(args[0])
 		if provider == "" {
-			fmt.Println(styleError.Render("✗ bilinmeyen provider — kullanılabilir: anthropic, openai"))
+			fmt.Println(styleError.Render(L("✗ bilinmeyen provider — kullanılabilir: anthropic, openai", "✗ unknown provider — available: anthropic, openai")))
 			os.Exit(1)
 		}
 		cfg, err := loadGlobalConfig()
@@ -30,15 +30,15 @@ var keysAddCmd = &cobra.Command{
 			fmt.Println(styleError.Render("✗ " + err.Error()))
 			os.Exit(1)
 		}
-		fmt.Printf("  %s için API key girin: ", styleBold.Render(provider))
+		fmt.Printf(L("  %s için API key girin: ", "  Enter the API key for %s: "), styleBold.Render(provider))
 		reader := bufio.NewReader(os.Stdin)
 		val, _ := reader.ReadString('\n')
 		val = strings.TrimSpace(val)
 		if val == "" {
-			fmt.Println(styleError.Render("✗ boş key"))
+			fmt.Println(styleError.Render(L("✗ boş key", "✗ empty key")))
 			os.Exit(1)
 		}
-		fmt.Print("  Etiket (opsiyonel, örn. 'personal'): ")
+		fmt.Print(L("  Etiket (opsiyonel, örn. 'personal'): ", "  Label (optional, e.g. 'personal'): "))
 		label, _ := reader.ReadString('\n')
 		label = strings.TrimSpace(label)
 
@@ -65,7 +65,7 @@ var keysListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if len(cfg.APIKeys) == 0 {
-			fmt.Println(styleDim.Render("  Hiç key yok. Ekle: cem keys add anthropic"))
+			fmt.Println(styleDim.Render(L("  Hiç key yok. Ekle: cem keys add anthropic", "  No keys stored. Add one: cem keys add anthropic")))
 			return
 		}
 		for _, provider := range []string{"anthropic", "openai"} {
@@ -94,13 +94,13 @@ var keysRemoveCmd = &cobra.Command{
 		provider := normalizeProvider(args[0])
 		idx, err := strconv.Atoi(args[1])
 		if err != nil || idx < 1 {
-			fmt.Println(styleError.Render("✗ geçersiz index"))
+			fmt.Println(styleError.Render(L("✗ geçersiz index", "✗ invalid index")))
 			os.Exit(1)
 		}
 		cfg, _ := loadGlobalConfig()
 		keys := cfg.APIKeys[provider]
 		if idx > len(keys) {
-			fmt.Println(styleError.Render("✗ böyle bir key yok"))
+			fmt.Println(styleError.Render(L("✗ böyle bir key yok", "✗ no such key")))
 			os.Exit(1)
 		}
 		cfg.APIKeys[provider] = append(keys[:idx-1], keys[idx:]...)

@@ -77,3 +77,15 @@
 - [x] `executor_test.go` + `spinner_test.go` eklendi (28 test, `-race` temiz).
 - [ ] doc:CLAUDE update — File Layout, Runtime Gotchas, kural #7 ve
       doğrulama akışı yukarıdakine göre güncellendi.
+
+## 13. Dil + çıktı netliği (2026-09-09)
+- [x] İki dilli arayüz (tr/en): `L(tr, en)` yardımcısı, `cem lang`, sihirbaz
+      ilk soruda dili soruyor, `CEM_LANG`/`LANG` algılama, cobra Short/Long
+      için `applyLang()` (aksi halde paket-init döngüsü).
+- [x] Çıktı gürültü filtresi (`noise.go`) + `--raw` kaçış kapısı.
+- [x] codex artık `--output-last-message` ile çalışıyor: exec/apply-patch/diff
+      yığını ve tekrarlanan final cevap yok.
+- [x] Net başlıklar: `🧠 DÜŞÜNEN · gpt` (mavi) / `✍️ YAZAN · claude` (yeşil);
+      "Open source" satırı yalnız banner ekranında, global config satırı
+      sessiz (proje config'i hâlâ duyuruluyor).
+- [ ] README / README.tr: `cem lang`, `cem effort`, `--raw` belgelenecek.

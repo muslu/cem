@@ -39,7 +39,7 @@ func selfUpdate() error {
 
 	myPath, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("kendi yolu alınamadı: %w", err)
+		return fmt.Errorf(L("kendi yolu alınamadı: %w", "cannot resolve own path: %w"), err)
 	}
 	installDir := filepath.Dir(myPath)
 
@@ -50,25 +50,25 @@ func selfUpdate() error {
 		if !semverLess(current, latest) {
 			// current >= latest → indirme gereksiz (devel build veya gecikmiş tag)
 			fmt.Println(styleSuccess.Render(fmt.Sprintf(
-				"  ✓ zaten güncel: %s  (uzaktaki son: %s)", current, latest)))
+				L("  ✓ zaten güncel: %s  (uzaktaki son: %s)", "  ✓ already up to date: %s  (latest remote: %s)"), current, latest)))
 			// Cache'i de güncelle ki update notice tetiklenmesin
 			saveUpdateCheckCache(updateCheckCache{
 				LastCheck: time.Now(), LatestVersion: latest,
 			})
 			return nil
 		}
-		fmt.Println(styleDim.Render(fmt.Sprintf("  ⓘ son sürüm: %s  (mevcut: %s)", latest, current)))
+		fmt.Println(styleDim.Render(fmt.Sprintf(L("  ⓘ son sürüm: %s  (mevcut: %s)", "  ⓘ latest: %s  (current: %s)"), latest, current)))
 	}
 
 	// Pre-flight: kurulum dizinine yazabiliyor muyuz?
 	if !canWriteDir(installDir) {
 		if osName == "windows" {
-			fmt.Println(styleError.Render("  ✗ " + installDir + " yazılabilir değil"))
-			fmt.Println(styleDim.Render("  Yönetici PowerShell'inde çalıştır:  cem update"))
+			fmt.Println(styleError.Render("  ✗ " + installDir + L(" yazılabilir değil", " is not writable")))
+			fmt.Println(styleDim.Render(L("  Yönetici PowerShell'inde çalıştır:  cem update", "  Run in an elevated PowerShell:  cem update")))
 			return fmt.Errorf("yetkisiz")
 		}
 		// Unix: sudo ile yeniden başlat
-		fmt.Println(styleDim.Render("  ⚠ " + installDir + " yazılabilir değil, sudo ile devam ediliyor..."))
+		fmt.Println(styleDim.Render("  ⚠ " + installDir + L(" yazılabilir değil, sudo ile devam ediliyor...", " is not writable, continuing with sudo...")))
 		c := exec.Command("sudo", myPath, "update")
 		c.Stdin = os.Stdin
 		c.Stdout = os.Stdout
@@ -76,7 +76,7 @@ func selfUpdate() error {
 		return c.Run()
 	}
 
-	fmt.Println(styleDim.Render(fmt.Sprintf("  ⏳ son sürüm indiriliyor (%s/%s)...", osName, archName)))
+	fmt.Println(styleDim.Render(fmt.Sprintf(L("  ⏳ son sürüm indiriliyor (%s/%s)...", "  ⏳ downloading the latest release (%s/%s)..."), osName, archName)))
 
 	for _, name := range []string{"cem", "cemi", "cemir"} {
 		asset := fmt.Sprintf("%s-%s-%s%s", name, osName, archName, ext)
@@ -85,7 +85,7 @@ func selfUpdate() error {
 
 		tmp, err := downloadToTemp(url)
 		if err != nil {
-			return fmt.Errorf("%s indirme hatası: %w", name, err)
+			return fmt.Errorf(L("%s indirme hatası: %w", "%s download error: %w"), name, err)
 		}
 		if err := os.Chmod(tmp, 0o755); err != nil {
 			os.Remove(tmp)
@@ -95,7 +95,7 @@ func selfUpdate() error {
 			os.Remove(tmp)
 			return fmt.Errorf("%s → %s: %w", name, dst, err)
 		}
-		fmt.Println(styleSuccess.Render(fmt.Sprintf("  ✓ %s güncellendi → %s", name, dst)))
+		fmt.Println(styleSuccess.Render(fmt.Sprintf(L("  ✓ %s güncellendi → %s", "  ✓ %s updated → %s"), name, dst)))
 	}
 
 	// Update başarılı: cache'i yenile ki bir sonraki çağrıda eskimiş bildirim

@@ -14,15 +14,18 @@ var (
 	flagWrite bool
 	flagPair  bool
 	flagFile  string
+	// rawOutput — AI CLI çıktısını filtresiz göster (banner, iç loglar dahil).
+	rawOutput bool
 )
 
 var rootCmd = &cobra.Command{
-	Use:               "cem [input]",
-	Short:             "⚡ Compose · Execute · Multiplex — one command, many AIs",
-	Version:           version,
-	Args:              cobra.ArbitraryArgs,
+	Use:     "cem [input]",
+	Short:   "⚡ Compose · Execute · Multiplex — one command, many AIs",
+	Version: version,
+	Args:    cobra.ArbitraryArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		OpenSourceNotice()
+		// OpenSourceNotice sadece banner ekranında (aşağıda) — her komutun
+		// başına basılınca asıl çıktıyı bastırıyordu.
 		checkUpdateNotice()
 		maybeAutoUpdateTools()
 	},
@@ -43,7 +46,7 @@ var rootCmd = &cobra.Command{
 		if flagFile != "" {
 			data, err := os.ReadFile(flagFile)
 			if err != nil {
-				fmt.Println(styleError.Render("✗ Dosya okunamadı: " + err.Error()))
+				fmt.Println(styleError.Render(L("✗ Dosya okunamadı: ", "✗ Cannot read file: ") + err.Error()))
 				os.Exit(1)
 			}
 			if len(args) > 0 {
@@ -60,6 +63,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		if input == "" {
+			OpenSourceNotice()
 			PrintBanner(BannerCem)
 			cmd.Help()
 			return
@@ -321,8 +325,8 @@ func pickProjectEffort(toolKey, label string, global *GlobalConfig) string {
 	for i, e := range meta.Efforts {
 		fmt.Printf("      [%d] %s%s\n", i+1, e, styleDim.Render(effortHint(e)))
 	}
-	fmt.Printf("      [0] global'i kullan (override yok)\n")
-	fmt.Print("  Seçim: ")
+	fmt.Printf("      [0] global (no override)\n")
+	fmt.Print(L("  Seçim: ", "  Choice: "))
 	reader := bufio.NewReader(os.Stdin)
 	resp, _ := reader.ReadString('\n')
 	resp = strings.TrimSpace(resp)
@@ -331,7 +335,7 @@ func pickProjectEffort(toolKey, label string, global *GlobalConfig) string {
 	}
 	idx, err := strconv.Atoi(resp)
 	if err != nil || idx < 1 || idx > len(meta.Efforts) {
-		fmt.Println(styleDim.Render("  geçersiz, global kullanılacak"))
+		fmt.Println(styleDim.Render(L("  geçersiz, global kullanılacak", "  invalid, the global value will be used")))
 		return ""
 	}
 	return meta.Efforts[idx-1]
@@ -356,8 +360,8 @@ func pickProjectModel(toolKey, label string, global *GlobalConfig) string {
 		fmt.Printf("      [%d] %s\n", i+1, m)
 	}
 	fmt.Printf("      [%d] custom\n", len(meta.Models)+1)
-	fmt.Printf("      [0] global'i kullan (override yok)\n")
-	fmt.Print("  Seçim: ")
+	fmt.Printf("      [0] global (no override)\n")
+	fmt.Print(L("  Seçim: ", "  Choice: "))
 	reader := bufio.NewReader(os.Stdin)
 	resp, _ := reader.ReadString('\n')
 	resp = strings.TrimSpace(resp)
@@ -367,11 +371,11 @@ func pickProjectModel(toolKey, label string, global *GlobalConfig) string {
 	}
 	idx, err := strconv.Atoi(resp)
 	if err != nil || idx < 1 || idx > len(meta.Models)+1 {
-		fmt.Println(styleDim.Render("  geçersiz, global kullanılacak"))
+		fmt.Println(styleDim.Render(L("  geçersiz, global kullanılacak", "  invalid, the global value will be used")))
 		return ""
 	}
 	if idx == len(meta.Models)+1 {
-		fmt.Print("  Model adı: ")
+		fmt.Print(L("  Model adı: ", "  Model name: "))
 		line, _ := reader.ReadString('\n')
 		return strings.TrimSpace(line)
 	}
@@ -397,11 +401,13 @@ var statusCmd = &cobra.Command{
 // ─── init & execute ──────────────────────────────────────────────────────────
 
 func init() {
-	rootCmd.Flags().BoolVarP(&flagWrite, "write", "w", false, "Writer AI kullan")
-	rootCmd.Flags().BoolVarP(&flagPair, "pair", "p", false, "Pair: thinker → writer")
-	rootCmd.Flags().StringVarP(&flagFile, "file", "f", "", "Dosya içeriğini gönder")
+	rootCmd.Flags().BoolVarP(&flagWrite, "write", "w", false, "use the writer AI")
+	rootCmd.Flags().BoolVarP(&flagPair, "pair", "p", false, "pair: thinker → writer")
+	rootCmd.Flags().StringVarP(&flagFile, "file", "f", "", "send the contents of a file")
+	rootCmd.PersistentFlags().BoolVar(&rawOutput, "raw", false,
+		"show the AI CLI output unfiltered (banners, tool steps, diffs)")
 
-	rolesCmd.Flags().BoolVar(&rolesCmdHere, "here", false, "Sadece bu proje için (.cem.yaml)")
+	rolesCmd.Flags().BoolVar(&rolesCmdHere, "here", false, "this project only (.cem.yaml)")
 
 	rootCmd.AddCommand(rolesCmd)
 	rootCmd.AddCommand(setupCmd)

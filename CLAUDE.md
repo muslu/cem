@@ -54,6 +54,10 @@ cem/
 ├── executor_test.go    — stderr signature triage, effort args, trailing-echo dedupe
 ├── spinner.go          — TTY-aware single-line spinner (pair mode); Stop() is idempotent
 ├── spinner_test.go     — Stop() idempotency + concurrency (regression: closed-channel panic)
+├── lang.go             — L(tr, en) language helper + CEM_LANG/LANG detection
+├── lang_apply.go       — preloadLang + applyLang: Turkish cobra Short/Long
+├── cmd_lang.go         — `cem lang`: show/change the interface language
+├── noise.go            — noiseFilter: strips AI CLI banners/logs from the output
 ├── tool_update.go      — AI CLI updates: native `<tool> update` + daily background auto-update
 ├── detach_unix.go / detach_windows.go — platform split for detached background updates
 ├── history.go          — AppendHistory → ~/.cem/history.log (TSV)
@@ -87,9 +91,18 @@ cem/
 2. **No logger** — write to the user with `fmt.Println` + lipgloss styles
    (`styleSuccess`, `styleError`, `styleDim`, `styleBold`, declared in
    `wizard.go`).
-3. **User-visible error messages are in Turkish** —
-   `styleError.Render("✗ ...")`. Do not show stack traces.
-   `fmt.Errorf` strings may be English for debugging.
+3. **User-visible strings are bilingual** — wrap them in `L("türkçe",
+   "english")` (`lang.go`). The Turkish text comes first; it is the source
+   language. Do not show stack traces. `fmt.Errorf` strings that never reach
+   the user may stay English.
+   - **Cobra `Short`/`Long` are the exception:** they are evaluated at package
+     init, before the config is read, so they must be written in **English**
+     and get their Turkish text from `applyLang()` in `lang_apply.go`. Calling
+     `L()` (or `applyLang`) from a command variable's initializer creates an
+     initialization cycle.
+   - `fmt.Printf(L(...))` with no arguments fails `go vet`
+     (non-constant format string) — use `fmt.Print`, and
+     `fmt.Errorf("%s", L(...))` for errors.
 4. **Subprocess for AI tools** — use `exec.Command`. Stdin: input,
    stdout/stderr: passthrough. In pair mode use `cmd.Output()` to capture.
 5. **Config IO** — `~/.cem/config.yaml` file mode `0600`, directory
@@ -128,6 +141,15 @@ cem/
 - **Effort and model flags must land before `-p`** for tools with
   `ModelBeforeRun: true` (claude, cursor): `-p` takes the prompt as its
   argument, so anything inserted between them swallows the prompt.
+- **Tool output is filtered before it reaches the user** (`noise.go`). AI CLIs
+  print banners, session ids and internal logs around the actual answer.
+  `--raw` disables filtering.
+- **Tools with `LastMessageFlag` run "quiet"** (`runQuiet`): their raw stream
+  is never shown. codex `exec` echoes every command it runs, every patch it
+  applies, and repeats the same diff several times (measured: one small
+  request printed the same 28-line diff 4×). cem shows a spinner and prints
+  only the final message the tool writes to the temp file. The raw stream is
+  still captured for error-signature triage.
 - **Auto-update runs detached** (`detachProcess`) and cannot write back to the
   config; version fields are refreshed on the *next* run in
   `maybeAutoUpdateTools`. Disable with `auto_update_tools: false`.

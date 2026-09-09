@@ -27,18 +27,18 @@ func init_uninstall() {
 }
 
 func runUninstall() {
-	fmt.Println(styleBold.Render("  CEM kaldırılacak."))
-	fmt.Println(styleDim.Render("  Bu işlem cem, cemi ve cemir komutlarını siler."))
+	fmt.Println(styleBold.Render(L("  CEM kaldırılacak.", "  CEM will be removed.")))
+	fmt.Println(styleDim.Render(L("  Bu işlem cem, cemi ve cemir komutlarını siler.", "  This removes the cem, cemi and cemir commands.")))
 	fmt.Println()
 
 	if !askYN("  Devam edilsin mi?") {
-		fmt.Println(styleDim.Render("  İptal."))
+		fmt.Println(styleDim.Render(L("  İptal.", "  Cancelled.")))
 		return
 	}
 
 	// ── Binary'leri bul ve sil ───────────────────────────────────────────────
 	fmt.Println()
-	fmt.Println(styleBold.Render("  Binary'ler aranıyor..."))
+	fmt.Println(styleBold.Render(L("  Binary'ler aranıyor...", "  Looking for binaries...")))
 
 	names := []string{"cem", "cemi", "cemir"}
 	if runtime.GOOS == "windows" {
@@ -52,14 +52,14 @@ func runUninstall() {
 	for _, name := range names {
 		path, err := exec.LookPath(name)
 		if err != nil {
-			fmt.Printf("  %s %-8s bulunamadı, atlandı\n", styleDim.Render("○"), name)
+			fmt.Printf(L("  %s %-8s bulunamadı, atlandı\n", "  %s %-8s not found, skipped\n"), styleDim.Render("○"), name)
 			continue
 		}
 		if err := os.Remove(path); err != nil {
 			// Windows: çalışan exe'yi silemiyoruz — detached cmd ile gecikmeli sil
 			if runtime.GOOS == "windows" && samePath(path, selfPath) {
 				if scheduleWindowsSelfDelete(path) {
-					fmt.Printf("  %s %-8s çıkışta silinecek %s\n",
+					fmt.Printf(L("  %s %-8s çıkışta silinecek %s\n", "  %s %-8s will be deleted on exit %s\n"),
 						styleSuccess.Render("✓"), name, styleDim.Render(path))
 					scheduledSelfDelete = path
 					removed++
@@ -94,7 +94,7 @@ func runUninstall() {
 	cemDir := filepath.Join(home, ".cem")
 
 	if _, err := os.Stat(cemDir); err == nil {
-		fmt.Printf("  Config klasörü: %s\n", styleDim.Render(cemDir))
+		fmt.Printf(L("  Config klasörü: %s\n", "  Config directory: %s\n"), styleDim.Render(cemDir))
 		if askYN("  Config ve ayarlar da silinsin mi?") {
 			if err := os.RemoveAll(cemDir); err != nil {
 				fmt.Printf("  %s Config silinemedi: %v\n", styleError.Render("✗"), err)
@@ -119,16 +119,16 @@ func runUninstall() {
 	// ── Sonuç ─────────────────────────────────────────────────────────────────
 	fmt.Println()
 	if removed > 0 {
-		fmt.Println(styleSuccess.Render("  ✓ CEM kaldırıldı."))
+		fmt.Println(styleSuccess.Render(L("  ✓ CEM kaldırıldı.", "  ✓ CEM removed.")))
 		fmt.Println()
-		fmt.Println(styleDim.Render("  Yeniden kurmak için:"))
+		fmt.Println(styleDim.Render(L("  Yeniden kurmak için:", "  To reinstall:")))
 		if runtime.GOOS == "windows" {
 			fmt.Println(styleDim.Render("  irm cem.pw/install.ps1 | iex"))
 		} else {
 			fmt.Println(styleDim.Render("  curl -fsSL cem.pw/install | sh"))
 		}
 	} else {
-		fmt.Println(styleWarn.Render("  ⚠ Hiçbir binary silinemedi."))
+		fmt.Println(styleWarn.Render(L("  ⚠ Hiçbir binary silinemedi.", "  ⚠ No binaries could be deleted.")))
 		fmt.Println(styleDim.Render("  sudo ile dene veya manuel sil."))
 	}
 	fmt.Println()

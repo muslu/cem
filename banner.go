@@ -10,7 +10,7 @@ import (
 type BannerKind int
 
 const (
-	BannerCem   BannerKind = iota
+	BannerCem BannerKind = iota
 	BannerCemi
 	BannerCemir
 )
@@ -40,19 +40,19 @@ func PrintBanner(kind BannerKind) {
 
 	switch kind {
 	case BannerCem:
-		badge    = colorAccent.Render("  ⚡ Compose · Execute · Multiplex")
+		badge = colorAccent.Render("  ⚡ Compose · Execute · Multiplex")
 		subtitle = colorTagline.Render("  One command, many AIs.")
-		tip      = colorMuted.Render("  cem -p \"task\"  →  pair mode")
+		tip = colorMuted.Render("  cem -p \"task\"  →  pair mode")
 
 	case BannerCemi:
-		badge    = colorGreen.Render("  📦 AI Tool Installer")
+		badge = colorGreen.Render("  📦 AI Tool Installer")
 		subtitle = colorTagline.Render("  Install and update AI CLI tools")
-		tip      = colorMuted.Render("  cemi all -y  →  install everything (no prompts)")
+		tip = colorMuted.Render("  cemi all -y  →  install everything (no prompts)")
 
 	case BannerCemir:
-		badge    = colorRed.Render("  🗑  AI Tool Remover")
+		badge = colorRed.Render("  🗑  AI Tool Remover")
 		subtitle = colorTagline.Render("  Uninstall AI CLI tools")
-		tip      = colorMuted.Render("  cemir all -y  →  remove everything (no prompts)")
+		tip = colorMuted.Render("  cemir all -y  →  remove everything (no prompts)")
 	}
 
 	url := colorURL.Render("  cem.pw")
@@ -80,10 +80,10 @@ func ShowConfigSource(rc *ResolvedConfig) {
 		fmt.Println(colorYellow.Render("  📁 Project config: ") +
 			colorTagline.Render(".cem.yaml") +
 			colorMuted.Render("  (overrides global)"))
-	} else {
-		fmt.Println(colorMuted.Render("  🌍 Global config: ~/.cem/config.yaml"))
+		fmt.Println()
 	}
-	fmt.Println()
+	// Global config normal durum — ayrıca bildirmeye gerek yok; sadece proje
+	// config'i devredeyken uyarmak bilgiyi anlamlı kılıyor.
 }
 
 func repeat(s string, n int) string {

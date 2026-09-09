@@ -60,7 +60,7 @@ func updateToolNative(toolKey string, cfg *GlobalConfig, out *strings.Builder) (
 	}
 	bin := toolBinary(toolKey, cfg)
 	if bin == "" {
-		return false, fmt.Errorf("%s bulunamadı", toolKey)
+		return false, fmt.Errorf(L("%s bulunamadı", "%s not found"), toolKey)
 	}
 	cmd := exec.Command(bin, meta.UpdateCmd...)
 	cmd.Stdout = out
@@ -153,7 +153,7 @@ func maybeAutoUpdateTools() {
 		return
 	}
 	fmt.Printf("  %s %s · log: %s\n",
-		styleDim.Render("🔄 araç güncellemesi arka planda:"),
+		styleDim.Render(L("🔄 araç güncellemesi arka planda:", "🔄 tool update running in background:")),
 		styleDim.Render(strings.Join(started, ", ")),
 		styleDim.Render("~/.cem/"+autoUpdateLogName))
 }

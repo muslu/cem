@@ -20,6 +20,10 @@ var (
 	styleWarn    = lipgloss.NewStyle().Foreground(lipgloss.Color("220"))
 	styleError   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	styleDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	// Rol renkleri: düşünen mavi, yazan yeşil. Aynı ekranda iki AI'ın
+	// çıktısı peş peşe akıyor; renk, kimin konuştuğunu okumadan ayırt ettirir.
+	styleThinker = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("117"))
+	styleWriter  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("114"))
 	styleBox     = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("212")).
@@ -30,18 +34,25 @@ var (
 func RunSetupWizard(cfg *GlobalConfig) error {
 	toolOrder := orderedToolKeys
 
+	// Dil ilk soru: bundan sonraki tüm sihirbaz metinleri seçilen dilde.
+	askLanguage(cfg)
+
 	fmt.Println(styleBox.Render(
-		styleTitle.Render("Hangi AI düşünür, hangi AI yazar?") + "\n" +
-			styleDim.Render("Bir kez seç, istediğin zaman değiştir: cem roles")))
+		styleTitle.Render(L("Hangi AI düşünür, hangi AI yazar?",
+			"Which AI thinks, which AI writes?")) + "\n" +
+			styleDim.Render(L("Bir kez seç, istediğin zaman değiştir: cem roles",
+				"Choose once, change anytime: cem roles"))))
 	fmt.Println()
 
 	// Bulunulan dizinde .cem.yaml varsa, kullanıcıya wizard'ın global'i
 	// değiştirdiğini ama proje config'in onu override edeceğini hatırlat.
 	if _, err := os.Stat(".cem.yaml"); err == nil {
 		fmt.Println(styleWarn.Render(
-			"  ⚠ Bu dizinde .cem.yaml var — global ayarlar burada override edilir."))
+			L("  ⚠ Bu dizinde .cem.yaml var — global ayarlar burada override edilir.",
+				"  ⚠ A .cem.yaml exists here — it overrides the global settings.")))
 		fmt.Println(styleDim.Render(
-			"    Wizard bitince proje config'i de güncellemek isteyip istemediğini soracağım."))
+			L("    Wizard bitince proje config'i de güncellemek isteyip istemediğini soracağım.",
+				"    After the wizard I will ask whether to update the project config too.")))
 		fmt.Println()
 	}
 
@@ -67,7 +78,7 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 	fmt.Println()
 
 	// Thinker seç
-	thinker := pickTool("  🧠 Düşünen AI", toolOrder, cfg)
+	thinker := pickTool(L("  🧠 Düşünen AI", "  🧠 Thinking AI"), toolOrder, cfg)
 	if thinker == "" {
 		return fmt.Errorf("iptal edildi")
 	}
@@ -86,7 +97,7 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 			meta := KnownTools[key]
 			if askYN(fmt.Sprintf("  %s kurulsun mu?", styleBold.Render(meta.Name))) {
 				if err := InstallTool(key, cfg); err != nil {
-					fmt.Println(styleWarn.Render("  ⚠ Kurulum başarısız: " + err.Error()))
+					fmt.Println(styleWarn.Render(L("  ⚠ Kurulum başarısız: ", "  ⚠ Installation failed: ") + err.Error()))
 					fmt.Println(styleDim.Render("    Manuel kurabilir, devam edebilirsiniz."))
 				}
 			}
@@ -112,13 +123,15 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 	}
 
 	fmt.Println()
-	fmt.Println(styleSuccess.Render("  ✓ Hazır!"))
+	fmt.Println(styleSuccess.Render(L("  ✓ Hazır!", "  ✓ Ready!")))
 	// Proje config'i global'i override ediyor — kullanıcıya bu dizindeki
 	// .cem.yaml'i yeni rollere göre güncellemek isteyip istemediğini sor.
 	if _, err := os.Stat(".cem.yaml"); err == nil {
 		fmt.Println(styleWarn.Render(
-			"  ⚠ Bu dizinde .cem.yaml var — burada çalışırken global override edilir."))
-		if askYN("  Proje config'ini de yeni rollerle güncelleyeyim mi?") {
+			L("  ⚠ Bu dizinde .cem.yaml var — burada çalışırken global override edilir.",
+				"  ⚠ A .cem.yaml exists here — it overrides the global config in this directory.")))
+		if askYN(L("  Proje config'ini de yeni rollerle güncelleyeyim mi?",
+			"  Update the project config with the new roles as well?")) {
 			pc := &ProjectConfig{Roles: &Roles{Thinker: thinker, Writer: writer}}
 			// Modelleri de aktar — global'de set edilmişse proje override eklenir
 			pc.Models = map[string]string{}
@@ -134,9 +147,9 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 				pc.Models = nil
 			}
 			if err := SaveProjectConfig(pc); err != nil {
-				fmt.Println(styleError.Render("  ✗ .cem.yaml yazılamadı: " + err.Error()))
+				fmt.Println(styleError.Render(L("  ✗ .cem.yaml yazılamadı: ", "  ✗ Cannot write .cem.yaml: ") + err.Error()))
 			} else {
-				fmt.Println(styleSuccess.Render("  ✓ .cem.yaml güncellendi"))
+				fmt.Println(styleSuccess.Render(L("  ✓ .cem.yaml güncellendi", "  ✓ .cem.yaml updated")))
 			}
 		} else {
 			fmt.Println(styleDim.Render("    Sonra: cem init"))
@@ -150,28 +163,32 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 }
 
 // printRolesTable — rol özetini iki kutu halinde basar:
-//   ┌── Aktif Roller ──────────────────────────┐
-//   │ 🧠 thinker  claude       cem "soru"      │
-//   │ ✍️  writer   agy          cem -w "görev"  │
-//   │ 🤝 pair     claude → agy cem -p "görev"  │
-//   └──────────────────────────────────────────┘
-//   ┌── Değiştir ──────────────────────────────┐
-//   │ cem roles claude agy   global'i değiştir │
-//   │ cem init               proje config'i    │
-//   └──────────────────────────────────────────┘
+//
+//	┌── Aktif Roller ──────────────────────────┐
+//	│ 🧠 thinker  claude       cem "soru"      │
+//	│ ✍️  writer   agy          cem -w "görev"  │
+//	│ 🤝 pair     claude → agy cem -p "görev"  │
+//	└──────────────────────────────────────────┘
+//	┌── Değiştir ──────────────────────────────┐
+//	│ cem roles claude agy   global'i değiştir │
+//	│ cem init               proje config'i    │
+//	└──────────────────────────────────────────┘
 func printRolesTable(thinker, writer string) {
 	// İlk kolon (ikon + rol adı): max genişlik = "✍️  writer "
 	// İkinci kolon (model adı kombosu): thinker / writer / pair
 	// Üçüncü kolon: örnek komut
+	ask := L(`cem "soru"`, `cem "question"`)
+	task := L(`cem -w "görev"`, `cem -w "task"`)
+	pairTask := L(`cem -p "görev"`, `cem -p "task"`)
 	rows := [][3]string{
-		{"🧠 thinker", thinker, `cem "soru"`},
-		{"✍️  writer ", writer, `cem -w "görev"`},
-		{"🤝 pair    ", thinker + " → " + writer, `cem -p "görev"`},
+		{"🧠 thinker", thinker, ask},
+		{"✍️  writer ", writer, task},
+		{"🤝 pair    ", thinker + " → " + writer, pairTask},
 	}
 	helpRows := [][2]string{
-		{"cem roles claude agy", "global'i değiştir"},
-		{"cem roles --here X Y", "sadece bu proje"},
-		{"cem init", "proje wizard"},
+		{"cem roles claude agy", L("global'i değiştir", "change globally")},
+		{"cem roles --here X Y", L("sadece bu proje", "this project only")},
+		{"cem init", L("proje wizard", "project wizard")},
 	}
 
 	// Genişlik hesapla
@@ -190,7 +207,7 @@ func printRolesTable(thinker, writer string) {
 
 	// Aktif Roller kutusu
 	innerWidth := w1 + 2 + w2 + 2 + w3
-	printBoxTitle("Aktif Roller", innerWidth)
+	printBoxTitle(L("Aktif Roller", "Active Roles"), innerWidth)
 	for _, r := range rows {
 		fmt.Printf("  │ %s  %s  %s │\n",
 			padRight(r[0], w1),
@@ -217,7 +234,7 @@ func printRolesTable(thinker, writer string) {
 		hInner = innerWidth
 	}
 	fmt.Println()
-	printBoxTitle("Değiştir", hInner)
+	printBoxTitle(L("Değiştir", "Change"), hInner)
 	for _, h := range helpRows {
 		fmt.Printf("  │ %s  %s │\n",
 			styleBold.Render(padRight(h[0], w4)),
@@ -280,7 +297,7 @@ func printTail(s string, n int) {
 	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
 	if len(lines) > n {
 		lines = lines[len(lines)-n:]
-		fmt.Println(styleDim.Render("  ... (çıktı kısaltıldı)"))
+		fmt.Println(styleDim.Render(L("  ... (çıktı kısaltıldı)", "  ... (output truncated)")))
 	}
 	for _, l := range lines {
 		fmt.Println(styleDim.Render("  " + l))
@@ -297,10 +314,11 @@ func askModel(toolKey, label string, cfg *GlobalConfig) {
 	}
 	if meta.ModelFlag == "" {
 		fmt.Println(styleDim.Render(fmt.Sprintf(
-			"  ⓘ %s CLI'sı henüz --model flag'ini desteklemiyor — seçim kayda alınır, runtime'a etki etmez.",
+			L("  ⓘ %s CLI'sı henüz --model flag'ini desteklemiyor — seçim kayda alınır, runtime'a etki etmez.",
+				"  ⓘ %s CLI has no --model flag yet — the choice is stored but has no runtime effect."),
 			meta.Name)))
 	}
-	fmt.Printf("  %s · %s için model:\n", styleBold.Render(label), styleBold.Render(meta.Name))
+	fmt.Printf(L("  %s · %s için model:\n", "  %s · model for %s:\n"), styleBold.Render(label), styleBold.Render(meta.Name))
 	for i, m := range meta.Models {
 		marker := " "
 		if t, ok := cfg.Tools[toolKey]; ok && t.Model == m {
@@ -308,9 +326,9 @@ func askModel(toolKey, label string, cfg *GlobalConfig) {
 		}
 		fmt.Printf("    %s [%d] %s\n", marker, i+1, m)
 	}
-	fmt.Printf("      [%d] custom (kendi adını gir)\n", len(meta.Models)+1)
-	fmt.Printf("      [0] default (CLI kendi seçer)\n")
-	fmt.Print("  Seçim: ")
+	fmt.Printf(L("      [%d] custom (kendi adını gir)\n", "      [%d] custom (type your own)\n"), len(meta.Models)+1)
+	fmt.Print(L("      [0] default (CLI kendi seçer)\n", "      [0] default (the CLI decides)\n"))
+	fmt.Print(L("  Seçim: ", "  Choice: "))
 	reader := bufio.NewReader(os.Stdin)
 	resp, _ := reader.ReadString('\n')
 	resp = strings.TrimSpace(resp)
@@ -325,9 +343,9 @@ func askModel(toolKey, label string, cfg *GlobalConfig) {
 	default:
 		idx, err := strconv.Atoi(resp)
 		if err != nil || idx < 1 || idx > len(meta.Models)+1 {
-			fmt.Println(styleDim.Render("  geçersiz, mevcut/default korundu"))
+			fmt.Println(styleDim.Render(L("  geçersiz, mevcut/default korundu", "  invalid, kept current/default")))
 		} else if idx == len(meta.Models)+1 {
-			fmt.Print("  Model adı: ")
+			fmt.Print(L("  Model adı: ", "  Model name: "))
 			line, _ := reader.ReadString('\n')
 			t.Model = strings.TrimSpace(line)
 		} else {
@@ -339,8 +357,45 @@ func askModel(toolKey, label string, cfg *GlobalConfig) {
 	}
 	cfg.Tools[toolKey] = t
 	if t.Model != "" {
-		fmt.Printf("  %s model: %s\n", styleSuccess.Render("✓"), styleBold.Render(t.Model))
+		fmt.Printf(L("  %s model: %s\n", "  %s model: %s\n"), styleSuccess.Render("✓"), styleBold.Render(t.Model))
 	}
+}
+
+// askLanguage — sihirbazın İLK sorusu. Seçim hemen uygulanır ki geri kalan
+// sihirbaz doğru dilde aksın. Enter = mevcut/otomatik algılanan dil.
+func askLanguage(cfg *GlobalConfig) {
+	current := Lang()
+	fmt.Println()
+	fmt.Println(styleBold.Render("  Dil / Language"))
+	for i, opt := range []struct{ code, name string }{
+		{LangTR, "Türkçe"},
+		{LangEN, "English"},
+	} {
+		marker := " "
+		if opt.code == current {
+			marker = styleSuccess.Render("✓")
+		}
+		fmt.Printf("    %s [%d] %s\n", marker, i+1, opt.name)
+	}
+	fmt.Print("  Seçim / Choice: ")
+	reader := bufio.NewReader(os.Stdin)
+	resp, _ := reader.ReadString('\n')
+
+	switch strings.TrimSpace(resp) {
+	case "1":
+		cfg.Lang = LangTR
+	case "2":
+		cfg.Lang = LangEN
+	default:
+		// Enter veya geçersiz: mevcut dil kalıcı hâle gelsin ki bir dahaki
+		// çalıştırmada ortam değişkeni değişse bile arayüz aynı kalsın.
+		cfg.Lang = current
+	}
+	// applyLang() burada ÇAĞRILMAZ: komut açıklamalarına dokunmak
+	// rootCmd ↔ wizard arasında initialization cycle yaratıyor. Sihirbazın
+	// kendi metinleri L() ile dinamik; help metinleri zaten bir sonraki
+	// çalıştırmada main() içindeki applyLang() ile doğru dile geçer.
+	setLang(cfg.Lang)
 }
 
 // askEffort — kullanıcıya bir tool için düşünme (reasoning) seviyesi seçtirir;
@@ -351,7 +406,7 @@ func askEffort(toolKey, label string, cfg *GlobalConfig) {
 	if !ok || len(meta.Efforts) == 0 || len(meta.EffortArgs) == 0 {
 		return
 	}
-	fmt.Printf("  %s · %s için düşünme seviyesi:\n",
+	fmt.Printf(L("  %s · %s için düşünme seviyesi:\n", "  %s · reasoning effort for %s:\n"),
 		styleBold.Render(label), styleBold.Render(meta.Name))
 	for i, e := range meta.Efforts {
 		marker := " "
@@ -360,8 +415,8 @@ func askEffort(toolKey, label string, cfg *GlobalConfig) {
 		}
 		fmt.Printf("    %s [%d] %s%s\n", marker, i+1, e, styleDim.Render(effortHint(e)))
 	}
-	fmt.Printf("      [0] default (CLI kendi seçer)\n")
-	fmt.Print("  Seçim: ")
+	fmt.Print(L("      [0] default (CLI kendi seçer)\n", "      [0] default (the CLI decides)\n"))
+	fmt.Print(L("  Seçim: ", "  Choice: "))
 	reader := bufio.NewReader(os.Stdin)
 	resp, _ := reader.ReadString('\n')
 	resp = strings.TrimSpace(resp)
@@ -375,7 +430,7 @@ func askEffort(toolKey, label string, cfg *GlobalConfig) {
 	default:
 		idx, err := strconv.Atoi(resp)
 		if err != nil || idx < 1 || idx > len(meta.Efforts) {
-			fmt.Println(styleDim.Render("  geçersiz, mevcut/default korundu"))
+			fmt.Println(styleDim.Render(L("  geçersiz, mevcut/default korundu", "  invalid, kept current/default")))
 		} else {
 			t.Effort = meta.Efforts[idx-1]
 		}
@@ -385,7 +440,7 @@ func askEffort(toolKey, label string, cfg *GlobalConfig) {
 	}
 	cfg.Tools[toolKey] = t
 	if t.Effort != "" {
-		fmt.Printf("  %s düşünme: %s\n", styleSuccess.Render("✓"), styleBold.Render(t.Effort))
+		fmt.Printf(L("  %s düşünme: %s\n", "  %s effort: %s\n"), styleSuccess.Render("✓"), styleBold.Render(t.Effort))
 	}
 }
 
@@ -393,13 +448,13 @@ func askEffort(toolKey, label string, cfg *GlobalConfig) {
 func effortHint(e string) string {
 	switch e {
 	case "minimal", "low":
-		return "  (hızlı, ucuz)"
+		return L("  (hızlı, ucuz)", "  (fast, cheap)")
 	case "medium":
-		return "  (denge)"
+		return L("  (denge)", "  (balanced)")
 	case "high":
-		return "  (derin)"
+		return L("  (derin)", "  (deep)")
 	case "xhigh", "max":
-		return "  (en derin, yavaş + pahalı)"
+		return L("  (en derin, yavaş + pahalı)", "  (deepest, slow + expensive)")
 	}
 	return ""
 }
@@ -420,27 +475,27 @@ func ensureDep(bin string) bool {
 		if depVersionOK(bin) {
 			return true
 		}
-		fmt.Println(styleDim.Render(fmt.Sprintf("  ⚠ %s sürümü çok eski — modern sürüm kuruluyor", bin)))
+		fmt.Println(styleDim.Render(fmt.Sprintf(L("  ⚠ %s sürümü çok eski — modern sürüm kuruluyor", "  ⚠ %s is too old — installing a modern version"), bin)))
 	}
 	install, label := depInstallCommand(bin)
 	if install == nil {
-		fmt.Println(styleError.Render(fmt.Sprintf("  ✗ %s PATH'de yok ve otomatik kurulum tanımlanmamış", bin)))
+		fmt.Println(styleError.Render(fmt.Sprintf(L("  ✗ %s PATH'de yok ve otomatik kurulum tanımlanmamış", "  ✗ %s is not in PATH and has no automatic installer"), bin)))
 		return false
 	}
-	fmt.Println(styleDim.Render(fmt.Sprintf("  ⚠ %s eksik — kurmak için: %s", bin, label)))
-	if !askYN("  Şimdi kurulsun mu?") {
+	fmt.Println(styleDim.Render(fmt.Sprintf(L("  ⚠ %s eksik — kurmak için: %s", "  ⚠ %s is missing — install it with: %s"), bin, label)))
+	if !askYN(L("  Şimdi kurulsun mu?", "  Install it now?")) {
 		return false
 	}
 	// Output'u yakala, başarısız olunca son satırları göster.
 	var depBuf strings.Builder
 	install.Stdout = &depBuf
 	install.Stderr = &depBuf
-	sp := StartSpinner(fmt.Sprintf("⏳ %s kuruluyor (önkoşul)", bin))
+	sp := StartSpinner(fmt.Sprintf(L("⏳ %s kuruluyor (önkoşul)", "⏳ installing %s (prerequisite)"), bin))
 	err := install.Run()
 	sp.Stop()
 	if err != nil {
 		printTail(depBuf.String(), 12)
-		fmt.Println(styleError.Render("  ✗ kurulum başarısız: " + err.Error()))
+		fmt.Println(styleError.Render(L("  ✗ kurulum başarısız: ", "  ✗ installation failed: ") + err.Error()))
 		return false
 	}
 	// Linux'ta nvm Node'u ~/.nvm/versions/node/<v>/bin/'e koyar; çalışan
@@ -605,9 +660,9 @@ func InstallTool(toolKey string, cfg *GlobalConfig) error {
 			existing.Command = toolKey
 		}
 		cfg.Tools[toolKey] = existing
-		fmt.Printf("  %s %s kuruldu ama %s henüz PATH'de değil\n",
+		fmt.Printf(L("  %s %s kuruldu ama %s henüz PATH'de değil\n", "  %s %s installed but %s is not in PATH yet\n"),
 			styleWarn.Render("⚠"), meta.Name, toolKey)
-		fmt.Println(styleDim.Render("    Yeni terminal aç (PATH bu oturumda yenilenmez)"))
+		fmt.Println(styleDim.Render(L("    Yeni terminal aç (PATH bu oturumda yenilenmez)", "    Open a new terminal (PATH is not refreshed in this session)")))
 		return nil
 	}
 	// Model alanını koru — wizard daha önce set etmiş olabilir
@@ -638,16 +693,17 @@ func postInstallAuthSetup(toolKey string, meta ToolMeta, binPath string, cfg *Gl
 	}
 	if autoYes {
 		fmt.Println(styleDim.Render(fmt.Sprintf(
-			"  ⓘ Auth: 'cem keys add %s' ile key gir veya '%s' çalıştırıp login ol",
+			L("  ⓘ Auth: 'cem keys add %s' ile key gir veya '%s' çalıştırıp login ol",
+				"  ⓘ Auth: add a key with 'cem keys add %s' or run '%s' and log in"),
 			meta.Provider, filepath.Base(binPath))))
 		return
 	}
 	fmt.Println()
-	fmt.Printf("  %s için auth:\n", styleBold.Render(meta.Name))
-	fmt.Println(styleDim.Render("    [1] API key kaydet (çoklu key + rate-limit rotasyonu)"))
-	fmt.Println(styleDim.Render("    [2] Subscription / OAuth login (sonra: '" + filepath.Base(binPath) + "' çalıştır)"))
-	fmt.Println(styleDim.Render("    [3] Şimdilik atla"))
-	fmt.Print("  Seçim [1-3]: ")
+	fmt.Printf(L("  %s için auth:\n", "  auth for %s:\n"), styleBold.Render(meta.Name))
+	fmt.Println(styleDim.Render(L("    [1] API key kaydet (çoklu key + rate-limit rotasyonu)", "    [1] Store an API key (multi-key + rate-limit rotation)")))
+	fmt.Println(styleDim.Render(L("    [2] Subscription / OAuth login (sonra: '", "    [2] Subscription / OAuth login (then run: '") + filepath.Base(binPath) + L("' çalıştır)", "')")))
+	fmt.Println(styleDim.Render(L("    [3] Şimdilik atla", "    [3] Skip for now")))
+	fmt.Print(L("  Seçim [1-3]: ", "  Choice [1-3]: "))
 	reader := bufio.NewReader(os.Stdin)
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
@@ -661,7 +717,7 @@ func postInstallAuthSetup(toolKey string, meta ToolMeta, binPath string, cfg *Gl
 				fmt.Println(styleDim.Render("  iptal"))
 				return
 			}
-			fmt.Print("  Etiket (opsiyonel, örn. 'personal'): ")
+			fmt.Print(L("  Etiket (opsiyonel, örn. 'personal'): ", "  Label (optional, e.g. 'personal'): "))
 			label, _ := reader.ReadString('\n')
 			label = strings.TrimSpace(label)
 			if cfg.APIKeys == nil {
@@ -671,14 +727,14 @@ func postInstallAuthSetup(toolKey string, meta ToolMeta, binPath string, cfg *Gl
 				APIKey{Value: val, Label: label})
 			fmt.Printf("  %s %s key #%d kaydedildi\n",
 				styleSuccess.Render("✓"), meta.Provider, len(cfg.APIKeys[meta.Provider]))
-			if !askYN("  Başka key eklemek ister misin?") {
+			if !askYN(L("  Başka key eklemek ister misin?", "  Add another key?")) {
 				return
 			}
 		}
 	case "2":
-		fmt.Println(styleDim.Render("  → " + filepath.Base(binPath) + "  (interaktif login akışı açılır)"))
+		fmt.Println(styleDim.Render("  → " + filepath.Base(binPath) + L("  (interaktif login akışı açılır)", "  (opens the interactive login flow)")))
 	default:
-		fmt.Println(styleDim.Render("  Atlandı. Sonra: cem keys add " + meta.Provider))
+		fmt.Println(styleDim.Render(L("  Atlandı. Sonra: cem keys add ", "  Skipped. Later: cem keys add ") + meta.Provider))
 	}
 }
 
@@ -727,14 +783,14 @@ func RemoveTool(toolKey string, cfg *GlobalConfig) error {
 		return fmt.Errorf("bilinmeyen araç: %s", toolKey)
 	}
 	if _, installed := cfg.Tools[toolKey]; !installed {
-		return fmt.Errorf("%s zaten kurulu değil", toolKey)
+		return fmt.Errorf(L("%s zaten kurulu değil", "%s is not installed"), toolKey)
 	}
-	if !askYN(fmt.Sprintf("  %s kaldırılsın mı?", styleBold.Render(meta.Name))) {
-		fmt.Println("  İptal.")
+	if !askYN(fmt.Sprintf(L("  %s kaldırılsın mı?", "  Remove %s?"), styleBold.Render(meta.Name))) {
+		fmt.Println(L("  İptal.", "  Cancelled."))
 		return nil
 	}
 
-	fmt.Printf("  ⏳ %s kaldırılıyor...\n", meta.Name)
+	fmt.Printf(L("  ⏳ %s kaldırılıyor...\n", "  ⏳ removing %s...\n"), meta.Name)
 
 	ic := meta.InstallCmd
 	var unCmd *exec.Cmd
@@ -770,7 +826,7 @@ func RemoveTool(toolKey string, cfg *GlobalConfig) error {
 			path = fallbackInstallPath(toolKey)
 		}
 		if path == "" {
-			return fmt.Errorf("binary konumu bulunamadı — manuel sil")
+			return fmt.Errorf("%s", L("binary konumu bulunamadı — manuel sil", "binary location not found — remove it manually"))
 		}
 		// Tool kendi alt-dizinine kuruluyorsa (örn. \cursor-agent\, \agy\)
 		// versions/ ve config dosyalarıyla birlikte komple ağacı sil. Aksi
@@ -789,14 +845,14 @@ func RemoveTool(toolKey string, cfg *GlobalConfig) error {
 			if err := os.RemoveAll(dir); err != nil {
 				return fmt.Errorf("%s silinemedi: %w", dir, err)
 			}
-			fmt.Println(styleDim.Render("    silindi (komple ağaç): " + dir))
+			fmt.Println(styleDim.Render(L("    silindi (komple ağaç): ", "    removed (whole tree): ") + dir))
 			removed = true
 		case matchesTool(grandName):
 			// Ör: %LOCALAPPDATA%\agy\bin\agy.exe → wipe agy\
 			if err := os.RemoveAll(grand); err != nil {
 				return fmt.Errorf("%s silinemedi: %w", grand, err)
 			}
-			fmt.Println(styleDim.Render("    silindi (komple ağaç): " + grand))
+			fmt.Println(styleDim.Render(L("    silindi (komple ağaç): ", "    removed (whole tree): ") + grand))
 			removed = true
 		default:
 			if err := os.Remove(path); err != nil {
@@ -810,10 +866,10 @@ func RemoveTool(toolKey string, cfg *GlobalConfig) error {
 		}
 		_ = removed
 		delete(cfg.Tools, toolKey)
-		fmt.Printf("  %s %s kaldırıldı\n", styleSuccess.Render("✓"), meta.Name)
+		fmt.Printf(L("  %s %s kaldırıldı\n", "  %s %s removed\n"), styleSuccess.Render("✓"), meta.Name)
 		return saveGlobalConfig(cfg)
 	} else {
-		return fmt.Errorf("otomatik kaldırma desteklenmiyor")
+		return fmt.Errorf("%s", L("otomatik kaldırma desteklenmiyor", "automatic removal is not supported"))
 	}
 
 	unCmd.Stdout = os.Stdout
@@ -830,7 +886,7 @@ func RemoveTool(toolKey string, cfg *GlobalConfig) error {
 		cfg.Roles.Writer = ""
 	}
 
-	fmt.Printf("  %s %s kaldırıldı\n", styleSuccess.Render("✓"), meta.Name)
+	fmt.Printf(L("  %s %s kaldırıldı\n", "  %s %s removed\n"), styleSuccess.Render("✓"), meta.Name)
 	return saveGlobalConfig(cfg)
 }
 
@@ -879,7 +935,7 @@ func printToolsTable(tools map[string]InstalledTool) {
 		}
 	}
 	inner := wKey + 2 + wVer + 2 + wModel
-	printBoxTitle("Kurulu Araçlar", inner)
+	printBoxTitle(L("Kurulu Araçlar", "Installed Tools"), inner)
 	for key, t := range tools {
 		v := t.Version
 		if v == "" {

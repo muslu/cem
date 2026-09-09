@@ -12,10 +12,10 @@ import (
 // cemir          → kurulu araçları listele
 
 var cemirRootCmd = &cobra.Command{
-	Use:              "cemir [tool]",
-	Short:            "Uninstall AI CLI tools",
-	Version:          version,
-	Args:             cobra.ArbitraryArgs,
+	Use:     "cemir [tool]",
+	Short:   "Uninstall AI CLI tools",
+	Version: version,
+	Args:    cobra.ArbitraryArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		OpenSourceNotice()
 		checkUpdateNotice()
@@ -71,17 +71,17 @@ func initCemirCmd() {
 // removeAll — kurulu tüm araçları onay sorarak sırayla kaldırır
 func removeAll(cfg *GlobalConfig) {
 	if len(cfg.Tools) == 0 {
-		fmt.Println(styleDim.Render("  Kurulu araç yok."))
+		fmt.Println(styleDim.Render(L("  Kurulu araç yok.", "  No tools installed.")))
 		return
 	}
 
-	fmt.Println(styleBold.Render("  Tüm kurulu araçlar kaldırılacak:"))
+	fmt.Println(styleBold.Render(L("  Tüm kurulu araçlar kaldırılacak:", "  All installed tools will be removed:")))
 	for key := range cfg.Tools {
 		fmt.Printf("  · %s\n", styleBold.Render(key))
 	}
 	fmt.Println()
 	if !askYN("  Devam edilsin mi?") {
-		fmt.Println(styleDim.Render("  İptal."))
+		fmt.Println(styleDim.Render(L("  İptal.", "  Cancelled.")))
 		return
 	}
 
@@ -115,21 +115,21 @@ func removeAll(cfg *GlobalConfig) {
 
 	fmt.Println()
 	if len(failed) > 0 {
-		fmt.Printf("  %s %d araç kaldırılamadı: %s\n",
+		fmt.Printf(L("  %s %d araç kaldırılamadı: %s\n", "  %s %d tool(s) could not be removed: %s\n"),
 			styleWarn.Render("⚠"), len(failed), strings.Join(failed, ", "))
 	} else {
-		fmt.Println(styleSuccess.Render("  ✓ Tüm araçlar kaldırıldı."))
+		fmt.Println(styleSuccess.Render(L("  ✓ Tüm araçlar kaldırıldı.", "  ✓ All tools removed.")))
 	}
 }
 
 func printInstalledTools(cfg *GlobalConfig) {
 	if len(cfg.Tools) == 0 {
-		fmt.Println(styleDim.Render("  Kurulu araç yok."))
+		fmt.Println(styleDim.Render(L("  Kurulu araç yok.", "  No tools installed.")))
 		fmt.Println()
 		return
 	}
 
-	fmt.Println(styleBold.Render("  Kurulu araçlar:"))
+	fmt.Println(styleBold.Render(L("  Kurulu araçlar:", "  Installed tools:")))
 	fmt.Println()
 
 	for key, tool := range cfg.Tools {
@@ -144,7 +144,7 @@ func printInstalledTools(cfg *GlobalConfig) {
 	}
 
 	fmt.Println()
-	fmt.Println(styleDim.Render("  cemir claude  →  Claude'u kaldır"))
-	fmt.Println(styleDim.Render("  cemir agy     →  Agy'i kaldır"))
+	fmt.Println(styleDim.Render(L("  cemir claude  →  Claude'u kaldır", "  cemir claude  →  remove Claude")))
+	fmt.Println(styleDim.Render(L("  cemir agy     →  Agy'i kaldır", "  cemir agy     →  remove Agy")))
 	fmt.Println()
 }

@@ -46,14 +46,14 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		if roles.Thinker == "" {
 			return errMissingRole("thinker")
 		}
-		printAIHeader("🧠 thinker", roles.Thinker, rc)
+		printAIHeader("thinker", roles.Thinker, rc)
 		return runTool(roles.Thinker, rc, input, "🧠")
 
 	case ModeWrite:
 		if roles.Writer == "" {
 			return errMissingRole("writer")
 		}
-		printAIHeader("✍️  writer", roles.Writer, rc)
+		printAIHeader("writer", roles.Writer, rc)
 		return runTool(roles.Writer, rc, input, "✍️")
 
 	case ModePair:
@@ -67,8 +67,8 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		thinkerLabel := roles.Thinker + " (" + describeToolRun(roles.Thinker, rc) + ")"
 		// Header'ı ÖNCE bas — çıktı streaming geldiği için kullanıcı kimin
 		// konuştuğunu hemen bilsin.
-		printAIHeader("🧠 thinker", roles.Thinker, rc)
-		sp := StartSpinner("🧠 " + thinkerLabel + " düşünüyor...")
+		printAIHeader("thinker", roles.Thinker, rc)
+		sp := StartSpinner("🧠 " + thinkerLabel + L(" düşünüyor...", " is thinking..."))
 		thought, err := captureToolWithSpinner(roles.Thinker, rc, input, sp)
 		sp.Stop() // stopWriter da durdurmuş olabilir; Stop() idempotent (sync.Once)
 		if err != nil {
@@ -80,17 +80,22 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		//   - Aynı AI ise (thinker == writer) tekrar çağırmak çıktıyı duplike eder.
 		//   - Soru kod istemiyorsa ve thinker zaten kod üretmediyse writer atlanır.
 		if roles.Thinker == roles.Writer {
-			fmt.Println(styleDim.Render("\n  (writer = thinker, ikinci çağrı atlandı)"))
+			fmt.Println(styleDim.Render(L("\n  (writer = thinker, ikinci çağrı atlandı)",
+				"\n  (writer = thinker, second call skipped)")))
 			return nil
 		}
 		if !hasCodeBlock(thought) && !looksLikeCodeRequest(input) {
-			fmt.Println(styleDim.Render("\n  (yazılacak kod yok, writer atlandı)"))
+			fmt.Println(styleDim.Render(L("\n  (yazılacak kod yok, writer atlandı)",
+				"\n  (nothing to write, writer skipped)")))
 			return nil
 		}
 
 		fmt.Println()
-		printAIHeader("✍️  writer", roles.Writer, rc)
-		writerInput := buildWriterPrompt(input, dedupeTrailingEcho(thought))
+		printAIHeader("writer", roles.Writer, rc)
+		// Writer'a giden metin: önce banner/log gürültüsü, sonra aracın
+		// tekrarladığı final mesaj atılır — ikisi de boşuna token.
+		writerInput := buildWriterPrompt(input,
+			dedupeTrailingEcho(filterText(roles.Thinker, thought)))
 		return runTool(roles.Writer, rc, writerInput, "✍️")
 	}
 	return fmt.Errorf("bilinmeyen mod")
@@ -133,6 +138,22 @@ func dedupeTrailingEcho(s string) string {
 // yapma" talimatı ile besler. Amaç: writer prompt'u yorumlamak yerine
 // doğrudan implementasyona geçsin, thinker'ın işini tekrarlamasın.
 func buildWriterPrompt(originalTask, thinkerOutput string) string {
+	if Lang() == LangEN {
+		return strings.Join([]string{
+			"Another AI has already analysed/planned this task. Your job: produce the CODE",
+			"that implements the analysis below. Do not redo the analysis, do not explain the",
+			"plan, do not discuss trade-offs. Write working, complete code only (short inline",
+			"comments if needed). If there are multiple files, say so explicitly.",
+			"",
+			"=== ORIGINAL TASK ===",
+			originalTask,
+			"",
+			"=== THINKER ANALYSIS (FOLLOW IT) ===",
+			thinkerOutput,
+			"",
+			"=== NOW WRITE THE CODE ===",
+		}, "\n")
+	}
 	return strings.Join([]string{
 		"Görev için bir başka AI tarafından analiz/plan yapıldı. Senin işin: aşağıdaki",
 		"analizi uygulayan KODU üretmek. Tekrar analiz yapma, plan açıklaması ekleme,",
@@ -157,6 +178,17 @@ func buildWriterPrompt(originalTask, thinkerOutput string) string {
 // agy/cursor -p "PROMPT" alır; --model -p ile prompt arasına girerse -p'nin
 // değeri "--model" oluyor. Bunu önlemek için ModelBeforeRun=true.
 func buildArgs(meta ToolMeta, toolKey string, rc *ResolvedConfig, input string) []string {
+	args := buildArgsNoPrompt(meta, toolKey, rc)
+	if meta.PromptAsArg {
+		args = append(args, input)
+	}
+	return args
+}
+
+// buildArgsNoPrompt — prompt HARİÇ argümanlar. runQuiet, araya kendi
+// --output-last-message <dosya> çiftini eklemek için buna ihtiyaç duyuyor:
+// prompt her zaman en sonda kalmalı.
+func buildArgsNoPrompt(meta ToolMeta, toolKey string, rc *ResolvedConfig) []string {
 	model := resolveModel(toolKey, rc)
 	includeModel := model != "" && meta.ModelFlag != ""
 	effortArgs := buildEffortArgs(meta, toolKey, rc)
@@ -175,9 +207,6 @@ func buildArgs(meta ToolMeta, toolKey string, rc *ResolvedConfig, input string) 
 	}
 	if !meta.ModelBeforeRun {
 		args = append(args, effortArgs...)
-	}
-	if meta.PromptAsArg {
-		args = append(args, input)
 	}
 	return args
 }
@@ -250,11 +279,14 @@ func resolveModel(toolKey string, rc *ResolvedConfig) string {
 //	─── 🧠 thinker · claude (opus) ───
 //	─── ✍️  writer · agy (gemini-3-flash) ───
 //	─── 🧠 thinker · claude (default) ───   // model seçilmemiş, CLI default
-func printAIHeader(role, toolKey string, rc *ResolvedConfig) {
-	bar := strings.Repeat("─", 3)
+func printAIHeader(kind, toolKey string, rc *ResolvedConfig) {
+	icon, label, style := "🧠", L("DÜŞÜNEN", "THINKING"), styleThinker
+	if kind == "writer" {
+		icon, label, style = "✍️ ", L("YAZAN", "WRITING"), styleWriter
+	}
 	fmt.Println()
-	fmt.Println(styleBold.Render(fmt.Sprintf("  %s %s · %s (%s) %s",
-		bar, role, toolKey, describeToolRun(toolKey, rc), bar)))
+	fmt.Println(style.Render(fmt.Sprintf("  %s %s · %s", icon, label, toolKey)) +
+		styleDim.Render("  "+describeToolRun(toolKey, rc)))
 }
 
 // describeToolRun — header/spinner etiketi: "sonnet · high", "gpt-5.6-terra",
@@ -275,7 +307,8 @@ func describeToolRun(toolKey string, rc *ResolvedConfig) string {
 }
 
 func errMissingRole(name string) error {
-	msg := fmt.Sprintf("%s rolü atanmamış — cem roles ile ayarla", name)
+	msg := fmt.Sprintf(L("%s rolü atanmamış — cem roles ile ayarla",
+		"%s role is not assigned — set it with: cem roles"), name)
 	fmt.Println(styleError.Render("✗ " + msg))
 	return fmt.Errorf("%s", msg)
 }
@@ -386,17 +419,21 @@ func (w *tailWriter) String() string { return string(w.buf) }
 // toolKey paramı ile 'cem auth <toolKey>' önerebiliyoruz.
 func hintAuth(bin, toolKey string, meta ToolMeta, cfg *GlobalConfig) {
 	fmt.Println()
-	fmt.Println(styleWarn.Render("  ⚠ " + bin + " yetkilendirilmemiş — auth eksik veya interaktif login akışı kesildi"))
-	fmt.Println(styleDim.Render(fmt.Sprintf("    Önerilen: cem auth %s         (pano-yapıştır yardımcısı dahil)", toolKey)))
+	fmt.Println(styleWarn.Render("  ⚠ " + bin + L(" yetkilendirilmemiş — auth eksik veya interaktif login akışı kesildi",
+		" is not authorized — missing auth, or the interactive login flow was interrupted")))
+	fmt.Println(styleDim.Render(fmt.Sprintf(L("    Önerilen: cem auth %s         (pano-yapıştır yardımcısı dahil)",
+		"    Suggested: cem auth %s        (includes the clipboard-paste helper)"), toolKey)))
 	if meta.Provider != "" {
 		if len(cfg.APIKeys[meta.Provider]) > 0 {
 			fmt.Println(styleDim.Render(fmt.Sprintf(
-				"    Veya kayıtlı %d %s key var ama biri/hepsi geçersiz olabilir:",
+				L("    Veya kayıtlı %d %s key var ama biri/hepsi geçersiz olabilir:",
+					"    Or: %d stored %s key(s) exist but some/all may be invalid:"),
 				len(cfg.APIKeys[meta.Provider]), meta.Provider)))
 			fmt.Println(styleDim.Render("      cem keys list"))
 			fmt.Println(styleDim.Render(fmt.Sprintf("      cem keys remove %s <index>", meta.Provider)))
 		} else {
-			fmt.Println(styleDim.Render(fmt.Sprintf("    Veya yeni API key: cem keys add %s", meta.Provider)))
+			fmt.Println(styleDim.Render(fmt.Sprintf(L("    Veya yeni API key: cem keys add %s",
+				"    Or add a new API key: cem keys add %s"), meta.Provider)))
 		}
 	}
 }
@@ -410,15 +447,17 @@ func hintModel(bin, toolKey string, meta ToolMeta, rc *ResolvedConfig) {
 	}
 	fmt.Println()
 	fmt.Println(styleWarn.Render(fmt.Sprintf(
-		"  ⚠ %s: '%s' modeli bu hesap/plan ile kullanılamıyor", bin, model)))
+		L("  ⚠ %s: '%s' modeli bu hesap/plan ile kullanılamıyor",
+			"  ⚠ %s: model '%s' is not available on this account/plan"), bin, model)))
 	if len(meta.Models) > 0 {
-		fmt.Println(styleDim.Render("    Bilinen modeller: " + strings.Join(meta.Models, ", ")))
+		fmt.Println(styleDim.Render(L("    Bilinen modeller: ", "    Known models: ") +
+			strings.Join(meta.Models, ", ")))
 	}
-	fmt.Println(styleDim.Render("    Değiştir: cem setup"))
+	fmt.Println(styleDim.Render(L("    Değiştir: cem setup", "    Change it: cem setup")))
 	fmt.Println(styleDim.Render(fmt.Sprintf(
-		"      global  ~/.cem/config.yaml → tools.%s.model", toolKey)))
+		"      global   ~/.cem/config.yaml → tools.%s.model", toolKey)))
 	fmt.Println(styleDim.Render(fmt.Sprintf(
-		"      proje   .cem.yaml → models.%s", toolKey)))
+		L("      proje    .cem.yaml → models.%s", "      project  .cem.yaml → models.%s"), toolKey)))
 }
 
 // stopWriter — ilk yazımda spinner'ı durdurur, sonrasında verileri inner'a iletir.
@@ -470,9 +509,11 @@ func withKeyRotation(meta ToolMeta, cfg *GlobalConfig, fn func(env []string) err
 			label = fmt.Sprintf("#%d", i+1)
 		}
 		if i+1 < len(keys) {
-			fmt.Println(styleWarn.Render(fmt.Sprintf("  ⚠ %s rate limit — sonraki key'e geçiliyor", label)))
+			fmt.Println(styleWarn.Render(fmt.Sprintf(L("  ⚠ %s rate limit — sonraki key'e geçiliyor",
+				"  ⚠ %s rate limited — switching to the next key"), label)))
 		} else {
-			fmt.Println(styleError.Render(fmt.Sprintf("  ✗ tüm %s key'leri rate limit", meta.Provider)))
+			fmt.Println(styleError.Render(fmt.Sprintf(L("  ✗ tüm %s key'leri rate limit",
+				"  ✗ all %s keys are rate limited"), meta.Provider)))
 		}
 	}
 	return lastErr
@@ -562,31 +603,50 @@ func fallbackInstallPath(toolKey string) string {
 	return ""
 }
 
-// runTool — stdin'i pipe edip stdout/stderr'i kullanıcıya gösterir
-func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
-	bin := resolveCommand(toolKey, rc)
-	if _, err := exec.LookPath(bin); err != nil {
-		fmt.Println(styleError.Render(
-			fmt.Sprintf("✗ %s bulunamadı — kurmak için: cemi %s", bin, toolKey)))
-		return err
+// runQuiet — LastMessageFlag'i olan araçlar için: ham akış ekrana basılmaz,
+// çalışırken spinner döner, sonunda araç kendi yazdığı final mesaj dosyadan
+// okunup tek parça basılır. Dönen string writer'a beslenecek metindir.
+//
+// Neden: codex exec, cevabı verirken çalıştırdığı her komutu, ürettiği her
+// patch'i ve aynı diff'i defalarca stdout'a döküyor (ölçüldü: tek bir "pi
+// script'i yaz" isteğinde aynı 28 satırlık diff 4 kez basıldı). Kullanıcı
+// asıl cevabı bulamıyor.
+func runQuiet(toolKey string, rc *ResolvedConfig, input string, meta ToolMeta,
+	bin string, label string, sp *Spinner) (string, error) {
+
+	tmp, err := os.CreateTemp("", "cem-last-*.txt")
+	if err != nil {
+		return "", err
+	}
+	tmpPath := tmp.Name()
+	tmp.Close()
+	defer os.Remove(tmpPath)
+
+	args := append(buildArgsNoPrompt(meta, toolKey, rc), meta.LastMessageFlag, tmpPath)
+	if meta.PromptAsArg {
+		args = append(args, input)
 	}
 
-	meta := KnownTools[toolKey]
-	args := buildArgs(meta, toolKey, rc, input)
-
-	return withKeyRotation(meta, rc.Global, func(env []string) error {
+	var out string
+	if sp == nil {
+		sp = StartSpinner(label)
+	}
+	runErr := withKeyRotation(meta, rc.Global, func(env []string) error {
 		cmd := exec.Command(bin, args...)
 		if !meta.PromptAsArg {
 			cmd.Stdin = strings.NewReader(input)
 		}
-		// Bazı CLI'lar (codex) API hatasını stdout'a yazıyor; imza taraması
-		// stdout+stderr birleşimi üzerinde yapılmalı.
+		// Ham akış ekrana gitmez ama hata imzası taraması için tutulur.
 		outTail := &tailWriter{n: 8 << 10}
-		cmd.Stdout = io.MultiWriter(os.Stdout, outTail)
-		// stderr'i hem konsola yansıt hem buffer'a yaz (rate-limit / auth imzasını yakalamak için).
-		// runTool zaten spinner çalıştırmıyor, stopWriter pass-through olur.
+		cmd.Stdout = outTail
 		var errBuf bytes.Buffer
-		cmd.Stderr = io.MultiWriter(os.Stderr, &errBuf)
+		// Quiet modda stderr EKRANA BASILMAZ: codex hem banner'ını hem de
+		// cevabın kendisini stderr'e yazıyor; ekrana verirsek dosyadan
+		// bastığımız final mesajla birlikte cevap iki kez görünür. Yine de
+		// kullanıcının beklediği tek şey kaçmasın diye interaktif login
+		// bağlantıları anında geçirilir.
+		sw := &stopWriter{sp: sp, inner: os.Stderr}
+		cmd.Stderr = io.MultiWriter(&errBuf, &urlPassthrough{out: sw})
 		cmd.Env = env
 		err := cmd.Run()
 		if err == nil {
@@ -602,7 +662,90 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 		case looksLikeAuthFailure(combined):
 			hintAuth(bin, toolKey, meta, rc.Global)
 		default:
-			fmt.Println(styleError.Render("✗ " + bin + " hata: " + err.Error()))
+			fmt.Println(styleError.Render("✗ " + bin + L(" hata: ", " error: ") + err.Error()))
+			// Quiet modda ham akış gizli; hata varsa son satırları göster.
+			printTail(filterText(toolKey, errBuf.String()), 8)
+		}
+		return err
+	})
+	sp.Stop()
+	if runErr != nil {
+		return "", runErr
+	}
+
+	data, err := os.ReadFile(tmpPath)
+	if err != nil || len(bytes.TrimSpace(data)) == 0 {
+		// Araç final mesajı yazamadıysa sessiz kalmayalım.
+		fmt.Println(styleDim.Render(L("  (araç final mesaj üretmedi — ham çıktı için: --raw)",
+			"  (the tool produced no final message — use --raw for the raw output)")))
+		return "", nil
+	}
+	out = strings.TrimRight(string(data), "\n")
+	fmt.Println(out)
+	return out, nil
+}
+
+// usesQuietRun — bu araç için sessiz mod geçerli mi.
+func usesQuietRun(meta ToolMeta) bool {
+	return meta.LastMessageFlag != "" && !rawOutput
+}
+
+// runTool — stdin'i pipe edip stdout/stderr'i kullanıcıya gösterir
+func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
+	bin := resolveCommand(toolKey, rc)
+	if _, err := exec.LookPath(bin); err != nil {
+		fmt.Println(styleError.Render(
+			fmt.Sprintf(L("✗ %s bulunamadı — kurmak için: cemi %s",
+				"✗ %s not found — install it with: cemi %s"), bin, toolKey)))
+		return err
+	}
+
+	meta := KnownTools[toolKey]
+	if usesQuietRun(meta) {
+		verb := L(" düşünüyor...", " is thinking...")
+		if icon == "✍️" {
+			verb = L(" yazıyor...", " is writing...")
+		}
+		_, err := runQuiet(toolKey, rc, input, meta, bin, icon+" "+toolKey+verb, nil)
+		return err
+	}
+	args := buildArgs(meta, toolKey, rc, input)
+
+	return withKeyRotation(meta, rc.Global, func(env []string) error {
+		cmd := exec.Command(bin, args...)
+		if !meta.PromptAsArg {
+			cmd.Stdin = strings.NewReader(input)
+		}
+		// Bazı CLI'lar (codex) API hatasını stdout'a yazıyor; imza taraması
+		// stdout+stderr birleşimi üzerinde yapılmalı.
+		outTail := &tailWriter{n: 8 << 10}
+		// Ekrana giden kopya filtrelenir (banner/log gürültüsü), hata imzası
+		// taraması için tutulan kopya HAM kalır.
+		nf := newNoiseFilter(toolKey, os.Stdout, rawOutput)
+		cmd.Stdout = io.MultiWriter(nf, outTail)
+		// stderr'i hem konsola yansıt hem buffer'a yaz (rate-limit / auth imzasını yakalamak için).
+		// runTool zaten spinner çalıştırmıyor, stopWriter pass-through olur.
+		var errBuf bytes.Buffer
+		enf := newNoiseFilter(toolKey, os.Stderr, rawOutput)
+		cmd.Stderr = io.MultiWriter(enf, &errBuf)
+		cmd.Env = env
+		err := cmd.Run()
+		nf.Close()
+		enf.Close()
+		if err == nil {
+			return nil
+		}
+		combined := errBuf.String() + "\n" + outTail.String()
+		if looksLikeRateLimit(combined) {
+			return errRateLimit
+		}
+		switch {
+		case looksLikeModelUnsupported(combined):
+			hintModel(bin, toolKey, meta, rc)
+		case looksLikeAuthFailure(combined):
+			hintAuth(bin, toolKey, meta, rc.Global)
+		default:
+			fmt.Println(styleError.Render("✗ " + bin + L(" hata: ", " error: ") + err.Error()))
 		}
 		return err
 	})
@@ -613,7 +756,8 @@ func captureTool(toolKey string, rc *ResolvedConfig, input string) (string, erro
 	bin := resolveCommand(toolKey, rc)
 	if _, err := exec.LookPath(bin); err != nil {
 		fmt.Println(styleError.Render(
-			fmt.Sprintf("✗ %s bulunamadı — kurmak için: cemi %s", bin, toolKey)))
+			fmt.Sprintf(L("✗ %s bulunamadı — kurmak için: cemi %s",
+				"✗ %s not found — install it with: cemi %s"), bin, toolKey)))
 		return "", err
 	}
 
@@ -627,10 +771,17 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 	bin := resolveCommand(toolKey, rc)
 	if _, err := exec.LookPath(bin); err != nil {
 		fmt.Println(styleError.Render(
-			fmt.Sprintf("✗ %s bulunamadı — kurmak için: cemi %s", bin, toolKey)))
+			fmt.Sprintf(L("✗ %s bulunamadı — kurmak için: cemi %s",
+				"✗ %s not found — install it with: cemi %s"), bin, toolKey)))
 		return "", err
 	}
 	meta := KnownTools[toolKey]
+	if usesQuietRun(meta) {
+		// Çağıranın spinner'ı varsa onu sürdür: iki ayrı spinner mesajı
+		// arka arkaya yanıp sönmesin.
+		return runQuiet(toolKey, rc, input, meta, bin,
+			"🧠 "+toolKey+L(" düşünüyor...", " is thinking..."), sp)
+	}
 	args := buildArgs(meta, toolKey, rc, input)
 	var captured bytes.Buffer
 	err := withKeyRotation(meta, rc.Global, func(env []string) error {
@@ -641,14 +792,16 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 		captured.Reset()
 		// Stream + capture: thinker çıktısı plugin/terminal'e ANINDA akar
 		// ve buffer'a kopyalanır (writer fazı için).
-		cmd.Stdout = io.MultiWriter(os.Stdout, &captured)
+		nf := newNoiseFilter(toolKey, os.Stdout, rawOutput)
+		cmd.Stdout = io.MultiWriter(nf, &captured)
 		var errBuf bytes.Buffer
-		cmd.Stderr = &stopWriter{
-			sp:    sp,
-			inner: io.MultiWriter(os.Stderr, &errBuf),
-		}
+		sw := &stopWriter{sp: sp, inner: os.Stderr}
+		enf := newNoiseFilter(toolKey, sw, rawOutput)
+		cmd.Stderr = io.MultiWriter(enf, &errBuf)
 		cmd.Env = env
 		runErr := cmd.Run()
+		nf.Close()
+		enf.Close()
 		if runErr == nil {
 			return nil
 		}
@@ -664,7 +817,7 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 		default:
 			// Sessiz çıkmayalım: pair modunda thinker patlarsa kullanıcı
 			// tek satır cem mesajı görmeden exit 1 alıyordu.
-			fmt.Println(styleError.Render("✗ " + bin + " hata: " + runErr.Error()))
+			fmt.Println(styleError.Render("✗ " + bin + L(" hata: ", " error: ") + runErr.Error()))
 		}
 		return runErr
 	})

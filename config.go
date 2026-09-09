@@ -44,6 +44,9 @@ type GlobalConfig struct {
 	// rate-limit hatasında bir sonrakine geçer. Provider adları:
 	// "anthropic" (Claude), "openai" (Codex). agy/cursor OAuth ile çalışır.
 	APIKeys map[string][]APIKey `yaml:"api_keys,omitempty"`
+	// Lang — arayüz dili: "tr" | "en". Boş ise ortamdan tahmin edilir
+	// (CEM_LANG > LANG); setup sihirbazı ilk açılışta kullanıcıya sorar.
+	Lang string `yaml:"lang,omitempty"`
 	// AutoUpdateTools — kurulu AI CLI'larını günde bir kez arka planda
 	// güncelle. nil = açık (varsayılan). Kapatmak: auto_update_tools: false
 	AutoUpdateTools *bool `yaml:"auto_update_tools,omitempty"`
@@ -139,6 +142,12 @@ type ToolMeta struct {
 	// Efforts — geçerli seviyeler (wizard listesi + doğrulama). İlk eleman
 	// listenin en ucuzu olacak şekilde artan sırada tutulur.
 	Efforts []string
+	// LastMessageFlag — aracın SADECE final cevabını bir dosyaya yazdıran
+	// bayrağı (codex: -o/--output-last-message). Doluysa cem ham akışı ekrana
+	// basmaz: araç kendi tool-use adımlarını (exec, apply patch, tam diff'ler)
+	// stdout'a döküyor ve aynı diff'i defalarca tekrarlıyor. Bunun yerine
+	// spinner gösterilip sonunda tek, temiz cevap basılır. --raw ile devre dışı.
+	LastMessageFlag string
 	// UpdateCmd — aracın kendi güncelleme subcommand'ı (örn. {"update"}).
 	// Boş ise güncelleme, kurulum komutunun yeniden çalıştırılmasına düşer.
 	UpdateCmd []string
@@ -201,10 +210,11 @@ var KnownTools = map[string]ToolMeta{
 		// Geçerli değerler codex'in kendi hata mesajından: none, minimal, low,
 		// medium, high, xhigh ("none" listelenmiyor — düşünmeyi kapatmak için
 		// model seçimi daha doğru).
-		EffortArgs: []string{"-c", "model_reasoning_effort=%s"},
-		Efforts:    []string{"minimal", "low", "medium", "high", "xhigh"},
-		UpdateCmd:  []string{"update"},
-		AuthCmd:    []string{"login"},
+		EffortArgs:      []string{"-c", "model_reasoning_effort=%s"},
+		Efforts:         []string{"minimal", "low", "medium", "high", "xhigh"},
+		LastMessageFlag: "--output-last-message",
+		UpdateCmd:       []string{"update"},
+		AuthCmd:         []string{"login"},
 	},
 	"cursor": {
 		Name:             "Cursor",
@@ -267,6 +277,9 @@ func loadGlobalConfig() (*GlobalConfig, error) {
 	if cfg.Tools == nil {
 		cfg.Tools = map[string]InstalledTool{}
 	}
+	// Dil, config okunur okunmaz devreye girsin: bundan sonraki her L()
+	// çağrısı doğru dili görür.
+	setLang(cfg.Lang)
 	return cfg, nil
 }
 

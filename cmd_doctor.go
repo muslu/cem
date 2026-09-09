@@ -29,7 +29,7 @@ var doctorCmd = &cobra.Command{
 func runDoctor() {
 	rc, err := LoadConfig()
 	if err != nil {
-		fmt.Println(styleError.Render("✗ config yüklenemedi: " + err.Error()))
+		fmt.Println(styleError.Render(L("✗ config yüklenemedi: ", "✗ cannot load config: ") + err.Error()))
 		os.Exit(1)
 	}
 
@@ -57,44 +57,44 @@ func runDoctor() {
 	if _, err := os.Stat(cemDir); err == nil {
 		tick("ok", "~/.cem dizini → "+styleDim.Render(cemDir))
 	} else {
-		tick("warn", "~/.cem dizini yok (ilk çalıştırmada oluşur)")
+		tick("warn", L("~/.cem dizini yok (ilk çalıştırmada oluşur)", "~/.cem directory missing (created on first run)"))
 	}
 
 	gp, _ := globalConfigPath()
 	if _, err := os.Stat(gp); err == nil {
 		tick("ok", "global config → "+styleDim.Render(gp))
 	} else {
-		tick("warn", "global config yok → "+styleDim.Render("cem setup ile oluştur"))
+		tick("warn", L("global config yok → ", "no global config → ")+styleDim.Render(L("cem setup ile oluştur", "create it with: cem setup")))
 	}
 
 	if rc.HasProjectConfig() {
 		tick("ok", "proje config → "+styleDim.Render(".cem.yaml (global override aktif)"))
 	} else {
-		tick("ok", "proje config yok (global geçerli)")
+		tick("ok", L("proje config yok (global geçerli)", "no project config (global applies)"))
 	}
 
 	fmt.Println()
 	fmt.Println(styleBold.Render("  Roller"))
 	roles := rc.ActiveRoles()
 	if roles.Thinker == "" {
-		tick("fail", "thinker atanmamış → "+styleDim.Render("cem roles claude"))
+		tick("fail", L("thinker atanmamış → ", "thinker not assigned → ")+styleDim.Render("cem roles claude"))
 	} else if _, found := rc.Global.Tools[roles.Thinker]; !found {
-		tick("warn", "thinker '"+roles.Thinker+"' config'de kayıtlı değil → "+
+		tick("warn", "thinker '"+roles.Thinker+L("' config'de kayıtlı değil → ", "' is not registered in the config → ")+
 			styleDim.Render("cemi "+roles.Thinker))
 	} else {
 		tick("ok", "thinker → "+styleBold.Render(roles.Thinker))
 	}
 	if roles.Writer == "" {
-		tick("fail", "writer atanmamış → "+styleDim.Render("cem roles - agy"))
+		tick("fail", L("writer atanmamış → ", "writer not assigned → ")+styleDim.Render("cem roles - agy"))
 	} else if _, found := rc.Global.Tools[roles.Writer]; !found {
-		tick("warn", "writer '"+roles.Writer+"' config'de kayıtlı değil → "+
+		tick("warn", "writer '"+roles.Writer+L("' config'de kayıtlı değil → ", "' is not registered in the config → ")+
 			styleDim.Render("cemi "+roles.Writer))
 	} else {
 		tick("ok", "writer → "+styleBold.Render(roles.Writer))
 	}
 
 	fmt.Println()
-	fmt.Println(styleBold.Render("  Araçlar (PATH kontrolü)"))
+	fmt.Println(styleBold.Render(L("  Araçlar (PATH kontrolü)", "  Tools (PATH check)")))
 	order := orderedToolKeys
 	for _, key := range order {
 		meta := KnownTools[key]
@@ -106,13 +106,13 @@ func runDoctor() {
 		case lerr == nil && registered:
 			tick("ok", fmt.Sprintf("%-8s %s", styleBold.Render(meta.Name), styleDim.Render(path)))
 		case lerr == nil && !registered:
-			tick("warn", fmt.Sprintf("%-8s PATH'da var ama config'e kayıtlı değil → cemi %s",
+			tick("warn", fmt.Sprintf(L("%-8s PATH'da var ama config'e kayıtlı değil → cemi %s", "%-8s found in PATH but not registered in config → cemi %s"),
 				styleBold.Render(meta.Name), key))
 		case lerr != nil && registered:
-			tick("fail", fmt.Sprintf("%-8s config'de kayıtlı ama PATH'da yok",
+			tick("fail", fmt.Sprintf(L("%-8s config'de kayıtlı ama PATH'da yok", "%-8s registered in config but missing from PATH"),
 				styleBold.Render(meta.Name)))
 		default:
-			tick("ok", fmt.Sprintf("%-8s %s", meta.Name, styleDim.Render("kurulu değil")))
+			tick("ok", fmt.Sprintf("%-8s %s", meta.Name, styleDim.Render(L("kurulu değil", "not installed"))))
 		}
 	}
 
@@ -121,7 +121,7 @@ func runDoctor() {
 	for _, name := range []string{"cem", "cemi", "cemir"} {
 		path, err := exec.LookPath(name)
 		if err != nil {
-			tick("warn", name+" → "+styleDim.Render("PATH'da bulunamadı"))
+			tick("warn", name+" → "+styleDim.Render(L("PATH'da bulunamadı", "not found in PATH")))
 			continue
 		}
 		tick("ok", fmt.Sprintf("%-6s %s", styleBold.Render(name), styleDim.Render(path)))
@@ -129,7 +129,7 @@ func runDoctor() {
 
 	fmt.Println()
 	pathParts := filepath.SplitList(os.Getenv("PATH"))
-	tick("ok", fmt.Sprintf("PATH girişi: %d dizin", len(pathParts)))
+	tick("ok", fmt.Sprintf(L("PATH girişi: %d dizin", "PATH entries: %d directories"), len(pathParts)))
 	hasLocal := false
 	for _, p := range pathParts {
 		if strings.Contains(p, ".local/bin") || strings.Contains(p, "/usr/local/bin") {
@@ -138,18 +138,18 @@ func runDoctor() {
 		}
 	}
 	if !hasLocal {
-		tick("warn", "~/.local/bin veya /usr/local/bin PATH'da değil")
+		tick("warn", L("~/.local/bin veya /usr/local/bin PATH'da değil", "neither ~/.local/bin nor /usr/local/bin is in PATH"))
 	}
 
 	fmt.Println()
-	summary := fmt.Sprintf("ok:%d  uyarı:%d  hata:%d", ok, warn, fail)
+	summary := fmt.Sprintf(L("ok:%d  uyarı:%d  hata:%d", "ok:%d  warn:%d  fail:%d"), ok, warn, fail)
 	switch {
 	case fail > 0:
 		fmt.Println("  " + styleError.Render("● Sistem sorunlu — ") + summary)
 	case warn > 0:
-		fmt.Println("  " + styleWarn.Render("● Sistem çalışıyor, eksikler var — ") + summary)
+		fmt.Println("  " + styleWarn.Render(L("● Sistem çalışıyor, eksikler var — ", "● Working, with gaps — ")) + summary)
 	default:
-		fmt.Println("  " + styleSuccess.Render("● Sistem sağlıklı — ") + summary)
+		fmt.Println("  " + styleSuccess.Render(L("● Sistem sağlıklı — ", "● Healthy — ")) + summary)
 	}
 	fmt.Println()
 }

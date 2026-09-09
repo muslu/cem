@@ -57,7 +57,7 @@ yayımlanmadan tahmin edilmiş; agy ileriki sürümde başka bir dizin kullanır
 			home, _ := os.UserHomeDir()
 			t := findTarget(forTool)
 			if t == nil {
-				fmt.Println(styleError.Render("✗ desteklenen --for değerleri: claude, agy"))
+				fmt.Println(styleError.Render(L("✗ desteklenen --for değerleri: claude, agy", "✗ supported --for values: claude, agy")))
 				os.Exit(1)
 			}
 			writeSlash(t.dir(home))
@@ -70,7 +70,7 @@ yayımlanmadan tahmin edilmiş; agy ileriki sürümde başka bir dizin kullanır
 				}
 			}
 			if installed == 0 {
-				fmt.Println(styleWarn.Render("  ⚠ hiçbir hedefe kurulamadı"))
+				fmt.Println(styleWarn.Render(L("  ⚠ hiçbir hedefe kurulamadı", "  ⚠ could not install to any target")))
 				os.Exit(1)
 			}
 		}
@@ -103,27 +103,27 @@ func writeSlash(dir string) bool {
 
 func printSlashUsage() {
 	fmt.Println()
-	fmt.Println(styleBold.Render("  Kullanım — herhangi bir CLI session'ında:"))
+	fmt.Println(styleBold.Render(L("  Kullanım — herhangi bir CLI session'ında:", "  Usage — in any CLI session:")))
 	fmt.Println(styleDim.Render(`    /cem fibonacci için python kodu yaz`))
 	fmt.Println(styleDim.Render(`    /cem TBMM kaç yılında kuruldu`))
 	fmt.Println()
 	fmt.Println(styleBold.Render("  VS Code / Cursor:"))
-	fmt.Println(styleDim.Render("    Native slash command yok — cem-vscode extension kısayolları kullan:"))
+	fmt.Println(styleDim.Render(L("    Native slash command yok — cem-vscode extension kısayolları kullan:", "    No native slash command — use the cem-vscode extension shortcuts:")))
 	fmt.Println(styleDim.Render("      Ctrl+Alt+I  cem: think on selection"))
 	fmt.Println(styleDim.Render("      Ctrl+Alt+W  cem: write on selection"))
 	fmt.Println(styleDim.Render("      Ctrl+Alt+P  cem: pair on selection"))
 	fmt.Println(styleDim.Render("    Extension: https://github.com/muslu/cem/releases/latest/download/cem-vscode.vsix"))
 	fmt.Println()
 	fmt.Println(styleBold.Render("  Continue.dev:"))
-	fmt.Println(styleDim.Render("    ~/.continue/config.json içine customCommands ekle:"))
+	fmt.Println(styleDim.Render(L("    ~/.continue/config.json içine customCommands ekle:", "    Add customCommands to ~/.continue/config.json:")))
 	fmt.Println(styleDim.Render(`      { "name": "cem", "description": "cem pair", "prompt": "Run cem -p {{{ input }}} and return output" }`))
 	fmt.Println()
 	fmt.Println(styleDim.Render("  Roller/modeller: cem setup veya IDE plugin Settings → Tools → cem"))
 }
 
 func init() {
-	slashCmd.Flags().Bool("here", false, "proje kökündeki .claude/commands/'a kur (yalnız claude, bu proje)")
-	slashCmd.Flags().String("target", "", "özel hedef dizin (override)")
+	slashCmd.Flags().Bool("here", false, "install into .claude/commands/ in the project root (claude only, this project)")
+	slashCmd.Flags().String("target", "", "custom target directory (override)")
 	slashCmd.Flags().String("for", "", "sadece bir CLI'a kur: claude veya agy")
 	rootCmd.AddCommand(slashCmd)
 }

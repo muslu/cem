@@ -17,14 +17,14 @@ var (
 )
 
 func init() {
-	historyCmd.Flags().IntVarP(&historyLimit, "limit", "n", 20, "Son N satırı göster")
-	historyCmd.Flags().BoolVar(&historyClear, "clear", false, "history.log dosyasını temizle")
+	historyCmd.Flags().IntVarP(&historyLimit, "limit", "n", 20, "show the last N entries")
+	historyCmd.Flags().BoolVar(&historyClear, "clear", false, "clear history.log")
 	rootCmd.AddCommand(historyCmd)
 }
 
 var historyCmd = &cobra.Command{
 	Use:   "history",
-	Short: "Komut geçmişini göster",
+	Short: "Show command history",
 	Long: `  cem history          → son 20 satır
   cem history -n 100   → son 100 satır
   cem history --clear  → log'u temizle
@@ -39,7 +39,7 @@ var historyCmd = &cobra.Command{
 
 		if historyClear {
 			if !askYN("  history.log silinsin mi?") {
-				fmt.Println(styleDim.Render("  İptal."))
+				fmt.Println(styleDim.Render(L("  İptal.", "  Cancelled.")))
 				return
 			}
 			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
@@ -53,7 +53,7 @@ var historyCmd = &cobra.Command{
 		f, err := os.Open(path)
 		if err != nil {
 			if os.IsNotExist(err) {
-				fmt.Println(styleDim.Render("  Henüz geçmiş yok."))
+				fmt.Println(styleDim.Render(L("  Henüz geçmiş yok.", "  No history yet.")))
 				return
 			}
 			fmt.Println(styleError.Render("✗ " + err.Error()))
@@ -80,11 +80,11 @@ var historyCmd = &cobra.Command{
 		}
 
 		if len(lines) == 0 {
-			fmt.Println(styleDim.Render("  Henüz geçmiş yok."))
+			fmt.Println(styleDim.Render(L("  Henüz geçmiş yok.", "  No history yet.")))
 			return
 		}
 
-		fmt.Println(styleBold.Render(fmt.Sprintf("  Son %d kayıt", len(lines))))
+		fmt.Println(styleBold.Render(fmt.Sprintf(L("  Son %d kayıt", "  Last %d entries"), len(lines))))
 		fmt.Println(styleDim.Render(strings.Repeat("─", 70)))
 		for _, line := range lines {
 			parts := strings.SplitN(line, "\t", 5)

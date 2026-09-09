@@ -47,17 +47,17 @@ var authCmd = &cobra.Command{
 		bin := resolveCommand(toolKey, rc)
 		if _, err := exec.LookPath(bin); err != nil {
 			fmt.Println(styleError.Render(fmt.Sprintf(
-				"✗ %s bulunamadı — önce kur: cemi %s", bin, toolKey)))
+				L("✗ %s bulunamadı — önce kur: cemi %s", "✗ %s not found — install it first: cemi %s"), bin, toolKey)))
 			os.Exit(1)
 		}
 
 		// --code verilmişse panoya kopyala. Tool çalışırken sağ-tık yapıştır.
 		if authCodeFlag != "" {
 			if err := copyToClipboard(authCodeFlag); err != nil {
-				fmt.Println(styleWarn.Render("  ⚠ panoya kopyalama başarısız: " + err.Error()))
-				fmt.Println(styleDim.Render("    Kodu kendin yapıştır: " + authCodeFlag))
+				fmt.Println(styleWarn.Render(L("  ⚠ panoya kopyalama başarısız: ", "  ⚠ clipboard copy failed: ") + err.Error()))
+				fmt.Println(styleDim.Render(L("    Kodu kendin yapıştır: ", "    Paste the code yourself: ") + authCodeFlag))
 			} else {
-				fmt.Println(styleSuccess.Render("  ✓ kod panoya kopyalandı"))
+				fmt.Println(styleSuccess.Render(L("  ✓ kod panoya kopyalandı", "  ✓ code copied to clipboard")))
 				fmt.Println(styleDim.Render("    CLI prompt'unda sağ-tık ile yapıştır (PowerShell paste sorunlarını bypass eder)"))
 			}
 			fmt.Println()
@@ -74,7 +74,7 @@ var authCmd = &cobra.Command{
 			styleBold.Render(bin),
 			styleDim.Render(strings.Join(invokeArgs, " ")))
 		if err := c.Run(); err != nil {
-			fmt.Println(styleError.Render("✗ auth akışı hata verdi: " + err.Error()))
+			fmt.Println(styleError.Render(L("✗ auth akışı hata verdi: ", "✗ auth flow failed: ") + err.Error()))
 			os.Exit(1)
 		}
 	},
@@ -102,7 +102,7 @@ func copyToClipboard(s string) error {
 		} else if _, err := exec.LookPath("xsel"); err == nil {
 			c = exec.Command("xsel", "--clipboard", "--input")
 		} else {
-			return fmt.Errorf("wl-copy / xclip / xsel kurulu değil")
+			return fmt.Errorf("%s", L("wl-copy / xclip / xsel kurulu değil", "wl-copy / xclip / xsel is not installed"))
 		}
 	default:
 		return fmt.Errorf("clipboard desteklenmiyor: %s", runtime.GOOS)

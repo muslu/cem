@@ -122,3 +122,15 @@
 - [x] `executor_test.go` + `spinner_test.go` added (28 tests, `-race` clean).
 - [ ] doc:CLAUDE update — File Layout, Runtime Gotchas, conventions #7,
       validation flow refreshed for the above.
+
+## 13. Language + output clarity (2026-09-09)
+- [x] Bilingual UI (tr/en): `L(tr, en)` helper, `cem lang`, wizard asks the
+      language first, `CEM_LANG`/`LANG` detection, `applyLang()` for cobra
+      Short/Long (package-init cycle otherwise).
+- [x] Output noise filter (`noise.go`) + `--raw` escape hatch.
+- [x] codex runs through `--output-last-message`: no more exec/apply-patch/diff
+      spam and no more duplicated final answer.
+- [x] Clearer run headers: `🧠 THINKING · gpt` (blue) / `✍️ WRITING · claude`
+      (green); the "Open source" line only shows on the banner screen and the
+      global-config line is silent (project config still announced).
+- [ ] README / README.tr: document `cem lang`, `cem effort`, `--raw`.
