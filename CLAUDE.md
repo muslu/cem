@@ -58,6 +58,9 @@ cem/
 ├── lang_apply.go       — preloadLang + applyLang: Turkish cobra Short/Long
 ├── cmd_lang.go         — `cem lang`: show/change the interface language
 ├── noise.go            — noiseFilter: strips AI CLI banners/logs from the output
+├── cache.go            — answer cache (thinker by default; writer is opt-in)
+├── cmd_cache.go        — `cem cache`: list / clear
+├── trust.go            — per-directory confirmation before tools may write there
 ├── tool_update.go      — AI CLI updates: native `<tool> update` + daily background auto-update
 ├── detach_unix.go / detach_windows.go — platform split for detached background updates
 ├── history.go          — AppendHistory → ~/.cem/history.log (TSV)
@@ -169,6 +172,9 @@ cem/
   single-long-line answer leaks entirely. Login/error information still
   surfaces — stderr's tail is printed when the run fails or produces no final
   message.
+- **The writer is not cached by default** (`cacheEnabled`). It creates files and
+  runs commands; replaying a stored "file created" answer would leave no file
+  behind. `cache_writer: true` opts in, and the reply then says so explicitly.
 - **Auto-update runs detached** (`detachProcess`) and cannot write back to the
   config; version fields are refreshed on the *next* run in
   `maybeAutoUpdateTools`. Disable with `auto_update_tools: false`.

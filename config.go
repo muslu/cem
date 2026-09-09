@@ -47,6 +47,17 @@ type GlobalConfig struct {
 	// Lang — arayüz dili: "tr" | "en". Boş ise ortamdan tahmin edilir
 	// (CEM_LANG > LANG); setup sihirbazı ilk açılışta kullanıcıya sorar.
 	Lang string `yaml:"lang,omitempty"`
+	// TrustedDirs — kullanıcının "burada çalışabilirsin" dediği dizinler.
+	// Alt dizinleri de kapsar.
+	TrustedDirs []string `yaml:"trusted_dirs,omitempty"`
+	// CacheDisabled — true ise önbellek tamamen kapalı.
+	CacheDisabled bool `yaml:"cache_disabled,omitempty"`
+	// CacheWriter — writer çıktısını da önbelleğe al. Varsayılan KAPALI:
+	// writer dosya oluşturup komut çalıştırıyor, önbellekten basılan bir
+	// "dosya oluşturuldu" cevabı ortada dosya bırakmaz.
+	CacheWriter bool `yaml:"cache_writer,omitempty"`
+	// CacheTTLHours — bundan eski kayıtlar yok sayılır (varsayılan 168 = 7 gün).
+	CacheTTLHours int `yaml:"cache_ttl_hours,omitempty"`
 	// AutoUpdateTools — kurulu AI CLI'larını günde bir kez arka planda
 	// güncelle. nil = açık (varsayılan). Kapatmak: auto_update_tools: false
 	AutoUpdateTools *bool `yaml:"auto_update_tools,omitempty"`
@@ -166,7 +177,10 @@ var KnownTools = map[string]ToolMeta{
 		InstallShellUnix: "curl -fsSL https://claude.ai/install.sh | bash",
 		InstallShellWin:  "irm https://claude.ai/install.ps1 | iex",
 		VersionFlag:      "--version",
-		RunFlags:         []string{"-p"}, // print mode (non-interactive)
+		// --bare: hook/LSP/plugin yüklemesini atlar. Writer rolü izole bir
+		// görev yapıyor (planı uygula, dosyayı yaz); IDE eklentileri ve
+		// hook'ları ayağa kaldırmak her çağrıya boşuna saniye ekliyordu.
+		RunFlags: []string{"--bare", "-p"}, // print mode (non-interactive)
 		// claude -p PROMPT pozisyonel argüman alır. Stdin'le bırakırsak stdout
 		// TTY olduğunda (ModeThink/Write) REPL'e geçip kilitleniyor.
 		PromptAsArg:    true,

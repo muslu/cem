@@ -16,6 +16,8 @@ var (
 	flagFile  string
 	// rawOutput — AI CLI çıktısını filtresiz göster (banner, iç loglar dahil).
 	rawOutput bool
+	// noCache — bu çalıştırmada önbelleği hem okuma hem yazma dışı bırak.
+	noCache bool
 )
 
 var rootCmd = &cobra.Command{
@@ -67,6 +69,12 @@ var rootCmd = &cobra.Command{
 			PrintBanner(BannerCem)
 			cmd.Help()
 			return
+		}
+
+		// Araçlar bu dizinde dosya oluşturacak — yanlış dizinde olduğunu
+		// çıktıyı gördükten sonra fark etmek yerine önce sor.
+		if !ensureWorkdirTrusted(rc.Global) {
+			os.Exit(1)
 		}
 
 		mode := ModeThink
@@ -404,6 +412,8 @@ func init() {
 	rootCmd.Flags().BoolVarP(&flagWrite, "write", "w", false, "use the writer AI")
 	rootCmd.Flags().BoolVarP(&flagPair, "pair", "p", false, "pair: thinker → writer")
 	rootCmd.Flags().StringVarP(&flagFile, "file", "f", "", "send the contents of a file")
+	rootCmd.PersistentFlags().BoolVar(&noCache, "no-cache", false,
+		"ignore the cache: ask the AI again and overwrite the stored answer")
 	rootCmd.PersistentFlags().BoolVar(&rawOutput, "raw", false,
 		"show the AI CLI output unfiltered (banners, tool steps, diffs)")
 

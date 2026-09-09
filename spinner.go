@@ -48,6 +48,7 @@ func (s *Spinner) run() {
 	defer ticker.Stop()
 
 	i := 0
+	start := time.Now()
 	// İmleci gizle
 	fmt.Fprint(os.Stderr, "\033[?25l")
 	defer fmt.Fprint(os.Stderr, "\033[?25h")
@@ -60,7 +61,11 @@ func (s *Spinner) run() {
 			return
 		case <-ticker.C:
 			frame := spinnerFrames[i%len(spinnerFrames)]
-			fmt.Fprintf(os.Stderr, "\r  %s %s", colorAccent.Render(frame), s.msg)
+			// Geçen süre canlı akar: uzun süren bir düşünme adımında
+			// kullanıcı işin ilerlediğini ve ne kadar sürdüğünü görebilsin.
+			fmt.Fprintf(os.Stderr, "\r\033[K  %s %s %s",
+				colorAccent.Render(frame), s.msg,
+				styleDim.Render(formatDuration(time.Since(start))))
 			i++
 		}
 	}

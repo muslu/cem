@@ -4,26 +4,60 @@
     <vendor email="hi@cem.pw" url="https://cem.pw">cem.pw</vendor>
 
     <description><![CDATA[
-        <p>Run the <a href="https://github.com/muslu/cem">cem</a> CLI from inside PyCharm / IntelliJ IDEA / GoLand / WebStorm.</p>
+        <p>Run the <a href="https://github.com/muslu/cem">cem</a> CLI from inside
+        PyCharm / IntelliJ IDEA / GoLand / WebStorm / RubyMine / PhpStorm / Rider / CLion.</p>
 
-        <p><b>cem</b> is a single command that drives multiple AI CLIs
-        (Claude · Antigravity · Codex · Cursor). One AI thinks, another
-        writes; in <code>pair</code> mode the thinker's analysis is fed
-        to the writer.</p>
+        <p><b>One AI thinks, another writes the code.</b> Use a strong model for the
+        reasoning and a cheap one for the typing: in <code>pair</code> mode the thinker
+        is told <i>not</i> to write code — it produces a short plan (file, signature,
+        approach, edge cases) and hands it to the writer, so the same work is not
+        billed twice.</p>
 
-        <p>This plugin adds three actions to the editor's context menu and
-        <b>Tools → cem</b>:</p>
+        <p><img src="https://raw.githubusercontent.com/muslu/cem/main/docs/img/cem-intellij.png"
+                alt="cem in the IDE: select code, press Ctrl+Alt+P, read the result in the cem tool window"
+                width="820"/></p>
+
+        <h3>How to use it</h3>
+        <ol>
+            <li>Select some code in the editor. <i>No selection = the whole file is sent.</i></li>
+            <li>Press a shortcut, or use <b>Tools &rarr; cem</b> / the editor context menu.</li>
+            <li>Read the result in the <b>cem</b> tool window at the bottom — each run gets its own tab.</li>
+        </ol>
+
+        <table>
+            <tr><td><code>Ctrl+Alt+I</code></td><td><b>think</b></td>
+                <td>ask the thinker about the selection</td></tr>
+            <tr><td><code>Ctrl+Alt+W</code></td><td><b>write</b></td>
+                <td>have the writer implement it</td></tr>
+            <tr><td><code>Ctrl+Alt+P</code></td><td><b>pair</b></td>
+                <td>thinker plans, writer codes</td></tr>
+        </table>
+
+        <h3>Examples</h3>
         <ul>
-            <li><b>cem: think on selection</b> (default <code>Ctrl+Alt+I</code>)</li>
-            <li><b>cem: write on selection</b> (default <code>Ctrl+Alt+W</code>)</li>
-            <li><b>cem: pair on selection</b> (default <code>Ctrl+Alt+P</code>)</li>
+            <li>Select a function &rarr; <code>Ctrl+Alt+P</code> &rarr;
+                <i>"add retries with exponential backoff"</i></li>
+            <li>Select a failing test &rarr; <code>Ctrl+Alt+I</code> &rarr;
+                <i>"why does this fail?"</i> — reasoning only, nothing is written</li>
+            <li>No selection, a config file open &rarr; <code>Ctrl+Alt+W</code> &rarr;
+                the whole file is sent to the writer</li>
+            <li><b>Interactive</b> tab: type a prompt and press Enter, like a REPL;
+                <code>&uarr;</code>/<code>&darr;</code> walk through earlier prompts</li>
         </ul>
 
-        <p>The selected text is piped to <code>cem</code> as the prompt.
-        Output streams into a dedicated tool window.</p>
+        <p>The working directory is the project root, so a project-level
+        <code>.cem.yaml</code> (roles, models, reasoning effort) applies exactly as it
+        does in the terminal.</p>
 
-        <p>Configuration: <b>Settings → Tools → cem</b> sets the path to
-        the <code>cem</code> binary (default: <code>cem</code> on PATH).</p>
+        <h3>Setup</h3>
+        <p>Install the <code>cem</code> CLI first:
+        <code>curl -fsSL cem.pw/install | sh</code> (PowerShell:
+        <code>irm cem.pw/install | iex</code>). If the IDE cannot find it on PATH, set an
+        absolute path in <b>Settings &rarr; Tools &rarr; cem</b>.</p>
+
+        <p><b>Automatic updates:</b> add this once under
+        <b>Settings &rarr; Plugins &rarr; ⚙ &rarr; Manage Plugin Repositories</b>:<br/>
+        <code>https://github.com/muslu/cem/releases/latest/download/updatePlugins.xml</code></p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>

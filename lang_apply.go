@@ -53,6 +53,16 @@ func applyLang() {
   cem model --here claude sonnet  → sadece bu proje (.cem.yaml)
   cem model gpt default           → seçimi kaldır (CLI kendi seçer)`
 
+	cacheCmd.Short = "Cevap önbelleğini göster / temizle"
+	cacheCmd.Long = `  cem cache          → ne saklanıyor, ne kadar eski
+  cem cache clear    → hepsini sil
+
+  Düşünen rolün cevapları önbelleğe alınır: aynı şeyi ikinci kez sorduğunda
+  aynı akıl yürütme için ikinci kez ödeme yapılmaz. Yazan rol varsayılan
+  olarak önbelleklenmez — dosya oluşturuyor, cevabını tekrar basmak ortada
+  dosya bırakmazdı. Açmak için ~/.cem/config.yaml içine cache_writer: true.
+  Tek çalıştırmada atlamak için --no-cache.`
+
 	langCmd.Short = "Arayüz dilini göster / değiştir"
 	langCmd.Long = `  cem lang        → mevcut dili göster
   cem lang tr     → Türkçe
@@ -80,6 +90,9 @@ func applyLang() {
 	}
 	if f := rootCmd.Flags().Lookup("file"); f != nil {
 		f.Usage = "Dosya içeriğini gönder"
+	}
+	if f := rootCmd.PersistentFlags().Lookup("no-cache"); f != nil {
+		f.Usage = "önbelleği atla: AI'a yeniden sor ve kaydı güncelle"
 	}
 	if f := rootCmd.PersistentFlags().Lookup("raw"); f != nil {
 		f.Usage = "AI CLI çıktısını filtresiz göster (banner, ara adımlar, diff'ler)"

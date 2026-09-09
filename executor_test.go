@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 // codexNoiseLine — gerçek olay (2026-09-09): codex "failed to refresh available
 // models" logunu 100 KB'lık model JSON'uyla stderr'e basıyor. Gövdenin içindeki
@@ -153,7 +156,7 @@ func TestBuildArgsClaudeEffortPromptuYutmaz(t *testing.T) {
 		"claude": {Model: "sonnet", Effort: "xhigh"},
 	}, nil)
 	got := buildArgs(KnownTools["claude"], "claude", rc, "merhaba")
-	want := []string{"--model", "sonnet", "--effort", "xhigh", "-p", "merhaba"}
+	want := []string{"--model", "sonnet", "--effort", "xhigh", "--bare", "-p", "merhaba"}
 	if len(got) != len(want) {
 		t.Fatalf("args = %q\nwant %q", got, want)
 	}
@@ -279,6 +282,80 @@ func TestKodIstegiSozlugu(t *testing.T) {
 	for _, s := range kodOlmayan {
 		if looksLikeCodeRequest(s) {
 			t.Errorf("kod isteği sanıldı: %q", s)
+		}
+	}
+}
+
+// ─── Önbellek ────────────────────────────────────────────────────────────
+
+// TestCacheKeyKurulumaDuyarli — model/effort değişince cevap da değişir;
+// anahtar aynı kalırsa eski cevap yeni kurulumda geri gelir.
+func TestCacheKeyKurulumaDuyarli(t *testing.T) {
+	base := rcWith(map[string]InstalledTool{"gpt": {Model: "gpt-5.5", Effort: "high"}}, nil)
+	k1 := cacheKey("thinker", "gpt", "aynı soru", base)
+
+	cases := map[string]*ResolvedConfig{
+		"model değişti":  rcWith(map[string]InstalledTool{"gpt": {Model: "gpt-5", Effort: "high"}}, nil),
+		"effort değişti": rcWith(map[string]InstalledTool{"gpt": {Model: "gpt-5.5", Effort: "low"}}, nil),
+	}
+	for name, rc := range cases {
+		if cacheKey("thinker", "gpt", "aynı soru", rc) == k1 {
+			t.Errorf("%s ama anahtar aynı kaldı", name)
+		}
+	}
+	if cacheKey("thinker", "gpt", "başka soru", base) == k1 {
+		t.Error("farklı girdi aynı anahtarı üretti")
+	}
+	if cacheKey("writer", "gpt", "aynı soru", base) == k1 {
+		t.Error("farklı rol aynı anahtarı üretti")
+	}
+	if cacheKey("thinker", "gpt", "aynı soru", base) != k1 {
+		t.Error("aynı girdi + aynı kurulum farklı anahtar üretti")
+	}
+}
+
+// TestCacheWriterVarsayilanKapali — writer dosya oluşturuyor; önbellekten
+// dönen bir cevap ortada dosya bırakmaz.
+func TestCacheWriterVarsayilanKapali(t *testing.T) {
+	noCache = false
+	defer func() { noCache = false }()
+
+	cfg := &GlobalConfig{}
+	if cacheEnabled("writer", cfg) {
+		t.Error("writer önbelleği varsayılan olarak açık — dosyalar yazılmadan 'yazıldı' denir")
+	}
+	if !cacheEnabled("thinker", cfg) {
+		t.Error("thinker önbelleği varsayılan olarak kapalı")
+	}
+
+	cfg.CacheWriter = true
+	if !cacheEnabled("writer", cfg) {
+		t.Error("cache_writer: true dikkate alınmadı")
+	}
+
+	cfg.CacheDisabled = true
+	if cacheEnabled("thinker", cfg) || cacheEnabled("writer", cfg) {
+		t.Error("cache_disabled: true dikkate alınmadı")
+	}
+
+	noCache = true
+	if cacheEnabled("thinker", &GlobalConfig{}) {
+		t.Error("--no-cache bayrağı her şeyi ezmeli")
+	}
+}
+
+func TestFormatDuration(t *testing.T) {
+	cases := []struct {
+		d    time.Duration
+		want string
+	}{
+		{8900 * time.Millisecond, "8.9s"},
+		{99 * time.Second, "1m 39s"},
+		{time.Hour + 4*time.Second, "60m 04s"},
+	}
+	for _, c := range cases {
+		if got := formatDuration(c.d); got != c.want {
+			t.Errorf("formatDuration(%v) = %q, beklenen %q", c.d, got, c.want)
 		}
 	}
 }

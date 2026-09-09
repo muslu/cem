@@ -145,3 +145,6 @@
       (`updatePlugins.xml` published with every release).
 - [x] `minimal` is no longer a valid codex effort; effort rejections get their
       own hint instead of being reported as a model problem.
+- [x] Answer cache (`cem cache`, `--no-cache`), live elapsed time in the
+      spinner, per-directory trust prompt, simplified README + README_DETAILS,
+      SVG diagrams, richer plugin Overview.

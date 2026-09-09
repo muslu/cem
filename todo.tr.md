@@ -100,3 +100,6 @@
       (her release'de `updatePlugins.xml`).
 - [x] codex'te `minimal` seviyesi artık geçersiz; seviye reddi model hatası
       olarak değil kendi ipucuyla raporlanıyor.
+- [x] Cevap önbelleği (`cem cache`, `--no-cache`), spinner'da canlı süre,
+      dizin bazlı güven onayı, sadeleşen README + README_DETAILS, SVG
+      diyagramlar, zenginleşen eklenti Overview'ı.

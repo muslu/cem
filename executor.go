@@ -48,18 +48,42 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return errMissingRole("thinker")
 		}
 		printAIHeader("thinker", roles.Thinker, rc)
-		start := time.Now()
-		err := runTool(roles.Thinker, rc, input, "🧠")
-		if err == nil {
-			printElapsed(start, L("düşünme", "thinking"))
+		key := cacheKey("thinker", roles.Thinker, input, rc)
+		if cacheEnabled("thinker", rc.Global) {
+			if out, age, ok := cacheGet(key, rc.Global); ok {
+				fmt.Println(out)
+				printCacheHit(age)
+				return nil
+			}
 		}
-		return err
+		start := time.Now()
+		out, err := captureToolWithSpinner(roles.Thinker, rc, input,
+			StartSpinner("🧠 "+roles.Thinker+L(" düşünüyor...", " is thinking...")))
+		if err != nil {
+			return err
+		}
+		printElapsed(start, L("düşünme", "thinking"))
+		if cacheEnabled("thinker", rc.Global) {
+			cachePut(key, "thinker", roles.Thinker, input, out, rc)
+		}
+		return nil
 
 	case ModeWrite:
 		if roles.Writer == "" {
 			return errMissingRole("writer")
 		}
 		printAIHeader("writer", roles.Writer, rc)
+		key := cacheKey("writer", roles.Writer, input, rc)
+		if cacheEnabled("writer", rc.Global) {
+			if out, age, ok := cacheGet(key, rc.Global); ok {
+				fmt.Println(out)
+				printCacheHit(age)
+				fmt.Println(styleWarn.Render(L(
+					"  ⚠ önbellekten geldi — dosyalar bu çalıştırmada YAZILMADI",
+					"  ⚠ served from cache — no files were written in this run")))
+				return nil
+			}
+		}
 		start := time.Now()
 		err := runTool(roles.Writer, rc, input, "✍️")
 		if err == nil {
@@ -90,11 +114,30 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		}
 		printAIHeader("thinker", roles.Thinker, rc)
 		pairStart := time.Now()
-		sp := StartSpinner("🧠 " + thinkerLabel + L(" düşünüyor...", " is thinking..."))
-		thought, err := captureToolWithSpinner(roles.Thinker, rc, thinkerInput, sp)
-		sp.Stop() // stopWriter da durdurmuş olabilir; Stop() idempotent (sync.Once)
-		if err != nil {
-			return err
+		// Aynı görev ikinci kez sorulduğunda planı yeniden ürettirmiyoruz:
+		// pahalı model, aynı girdi, aynı cevap. Writer yine çalışır — dosyaları
+		// gerçekten oluşturması gerekiyor.
+		thinkKey := cacheKey("thinker", roles.Thinker, thinkerInput, rc)
+		var thought string
+		var err error
+		cached := false
+		if cacheEnabled("thinker", rc.Global) {
+			if out, age, ok := cacheGet(thinkKey, rc.Global); ok {
+				thought, cached = out, true
+				fmt.Println(out)
+				printCacheHit(age)
+			}
+		}
+		if !cached {
+			sp := StartSpinner("🧠 " + thinkerLabel + L(" düşünüyor...", " is thinking..."))
+			thought, err = captureToolWithSpinner(roles.Thinker, rc, thinkerInput, sp)
+			sp.Stop() // stopWriter da durdurmuş olabilir; Stop() idempotent (sync.Once)
+			if err != nil {
+				return err
+			}
+			if cacheEnabled("thinker", rc.Global) {
+				cachePut(thinkKey, "thinker", roles.Thinker, thinkerInput, thought, rc)
+			}
 		}
 		thinkDur := time.Since(pairStart)
 		printElapsed(pairStart, L("düşünme", "thinking"))
@@ -217,7 +260,9 @@ func buildWriterPrompt(originalTask, thinkerOutput string) string {
 			"Another AI has already analysed/planned this task. Your job: produce the CODE",
 			"that implements the analysis below. Do not redo the analysis, do not explain the",
 			"plan, do not discuss trade-offs. Write working, complete code only (short inline",
-			"comments if needed). If there are multiple files, say so explicitly.",
+			"comments if needed). Do not go beyond the plan: no extra files, no extra tests,",
+			"no exploration the plan did not ask for. Finish with one sentence saying what",
+			"you created or changed.",
 			"",
 			"=== ORIGINAL TASK ===",
 			originalTask,
@@ -232,7 +277,8 @@ func buildWriterPrompt(originalTask, thinkerOutput string) string {
 		"Görev için bir başka AI tarafından analiz/plan yapıldı. Senin işin: aşağıdaki",
 		"analizi uygulayan KODU üretmek. Tekrar analiz yapma, plan açıklaması ekleme,",
 		"trade-off tartışması yapma. Sadece çalışan, eksiksiz kodu yaz (gerekirse kısa",
-		"inline yorum). Birden fazla dosya varsa açıkça belirt.",
+		"inline yorum). Planın ötesine geçme: fazladan dosya, fazladan test, planın",
+		"istemediği keşif yok. Bitirince ne oluşturduğunu tek cümleyle yaz.",
 		"",
 		"=== ORİJİNAL GÖREV ===",
 		originalTask,

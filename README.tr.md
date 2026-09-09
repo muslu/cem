@@ -1,4 +1,4 @@
-# ⚡ CEM — Compose · Execute · Multiplex
+# ⚡ CEM
 
 ```
    ██████╗███████╗███╗   ███╗
@@ -9,222 +9,56 @@
    ╚═════╝╚══════╝╚═╝      ╚═╝
 ```
 
-> **One command, many AIs.**
-> CEM — birden fazla AI CLI aracını (Claude · Antigravity · Codex · Cursor) tek bir komutla yöneten Go orchestrator. Bir AI **düşünür**, bir AI **yazar**; `pair` modunda düşünenin analizi yazana beslenir.
+**Tek komut, çok AI.** Bir AI düşünür, başka bir AI kodu yazar.
 
-- Domain: [cem.pw](https://cem.pw)
-- Source: <https://github.com/muslu/cem>
-- Türkçe: [README.tr.md](README.tr.md)
+Düşünmeyi güçlü modele, yazmayı ucuz modele bırakırsın — kararlar iyileşir,
+her satır kod için pahalı model çalıştırmazsın.
+
+![cem pair modu: düşünen planlar, yazan kodlar](docs/img/cem-pair.svg)
 
 ---
 
-## Install
+## Kur
 
-**macOS / Linux:**
 ```sh
-curl -fsSL cem.pw/install | sh
+curl -fsSL cem.pw/install | sh        # macOS / Linux / WSL
 ```
-
-**WSL (Windows Subsystem for Linux):**
-```sh
-curl -fsSL cem.pw/install | sh
-```
-> WSL bir Linux ortamı; yukarıdaki Linux komutu doğrudan çalışır. Native Windows kullanıyorsan PowerShell'e geç.
-
-**Windows — PowerShell zorunlu, CMD/Git Bash değil:**
 ```powershell
-irm cem.pw/install | iex
+irm cem.pw/install | iex              # Windows (PowerShell)
 ```
-> ⚠ Komutu **PowerShell**'de çalıştır. `cmd.exe` veya Git Bash'te `irm` yoktur. Prompt'un `PS C:\` ile başlaması PowerShell'de olduğunu gösterir.
 
-Installer OS/arch tespit eder, 3 binary (`cem`, `cemi`, `cemir`) indirir, Unix/WSL'de `/usr/local/bin`'e (veya yazılamazsa `~/.local/bin`'e), Windows'ta `%LOCALAPPDATA%\cem\bin`'e koyar. Sunucudaki UA tespiti otomatik: PowerShell → `.ps1`, curl/wget → `.sh`.
-
-### Update / Uninstall
+## Kullan
 
 ```sh
-cem update      # cem.pw'den son sürümü çeker (GitHub API ile mevcut/yeni karşılaştırır)
-cem uninstall   # 3 binary + config klasörü
+cem "B-tree nedir?"                  # düşünene sor
+cem -w "Go'da quicksort yaz"         # yazana yaptır
+cem -p "client.go'ya retry ekle"     # pair: düşünen planlar, yazan kodlar
+```
+
+İlk çalıştırmada kısa bir sihirbaz açılır: dilini seç, hangi AI düşünsün,
+hangisi yazsın. Hepsi bu.
+
+```
+  🧠 DÜŞÜNEN · gpt  gpt-5.6-terra · xhigh
+  - Dosya: retry.go
+  - Fonksiyon: func withRetry(fn func() error, n int) error
+  - Kenar durumlar: context iptali, backoff üst sınırı
+  ⏱ düşünme 8.9s
+  ────────────────────────────────────────────────────
+  ✍️  YAZAN · claude  sonnet · low
+  retry.go oluşturuldu — withRetry n kez, sınırlı backoff ile yeniden dener.
+  ⏱ yazma 24.1s
+  ⏱ toplam 33.0s   (düşünme 8.9s + yazma 24.1s)
 ```
 
 ---
 
-## Quick Start
+## Daha fazlası
 
-```sh
-cem "fibonacci nedir?"            # thinker (düşünen AI tek başına)
-cem -w "fibonacci.py yaz"         # writer (yazan AI tek başına)
-cem -p "fibonacci.py yaz"         # pair: thinker → writer
-```
+- **[README_DETAILS.tr.md](README_DETAILS.tr.md)** — tüm komutlar, IDE
+  eklentileri, API key'ler, modeller, düşünme seviyesi, sorun giderme
+- [ADVANCED.tr.md](ADVANCED.tr.md) — proje config'leri, kaynaktan derleme
+- English: [README.md](README.md)
+- Site: [cem.pw](https://cem.pw)
 
-İlk çalıştırma wizard'ı açar; rolleri sonradan değiştir:
-```sh
-cem roles claude agy              # global: thinker=claude, writer=agy
-cem roles --here claude codex     # sadece bu dizin için (.cem.yaml)
-cem init                          # proje-spesifik wizard
-```
-
-`pair` modu akıllı: **thinker == writer** ise writer atlanır; ne soruda ne thinker çıktısında kod istemi yoksa writer atlanır (boşa LLM çağrısı yok).
-
----
-
-## Supported AI CLIs
-
-| Anahtar | Araç | Kurulum kaynağı | Non-interactive |
-|---|---|---|---|
-| `claude` | **Claude Code** (Anthropic) | [native installer](https://code.claude.com/docs/en/quickstart) — auto-update | `claude -p` (stdin) |
-| `agy` | **Antigravity** (Google) | [native installer](https://antigravity.google/docs/cli-getting-started) | `agy -p` (stdin) |
-| `gpt` | **Codex** (OpenAI) | `npm i -g @openai/codex` | `codex exec "prompt"` |
-| `cursor` | **Cursor agent** | [native installer](https://cursor.com/cli) | `cursor-agent -p "prompt"` |
-
-```sh
-cemi                              # mevcut & yüklenebilir
-cemi claude                       # tek araç (önkoşulları algılar: npm/Node)
-cemi all                          # 4'ünü birden
-cemir agy                         # tek araç kaldır (shell-install da silinir)
-cemir all                         # hepsini kaldır
-```
-
-`cemi <tool>` çağrısı **npm/Node** gerektiriyor ama bulunamıyorsa (veya çok eski — npm 3 gibi) → otomatik olarak `winget` / `brew` / NodeSource `apt-get` ile Node LTS kurar (kullanıcı onayıyla).
-
----
-
-## Pair Mode
-
-```sh
-cem -p "binary search'ü TypeScript'te yaz"
-```
-
-1. 🧠 **Thinker** (örn. `claude`) sorunu çözer — algoritma, edge cases, tip seçimi
-2. ✍️ **Writer** (örn. `agy`) thinker'ın analizini + asıl soruyu input alır, kodu yazar
-
-Skip kuralları:
-
-| Durum | Davranış |
-|---|---|
-| `thinker == writer` (ikisi de `claude`) | Writer atlanır (duplikasyon engeli) |
-| Soru kod istemiyor ve thinker çıktısında \`\`\` yok | Writer atlanır |
-| Diğer | Writer thinker analizini bağlam alarak çalışır |
-
----
-
-## Diagnostics
-
-```sh
-cem doctor                        # sistem + roller + araçlar + PATH raporu
-cem status                        # özet
-cem roles                         # aktif roller
-cem history                       # son komutlar (TSV)
-cem history -n 50                 # son 50
-cem history --clear
-```
-
-`~/.cem/history.log` — tab-separated log.
-
----
-
-## API Key Management & Auto-Rotation
-
-Büyük projeleri yarıda kestirmeden yürütmek için her provider'a birden fazla key ekleyebilirsin. Bir key rate-limit'e takıldığında **otomatik olarak sıradakine geçer** — manuel müdahale gerekmez.
-
-```sh
-cem keys add anthropic             # interaktif: key + opsiyonel etiket
-cem keys add openai
-cem keys list                      # mask'li görünüm
-cem keys remove anthropic 1        # 1. anthropic key'i sil
-```
-
-Desteklenen provider'lar:
-| Provider | Env var | Hangi tool |
-|---|---|---|
-| `anthropic` | `ANTHROPIC_API_KEY` | Claude (`claude`) |
-| `openai` | `OPENAI_API_KEY` | Codex (`gpt`/`codex`) |
-
-> `agy` (Antigravity) ve `cursor` Google/Cursor OAuth ile çalışıyor; CLI'lar resmi key env'i yayımlamıyor → rotasyon kapsamında değil.
-
-Rotasyon algılaması: stderr'de `rate limit`, `429`, `quota`, `too many requests`, `overloaded` görülürse cem sıradaki key'i dener. Tüm key'ler bitmişse son hatayı yansıtır.
-
----
-
-## Config
-
-`~/.cem/config.yaml` (global) ve proje kökünde `.cem.yaml` (override):
-
-```yaml
-roles:
-  thinker: claude
-  writer:  agy
-
-tools:
-  claude:
-    command: claude
-    version: 2.1.143
-  agy:
-    # Native installer PATH'i güncellemezse, post-install yakaladığımız mutlak yol:
-    command: C:\Users\Muslu\AppData\Local\agy\bin\agy.exe
-    version: 1.2.0
-
-api_keys:
-  anthropic:
-    - value: sk-ant-...
-      label: personal
-    - value: sk-ant-...
-      label: company-backup
-  openai:
-    - value: sk-proj-...
-```
-
----
-
-## Build From Source
-
-```sh
-git clone https://github.com/muslu/cem.git
-cd cem
-make build                        # 3 binary → build/
-make install                      # /usr/local/bin (sudo)
-go test ./...
-```
-
-Sürüm `git describe --tags --always --dirty` çıktısından LDFLAGS ile enjekte edilir.
-
----
-
-## IDE entegrasyonları
-
-cem'i terminal yerine editör içinden çağır. Her editör için ayrı kılavuz:
-
-| Editör | Hızlı kurulum | Kılavuz |
-|---|---|---|
-| **PyCharm / IntelliJ IDEA / GoLand / WebStorm / RubyMine / PhpStorm / Rider / DataGrip / CLion / RustRover** | Plugin zip'i Install from Disk | [docs/INTELLIJ.tr.md](docs/INTELLIJ.tr.md) |
-| **VS Code** | `code --install-extension cem-vscode.vsix` | [docs/VSCODE.tr.md](docs/VSCODE.tr.md) |
-| **Cursor** | VS Code .vsix'i + opsiyonel MCP | [docs/CURSOR.md](docs/CURSOR.md) |
-| **Claude Desktop** | `cem-mcp` MCP sunucusu | [docs/CLAUDE-DESKTOP.tr.md](docs/CLAUDE-DESKTOP.tr.md) |
-| **Continue.dev** | `cem-mcp` MCP sunucusu | [docs/CONTINUE.md](docs/CONTINUE.md) |
-| **Antigravity IDE** | Dahili terminal (full plugin yol haritasında) | [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md) |
-| **Vim / Neovim** | Plugin yok — shell function örnekleri | [docs/VIM.md](docs/VIM.md) |
-| **Emacs** | Plugin yok — elisp örnekleri | [docs/EMACS.md](docs/EMACS.md) |
-
-### Son sürüm indirmeleri
-
-Her zaman güncel olan linkler (son release'e redirect eder):
-
-| Asset | URL |
-|---|---|
-| IntelliJ plugin (tüm JetBrains IDE'leri) | https://github.com/muslu/cem/releases/latest/download/cem-intellij.zip |
-| VS Code extension (Cursor için de) | https://github.com/muslu/cem/releases/latest/download/cem-vscode.vsix |
-| MCP server — Linux x86_64 | https://github.com/muslu/cem/releases/latest/download/cem-mcp-linux-amd64 |
-| MCP server — Linux arm64 | https://github.com/muslu/cem/releases/latest/download/cem-mcp-linux-arm64 |
-| MCP server — macOS Intel | https://github.com/muslu/cem/releases/latest/download/cem-mcp-darwin-amd64 |
-| MCP server — macOS Apple Silicon | https://github.com/muslu/cem/releases/latest/download/cem-mcp-darwin-arm64 |
-| MCP server — Windows | https://github.com/muslu/cem/releases/latest/download/cem-mcp-windows-amd64.exe |
-| cem core binary — Windows | https://github.com/muslu/cem/releases/latest/download/cem-windows-amd64.exe |
-| cem core binary — Linux x86_64 | https://github.com/muslu/cem/releases/latest/download/cem-linux-amd64 |
-| cem core binary — macOS Apple Silicon | https://github.com/muslu/cem/releases/latest/download/cem-darwin-arm64 |
-
-Tüm Release'ler (versiyonlu dosya adları + changelog): https://github.com/muslu/cem/releases
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+MIT — [LICENSE](LICENSE).

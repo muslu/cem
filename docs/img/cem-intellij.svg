@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 410" width="900" height="410"
+     font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15">
+  <style>
+    .bg{fill:#11151c} .panel{fill:#1c2330} .dim{fill:#7c8798} .txt{fill:#d6dde8}
+    .key{fill:#ffd479;font-weight:700} .think{fill:#7fb2ff;font-weight:700}
+    .write{fill:#7fd39b;font-weight:700} .num{fill:#11151c;font-weight:700;font-size:13px}
+    .rule{stroke:#303a4a;stroke-width:1}
+  </style>
+
+  <rect class="bg" x="0" y="0" width="900" height="410" rx="10"/>
+
+  <circle cx="40" cy="52" r="13" fill="#7fb2ff"/>
+  <text class="num" x="36" y="57">1</text>
+  <text class="txt" x="68" y="57">Editörde bir metin seç — seçim yoksa dosyanın tamamı gönderilir</text>
+
+  <circle cx="40" cy="110" r="13" fill="#7fb2ff"/>
+  <text class="num" x="36" y="115">2</text>
+  <text class="key" x="68" y="115">Ctrl+Alt+P</text>
+  <text class="txt" x="180" y="115">ya da  Tools → cem → pair on selection</text>
+
+  <rect class="panel" x="68" y="132" width="800" height="34" rx="5"/>
+  <text class="key" x="86" y="154">Ctrl+Alt+I</text>
+  <text class="dim" x="196" y="154">think</text>
+  <text class="key" x="286" y="154">Ctrl+Alt+W</text>
+  <text class="dim" x="396" y="154">write</text>
+  <text class="key" x="486" y="154">Ctrl+Alt+P</text>
+  <text class="dim" x="596" y="154">pair</text>
+
+  <circle cx="40" cy="208" r="13" fill="#7fb2ff"/>
+  <text class="num" x="36" y="213">3</text>
+  <text class="txt" x="68" y="213">Sonuç alttaki cem tool window'unda, kendi sekmesinde açılır</text>
+
+  <rect class="panel" x="68" y="234" width="800" height="126" rx="6"/>
+  <text class="think" x="88" y="262">🧠 DÜŞÜNEN · gpt</text>
+  <text class="dim" x="284" y="262">gpt-5.6-terra · xhigh</text>
+  <text class="txt" x="88" y="288">- Fonksiyon: func withRetry(fn func() error, n int) error</text>
+  <line class="rule" x1="88" y1="304" x2="848" y2="304"/>
+  <text class="write" x="88" y="330">✍️ YAZAN · claude</text>
+  <text class="dim" x="284" y="330">sonnet · low</text>
+  <text class="txt" x="88" y="352">client.go güncellendi — üstel backoff, context iptali destekli.</text>
+
+  <text class="dim" x="68" y="394">Interactive sekmesi REPL gibi çalışır · ↑/↓ ile önceki promptlar</text>
+</svg>
