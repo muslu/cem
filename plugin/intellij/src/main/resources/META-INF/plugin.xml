@@ -19,7 +19,7 @@
 
         <h3>How to use it</h3>
         <ol>
-            <li>Select some code in the editor. <i>No selection = the whole file is sent.</i></li>
+            <li>Select some code in the editor. <i>No selection = a prompt dialog opens.</i></li>
             <li>Press a shortcut, or use <b>Tools &rarr; cem</b> / the editor context menu.</li>
             <li>Read the result in the <b>cem</b> tool window at the bottom — each run gets its own tab.</li>
         </ol>
@@ -39,8 +39,9 @@
                 <i>"add retries with exponential backoff"</i></li>
             <li>Select a failing test &rarr; <code>Ctrl+Alt+I</code> &rarr;
                 <i>"why does this fail?"</i> — reasoning only, nothing is written</li>
-            <li>No selection, a config file open &rarr; <code>Ctrl+Alt+W</code> &rarr;
-                the whole file is sent to the writer</li>
+            <li>No selection &rarr; <code>Ctrl+Alt+W</code> &rarr; a prompt dialog opens;
+                to send a whole file, right-click it in the project tree
+                (<b>cem: review file… / ask about file…</b>)</li>
             <li><b>Interactive</b> tab: type a prompt and press Enter, like a REPL;
                 <code>&uarr;</code>/<code>&darr;</code> walk through earlier prompts</li>
         </ul>

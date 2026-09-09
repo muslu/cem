@@ -178,3 +178,8 @@
       the user's environment constraints.
 - [x] Writer cache: entries carry the produced files and restore them on a
       hit; edited files are never overwritten.
+- [x] IntelliJ plugin: an empty selection no longer sends the whole open file
+      as the prompt. README.md open + Ctrl+Alt+P used to spend 112s on a pair
+      run that answered "nothing new to write"; a prompt dialog opens instead,
+      as `plugin.xml` already claimed. Tab titles are stripped of markdown and
+      emoji, and the output pane word-wraps instead of cutting lines off.

@@ -133,3 +133,8 @@
       tazelendi.
 - [x] Yazan önbelleği: kayıt ürettiği dosyaları taşıyor ve isabet ettiğinde
       geri yazıyor; elle değişmiş dosyanın üzerine yazılmıyor.
+- [x] IntelliJ eklentisi: seçim yokken açık dosyanın tamamı prompt olarak
+      gönderilmiyor. README.md açıkken Ctrl+Alt+P, 112 saniye harcayıp
+      "yazılacak yeni kod yok" cevabı döndürüyordu; artık `plugin.xml`'in
+      zaten söylediği gibi prompt kutusu açılıyor. Sekme başlıklarından
+      markdown/emoji ayıklanıyor, çıktı paneli satırı kesmek yerine sarıyor.

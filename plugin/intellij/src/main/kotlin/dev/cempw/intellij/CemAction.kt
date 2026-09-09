@@ -10,6 +10,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
@@ -22,8 +23,7 @@ import java.io.InputStreamReader
 /**
  * cem editor actions (think / write / pair).
  *
- * Selection geçerliyse onu gönderir; seçim yok + dosya açık ve dolu ise tüm
- * dosyayı gönderir; ikisi de boşsa kullanıcıdan input alır.
+ * Seçim varsa onu gönderir; seçim yoksa kullanıcıdan prompt ister.
  */
 sealed class CemAction(val mode: Mode) : AnAction() {
 
@@ -45,13 +45,32 @@ sealed class CemAction(val mode: Mode) : AnAction() {
         launchCem(project, mode, text)
     }
 
+    /**
+     * Seçim yoksa AÇIK DOSYAYI PROMPT SANMA.
+     *
+     * Eskiden seçim yokken editördeki dosyanın tamamı prompt olarak
+     * gönderiliyordu: kullanıcı README.md açıkken Ctrl+Alt+P'ye basınca
+     * tüm README görev sanılıp pair modunda iki modele birden yollanıyor,
+     * 112 saniye ve para harcanıp "yapılacak yeni kod yok" cevabı
+     * dönüyordu (ölçüldü, 2026-09-09). plugin.xml'deki açıklama da zaten
+     * "Empty selection → input dialog" diyor; kod ondan sapmıştı.
+     *
+     * Dosyayı bağlam olarak göndermek isteyen için proje ağacındaki
+     * "cem: review file… / ask about file…" aksiyonları var; cem zaten
+     * proje dizininde çalıştığı için dosyayı adıyla da isteyebilir.
+     */
     private fun pickPrompt(project: Project, editor: Editor?): String? {
         val sel = editor?.selectionModel?.selectedText?.takeIf { it.isNotBlank() }
         if (sel != null) return sel
-        val all = editor?.document?.text?.takeIf { it.isNotBlank() }
-        if (all != null) return all
-        // Editor yok ya da dosya boş → kullanıcı prompt yazsın.
-        return promptUser(project, "What do you want to ask cem?")
+        val fileName = editor?.let {
+            FileDocumentManager.getInstance().getFile(it.document)?.name
+        }
+        val message = if (fileName != null) {
+            "cem'e ne sormak istiyorsun? (seçim yok — açık dosya: $fileName)"
+        } else {
+            "cem'e ne sormak istiyorsun?"
+        }
+        return promptUser(project, message)
     }
 
     companion object {

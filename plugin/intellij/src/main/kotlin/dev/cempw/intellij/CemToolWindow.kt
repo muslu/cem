@@ -44,7 +44,14 @@ class CemToolWindowFactory : ToolWindowFactory {
  */
 class CemTab {
     val component: JPanel
-    private val textPane = JTextPane().apply {
+    /**
+     * Uzun satırlar sağda kesilmesin: JTextPane ancak viewport genişliğini
+     * takip ettiğinde word-wrap yapar. Yatay scrollbar da kapatılır, yoksa
+     * pane kendini genişletip satırı yine kesiyor.
+     */
+    private val textPane = object : JTextPane() {
+        override fun getScrollableTracksViewportWidth(): Boolean = true
+    }.apply {
         isEditable = false
         background = JBColor.background()
     }
@@ -57,7 +64,11 @@ class CemTab {
 
     init {
         component = JPanel(BorderLayout()).apply {
-            add(JBScrollPane(textPane), BorderLayout.CENTER)
+            val scroll = JBScrollPane(textPane).apply {
+                horizontalScrollBarPolicy =
+                    javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+            }
+            add(scroll, BorderLayout.CENTER)
             add(statusLabel, BorderLayout.SOUTH)
         }
     }
@@ -85,8 +96,10 @@ class CemTab {
     }
 
     fun appendHeader(mode: String, snippet: String) {
-        val short = snippet.replace("\n", " ").take(80)
-        appendStyled("─── cem $mode · $short ───\n", bold = true, color = JBColor.GRAY)
+        appendStyled(
+            "─── cem $mode · ${promptSnippet(snippet, 80)} ───\n",
+            bold = true, color = JBColor.GRAY,
+        )
     }
 
     fun appendLine(s: String) {
@@ -117,6 +130,42 @@ class CemTab {
     }
 
     companion object {
+        /**
+         * Sekme adı / başlık için prompt özeti.
+         *
+         * Ham prompt olduğu gibi başlığa yazılınca markdown ve emoji başlığı
+         * okunmaz yapıyordu (README gönderildiğinde sekme adı
+         * "pair · # CEM ```" + kutucuklar oluyordu). Burada satırlar tek
+         * satıra indirilir, markdown işaretleri ve sembol/emoji kod noktaları
+         * atılır, boşluklar sadeleşir.
+         */
+        fun promptSnippet(raw: String, max: Int): String {
+            val sb = StringBuilder()
+            for (cp in raw.codePoints().toArray()) {
+                when {
+                    cp < 0x20 -> sb.append(' ')            // kontrol karakterleri
+                    isDecorative(cp) -> sb.append(' ')     // emoji / sembol / ok
+                    else -> sb.appendCodePoint(cp)
+                }
+            }
+            val clean = sb.toString()
+                .replace(markdownNoise, " ")
+                .replace(whitespaceRun, " ")
+                .trim()
+            if (clean.isEmpty()) return "prompt"
+            return if (clean.length <= max) clean else clean.take(max - 1).trim() + "…"
+        }
+
+        /** Başlıkta yeri olmayan süs karakterleri (emoji, ok, dingbat, VS16). */
+        private fun isDecorative(cp: Int): Boolean =
+            cp in 0x2190..0x2BFF ||        // oklar, çeşitli semboller, dingbat
+            cp in 0xFE00..0xFE0F ||        // variation selector
+            cp == 0x200D || cp == 0x200B || cp == 0xFEFF ||
+            cp in 0x1F000..0x1FAFF         // emoji blokları
+
+        private val markdownNoise = Regex("""[`*_#>~|\[\]]""")
+        private val whitespaceRun = Regex("""\s+""")
+
         /** Welcome tab (legacy — şimdi interactive ile değiştirildi). */
         fun welcome(): CemTab {
             val tab = CemTab()
@@ -128,7 +177,9 @@ class CemTab {
             ⚡ cem — Compose · Execute · Multiplex
             One command, many AIs.
 
-            Aşağıdaki input'a sorunu yaz, Enter'a bas → cem "..." (thinker)
+            Aşağıdaki input'a sorunu yaz, Enter'a bas → cem -p "..." (pair)
+            Düşünen plan yapar, yazan kodu yazar; soru kod istemiyorsa
+            yazan otomatik atlanır — sekme adı yine "pair" görünür.
 
             Editör shortcut'ları:
               Ctrl+Alt+I  →  cem: think on selection
@@ -292,7 +343,7 @@ class CemTab {
         fun newRun(toolWindow: ToolWindow, mode: String, snippet: String): CemTab {
             val tab = CemTab()
             tab.appendHeader(mode, snippet)
-            val title = "$mode · ${snippet.replace("\n", " ").take(30)}"
+            val title = "$mode · ${promptSnippet(snippet, 30)}"
             val content: Content = ContentFactory.getInstance()
                 .createContent(tab.component, title, true)
             content.isCloseable = true
