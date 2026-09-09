@@ -56,10 +56,10 @@ type GlobalConfig struct {
 	TrustedDirs []string `yaml:"trusted_dirs,omitempty"`
 	// CacheDisabled — true ise önbellek tamamen kapalı.
 	CacheDisabled bool `yaml:"cache_disabled,omitempty"`
-	// CacheWriter — writer çıktısını da önbelleğe al. Varsayılan KAPALI:
-	// writer dosya oluşturup komut çalıştırıyor, önbellekten basılan bir
-	// "dosya oluşturuldu" cevabı ortada dosya bırakmaz.
-	CacheWriter bool `yaml:"cache_writer,omitempty"`
+	// CacheWriter — yazan rolün önbelleği. nil = AÇIK (varsayılan). Kayıt
+	// üretilen dosyaları da taşıdığı için önbellekten dönmek dosyasız
+	// bırakmıyor; yine de kapatmak isteyen cache_writer: false yazar.
+	CacheWriter *bool `yaml:"cache_writer,omitempty"`
 	// CacheTTLHours — bundan eski kayıtlar yok sayılır (varsayılan 168 = 7 gün).
 	CacheTTLHours int `yaml:"cache_ttl_hours,omitempty"`
 	// AutoUpdateTools — kurulu AI CLI'larını günde bir kez arka planda

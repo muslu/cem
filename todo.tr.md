@@ -131,3 +131,5 @@
 - [x] `memory/` depoya taşındı (harness yolu artık symlink) ve projenin hedefi,
       ölçmeden gönderme geri bildirimi ve kullanıcı ortamı kısıtlarıyla
       tazelendi.
+- [x] Yazan önbelleği: kayıt ürettiği dosyaları taşıyor ve isabet ettiğinde
+      geri yazıyor; elle değişmiş dosyanın üzerine yazılmıyor.

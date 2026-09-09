@@ -27,7 +27,7 @@ expensive model decides and the cheap one types:
 | In pair mode the thinker **does not write code** | otherwise both models solve the task and the same work is billed twice |
 | Thinker effort **high**, writer effort **low** | the thinker produces the plan; the writer only implements it |
 | The thinker's answers are **cached** | asking the same thing twice does not pay for the same reasoning twice |
-| The writer is **not** cached | it creates files; replaying its answer would leave none behind |
+| Both roles are **cached** | the same request gives the same answer; the writer's entry also carries the files it produced, and they are restored |
 | **Fast mode on** | the tool's hooks/permission rules are not reloaded on every call — measured 124s → 8s |
 | The writer is **skipped** when there is nothing to write | no code task, or the thinker asked for missing information |
 | Tool banners and logs are **filtered** | they also inflate the prompt handed to the writer |
@@ -215,6 +215,18 @@ command it ran and every diff it produced.
 cem --raw -p "…"       # turn filtering off: raw tool output, banners and all
 cem --no-cache "…"     # ignore the stored answer, ask again and store the new one
 ```
+
+Both roles are cached. The writer's entry also stores the files it created, so
+a cache hit restores them:
+
+```
+  ♻ from cache (4m 12s ago) · re-run it with: --no-cache
+  ↺ 2 file(s) restored
+```
+
+A file that changed in the meantime is **never overwritten** — cem reports it
+and leaves your edit alone. Turn the writer cache off with
+`cache_writer: false`.
 
 Each role prints how long it took, and pair mode adds the total:
 

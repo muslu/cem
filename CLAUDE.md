@@ -223,9 +223,15 @@ cem/
   stored answer, get a fresh one and store that". Disabling the write too left
   the stale entry in place: the user saw a fresh answer, then the next normal
   call replayed a 12-minute-old one (seen in the field).
-- **The writer is not cached by default** (`cacheEnabled`). It creates files and
-  runs commands; replaying a stored "file created" answer would leave no file
-  behind. `cache_writer: true` opts in, and the reply then says so explicitly.
+- **The writer cache stores the files it produced, not just the answer**
+  (`capturedFiles` / `restoreFiles`). Caching the text alone would print
+  "file created" with no file on disk. A cache hit restores the files, and a
+  file that changed in the meantime is never overwritten — the user's edit
+  wins and the conflict is reported. Binary output or a run that exceeds the
+  size limits is not cached at all rather than cached incompletely.
+- **The writer's cache key is the user's request, not the prompt it received.**
+  The plan is regenerated slightly differently each time; keying on it would
+  miss every repeat of the same task.
 - **Auto-update runs detached** (`detachProcess`) and cannot write back to the
   config; version fields are refreshed on the *next* run in
   `maybeAutoUpdateTools`. Disable with `auto_update_tools: false`.

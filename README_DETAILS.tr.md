@@ -27,7 +27,7 @@ verecek, ucuz model yazacak şekilde kurulu:
 | Pair modunda düşünen **kod yazmaz** | yoksa iki model de görevi çözer, aynı iş iki kez faturalanır |
 | Düşünen seviyesi **high**, yazan **low** | planı düşünen çıkarır; yazan yalnızca uygular |
 | Düşünenin cevapları **önbelleğe alınır** | aynı soruyu ikinci kez sormak aynı akıl yürütmeyi ikinci kez ödemek olmasın |
-| Yazan **önbelleğe alınmaz** | dosya oluşturuyor; cevabı tekrar basmak ortada dosya bırakmazdı |
+| İki rol de **önbellekli** | aynı istek aynı cevabı verir; yazan rolün kaydı ürettiği dosyaları da taşır ve geri yazılır |
 | **Hızlı mod açık** | aracın hook/izin kuralları her çağrıda yeniden yüklenmez — ölçüldü: 124s → 8s |
 | Yazılacak bir şey yoksa yazan **atlanır** | kod işi değilse ya da düşünen eksik bilgi sorduysa |
 | Araç banner ve logları **filtrelenir** | yazana giden prompt'u da şişiriyorlar |
@@ -213,6 +213,17 @@ diff'i ekrana dökmez.
 cem --raw -p "…"       # filtreyi kapat: ham araç çıktısı, banner'lar dahil
 cem --no-cache "…"     # saklanan cevabı kullanma; yeniden sor ve yenisini sakla
 ```
+
+İki rol de önbellekli. Yazan rolün kaydı ürettiği dosyaları da saklar; önbellek
+isabetinde dosyalar geri yazılır:
+
+```
+  ♻ önbellekten (4m 12s önce) · yeniden çalıştırmak için: --no-cache
+  ↺ 2 dosya geri yazıldı
+```
+
+Bu arada değişmiş bir dosyanın üzerine **asla yazılmaz** — cem bunu bildirir ve
+senin düzenlemene dokunmaz. Kapatmak için `cache_writer: false`.
 
 Her rol ne kadar sürdüğünü yazar, pair modunda toplam da eklenir:
 

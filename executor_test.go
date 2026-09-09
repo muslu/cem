@@ -338,21 +338,24 @@ func TestCacheKeyKurulumaDuyarli(t *testing.T) {
 
 // TestCacheWriterVarsayilanKapali — writer dosya oluşturuyor; önbellekten
 // dönen bir cevap ortada dosya bırakmaz.
-func TestCacheWriterVarsayilanKapali(t *testing.T) {
+func TestCacheWriterVarsayilanAcik(t *testing.T) {
 	noCache = false
 	defer func() { noCache = false }()
 
 	cfg := &GlobalConfig{}
-	if cacheEnabled("writer", cfg) {
-		t.Error("writer önbelleği varsayılan olarak açık — dosyalar yazılmadan 'yazıldı' denir")
+	// Yazan rol de önbellekli: kayıt üretilen dosyaları taşıdığı için
+	// önbellekten dönmek dosyasız bırakmıyor.
+	if !cacheEnabled("writer", cfg) {
+		t.Error("writer önbelleği varsayılan olarak kapalı")
 	}
 	if !cacheEnabled("thinker", cfg) {
 		t.Error("thinker önbelleği varsayılan olarak kapalı")
 	}
 
-	cfg.CacheWriter = true
-	if !cacheEnabled("writer", cfg) {
-		t.Error("cache_writer: true dikkate alınmadı")
+	off := false
+	cfg.CacheWriter = &off
+	if cacheEnabled("writer", cfg) {
+		t.Error("cache_writer: false dikkate alınmadı")
 	}
 
 	cfg.CacheDisabled = true

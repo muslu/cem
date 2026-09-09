@@ -176,3 +176,5 @@
 - [x] `memory/` moved into the repo (harness path is now a symlink) and
       refreshed with the project goal, the measure-before-shipping feedback and
       the user's environment constraints.
+- [x] Writer cache: entries carry the produced files and restore them on a
+      hit; edited files are never overwritten.

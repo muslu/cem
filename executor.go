@@ -73,23 +73,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return errMissingRole("writer")
 		}
 		printAIHeader("writer", roles.Writer, rc)
-		key := cacheKey("writer", roles.Writer, input, rc)
-		if cacheEnabled("writer", rc.Global) {
-			if out, age, ok := cacheGet(key, rc.Global); ok {
-				fmt.Println(out)
-				printCacheHit(age)
-				fmt.Println(styleWarn.Render(L(
-					"  ⚠ önbellekten geldi — dosyalar bu çalıştırmada YAZILMADI",
-					"  ⚠ served from cache — no files were written in this run")))
-				return nil
-			}
-		}
-		start := time.Now()
-		err := runTool(roles.Writer, rc, input, "✍️")
-		if err == nil {
-			printElapsed(start, L("yazma", "writing"))
-		}
-		return err
+		return runWriter(roles.Writer, rc, input, input)
 
 	case ModePair:
 		if roles.Thinker == "" {
@@ -190,7 +174,10 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		writerInput := buildWriterPrompt(input,
 			dedupeTrailingEcho(filterText(roles.Thinker, thought)))
 		writeStart := time.Now()
-		if err := runTool(roles.Writer, rc, writerInput, "✍️"); err != nil {
+		// Önbellek anahtarı KULLANICININ isteğine bağlanıyor, writer'a giden
+		// uzun prompt'a değil: plan her koşuda kelimesi kelimesine aynı
+		// çıkmıyor, oysa kullanıcı aynı şeyi istediğinde aynı sonucu bekliyor.
+		if err := runWriter(roles.Writer, rc, writerInput, input); err != nil {
 			return err
 		}
 		printElapsed(writeStart, L("yazma", "writing"))
@@ -998,6 +985,62 @@ func runQuiet(toolKey string, rc *ResolvedConfig, input string, meta ToolMeta,
 // usesQuietRun — bu araç için sessiz mod geçerli mi.
 func usesQuietRun(meta ToolMeta) bool {
 	return meta.LastMessageFlag != "" && !rawOutput
+}
+
+// runWriter — yazan rolü çalıştırır ve sonucu ÜRETTİĞİ DOSYALARLA birlikte
+// önbelleğe alır. Aynı istek ikinci kez geldiğinde araç hiç çağrılmaz:
+// cevap basılır, dosyalar geri yazılır.
+//
+// cacheInput, anahtarın hesaplandığı metindir — pair modunda kullanıcının
+// isteği (plan değil), write modunda zaten isteğin kendisi.
+func runWriter(toolKey string, rc *ResolvedConfig, toolInput, cacheInput string) error {
+	key := cacheKey("writer", toolKey, cacheInput, rc)
+	wd, _ := os.Getwd()
+
+	if cacheEnabled("writer", rc.Global) {
+		if e, age, ok := cacheGetEntry(key, rc.Global); ok {
+			fmt.Println(e.Output)
+			printCacheHit(age)
+			written, same, conflict := restoreFiles(wd, e.Files)
+			printRestoreSummary(written, same, conflict)
+			return nil
+		}
+	}
+
+	before := fileSnapshot(wd)
+	out, err := captureToolWithSpinner(toolKey, rc, toolInput,
+		StartSpinner("✍️ "+toolKey+L(" yazıyor...", " is writing...")))
+	if err != nil {
+		return err
+	}
+	if cacheWriteEnabled("writer", rc.Global) {
+		cachePutFiles(key, "writer", toolKey, cacheInput, out,
+			capturedFiles(wd, before), rc)
+	}
+	return nil
+}
+
+// printRestoreSummary — önbellekten dönen dosyaların akıbeti. Sessiz kalmak
+// yanıltıcı olurdu: kullanıcı dosyaların gerçekten yerinde olup olmadığını
+// bilmeli.
+func printRestoreSummary(written, same, conflict int) {
+	if written == 0 && same == 0 && conflict == 0 {
+		return
+	}
+	parts := []string{}
+	if written > 0 {
+		parts = append(parts, fmt.Sprintf(L("%d dosya geri yazıldı", "%d file(s) restored"), written))
+	}
+	if same > 0 {
+		parts = append(parts, fmt.Sprintf(L("%d dosya zaten aynı", "%d already identical"), same))
+	}
+	fmt.Println(styleDim.Render("  ↺ " + strings.Join(parts, " · ")))
+	if conflict > 0 {
+		fmt.Println(styleWarn.Render(fmt.Sprintf(
+			L("  ⚠ %d dosya bu arada değişmiş — üzerine YAZILMADI (--no-cache ile yeniden üret)",
+				"  ⚠ %d file(s) changed meanwhile — NOT overwritten (regenerate with --no-cache)"),
+			conflict)))
+	}
 }
 
 // runTool — stdin'i pipe edip stdout/stderr'i kullanıcıya gösterir
