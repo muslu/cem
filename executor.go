@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 )
 
 type Mode int
@@ -47,14 +48,24 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return errMissingRole("thinker")
 		}
 		printAIHeader("thinker", roles.Thinker, rc)
-		return runTool(roles.Thinker, rc, input, "🧠")
+		start := time.Now()
+		err := runTool(roles.Thinker, rc, input, "🧠")
+		if err == nil {
+			printElapsed(start, L("düşünme", "thinking"))
+		}
+		return err
 
 	case ModeWrite:
 		if roles.Writer == "" {
 			return errMissingRole("writer")
 		}
 		printAIHeader("writer", roles.Writer, rc)
-		return runTool(roles.Writer, rc, input, "✍️")
+		start := time.Now()
+		err := runTool(roles.Writer, rc, input, "✍️")
+		if err == nil {
+			printElapsed(start, L("yazma", "writing"))
+		}
+		return err
 
 	case ModePair:
 		if roles.Thinker == "" {
@@ -78,12 +89,15 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			thinkerInput = buildThinkerPrompt(input)
 		}
 		printAIHeader("thinker", roles.Thinker, rc)
+		pairStart := time.Now()
 		sp := StartSpinner("🧠 " + thinkerLabel + L(" düşünüyor...", " is thinking..."))
 		thought, err := captureToolWithSpinner(roles.Thinker, rc, thinkerInput, sp)
 		sp.Stop() // stopWriter da durdurmuş olabilir; Stop() idempotent (sync.Once)
 		if err != nil {
 			return err
 		}
+		thinkDur := time.Since(pairStart)
+		printElapsed(pairStart, L("düşünme", "thinking"))
 		// thought zaten captureTool tarafından stream edildi; tekrar basmıyoruz.
 
 		// Writer kararı:
@@ -100,13 +114,26 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return nil
 		}
 
-		fmt.Println()
+		// Düşünme bitti, yazma başlıyor: iki AI'ın çıktısı arka arkaya aktığı
+		// için görsel ayraç olmadan nerede bittiği anlaşılmıyor.
+		printSeparator()
 		printAIHeader("writer", roles.Writer, rc)
 		// Writer'a giden metin: önce banner/log gürültüsü, sonra aracın
 		// tekrarladığı final mesaj atılır — ikisi de boşuna token.
 		writerInput := buildWriterPrompt(input,
 			dedupeTrailingEcho(filterText(roles.Thinker, thought)))
-		return runTool(roles.Writer, rc, writerInput, "✍️")
+		writeStart := time.Now()
+		if err := runTool(roles.Writer, rc, writerInput, "✍️"); err != nil {
+			return err
+		}
+		printElapsed(writeStart, L("yazma", "writing"))
+		fmt.Println(styleDim.Render(fmt.Sprintf(
+			L("  ⏱ toplam %s   (düşünme %s + yazma %s)",
+				"  ⏱ total %s   (thinking %s + writing %s)"),
+			formatDuration(time.Since(pairStart)),
+			formatDuration(thinkDur),
+			formatDuration(time.Since(writeStart)))))
+		return nil
 	}
 	return fmt.Errorf("bilinmeyen mod")
 }
@@ -336,6 +363,27 @@ func printAIHeader(kind, toolKey string, rc *ResolvedConfig) {
 		styleDim.Render("  "+describeToolRun(toolKey, rc)))
 }
 
+// formatDuration — kısa, okunur süre: "8.3s", "1m 04s".
+func formatDuration(d time.Duration) string {
+	if d < time.Minute {
+		return fmt.Sprintf("%.1fs", d.Seconds())
+	}
+	m := int(d / time.Minute)
+	sec := int((d % time.Minute) / time.Second)
+	return fmt.Sprintf("%dm %02ds", m, sec)
+}
+
+// printElapsed — bir rolün ne kadar sürdüğünü çıktının altına yazar.
+func printElapsed(start time.Time, label string) {
+	fmt.Println(styleDim.Render(fmt.Sprintf("  ⏱ %s %s", label, formatDuration(time.Since(start)))))
+}
+
+// printSeparator — düşünen ile yazan arasındaki görsel sınır.
+func printSeparator() {
+	fmt.Println()
+	fmt.Println(styleDim.Render("  " + strings.Repeat("─", 52)))
+}
+
 // describeToolRun — header/spinner etiketi: "sonnet · high", "gpt-5.6-terra",
 // seçim yoksa "default".
 func describeToolRun(toolKey string, rc *ResolvedConfig) string {
@@ -405,6 +453,12 @@ var modelUnsupportedRe = regexp.MustCompile(`(?i)` +
 	`|does not exist or you do not have access` +
 	`|no access to (the )?model|you do not have access to (this |that )?model`)
 
+// effortUnsupportedRe — seçilen düşünme seviyesi araç/model tarafından
+// reddedildi. modelUnsupportedRe'den ÖNCE denenmeli: bu mesajlarda "model"
+// kelimesi de geçiyor ("'minimal' is not supported with the 'x' model"),
+// yoksa kullanıcı modeli değiştirmeye yönlendirilir — oysa sorun seviyede.
+var effortUnsupportedRe = regexp.MustCompile(`(?i)(reasoning[._ ]effort|model_reasoning_effort)`)
+
 // noiseLineMax — alt araçların stderr'e döktüğü ham HTTP gövdeleri tek
 // satırda 100 KB'ı bulabiliyor. İçlerinde "unauthorized", "429", "quota",
 // "authentication failed" gibi ifadeler VERİ olarak geçer; imza taramasına
@@ -442,6 +496,12 @@ func looksLikeAuthFailure(stderr string) bool {
 
 func looksLikeModelUnsupported(out string) bool {
 	return modelUnsupportedRe.MatchString(sanitizeStderr(out))
+}
+
+func looksLikeEffortUnsupported(out string) bool {
+	s := sanitizeStderr(out)
+	return effortUnsupportedRe.MatchString(s) &&
+		(modelUnsupportedRe.MatchString(s) || strings.Contains(strings.ToLower(s), "unsupported"))
 }
 
 // tailWriter — sadece son n byte'ı tutar. runTool'un stdout'unu hata imzası
@@ -483,6 +543,23 @@ func hintAuth(bin, toolKey string, meta ToolMeta, cfg *GlobalConfig) {
 				"    Or add a new API key: cem keys add %s"), meta.Provider)))
 		}
 	}
+}
+
+// hintEffort — düşünme seviyesi reddedildiğinde. Aracın kendi hata mesajı
+// geçerli listeyi zaten yazıyor; biz nereden değiştirileceğini söylüyoruz.
+func hintEffort(bin, toolKey string, meta ToolMeta, rc *ResolvedConfig) {
+	level := resolveEffort(toolKey, rc)
+	fmt.Println()
+	fmt.Println(styleWarn.Render(fmt.Sprintf(
+		L("  ⚠ %s: '%s' düşünme seviyesi bu model tarafından kabul edilmedi",
+			"  ⚠ %s: reasoning effort '%s' was rejected by this model"), bin, level)))
+	if len(meta.Efforts) > 0 {
+		fmt.Println(styleDim.Render(L("    Bilinen seviyeler: ", "    Known levels: ") +
+			strings.Join(meta.Efforts, ", ")))
+	}
+	fmt.Println(styleDim.Render(fmt.Sprintf("    cem effort %s high", toolKey)))
+	fmt.Println(styleDim.Render(fmt.Sprintf(
+		L("    kaldırmak için: cem effort %s default", "    to clear it: cem effort %s default"), toolKey)))
 }
 
 // hintModel — seçili model hesap/plan tarafından reddedildiğinde nereden
@@ -722,6 +799,8 @@ func runQuiet(toolKey string, rc *ResolvedConfig, input string, meta ToolMeta,
 			return errRateLimit
 		}
 		switch {
+		case looksLikeEffortUnsupported(combined):
+			hintEffort(bin, toolKey, meta, rc)
 		case looksLikeModelUnsupported(combined):
 			hintModel(bin, toolKey, meta, rc)
 		case looksLikeAuthFailure(combined):
@@ -807,6 +886,8 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 			return errRateLimit
 		}
 		switch {
+		case looksLikeEffortUnsupported(combined):
+			hintEffort(bin, toolKey, meta, rc)
 		case looksLikeModelUnsupported(combined):
 			hintModel(bin, toolKey, meta, rc)
 		case looksLikeAuthFailure(combined):
@@ -877,6 +958,8 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 			return errRateLimit
 		}
 		switch {
+		case looksLikeEffortUnsupported(combined):
+			hintEffort(bin, toolKey, meta, rc)
 		case looksLikeModelUnsupported(combined):
 			hintModel(bin, toolKey, meta, rc)
 		case looksLikeAuthFailure(combined):

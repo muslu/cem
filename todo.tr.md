@@ -94,3 +94,9 @@
       her URL için auth balonu göstermiyor.
 - [x] Pair modu: thinker plan çıkarır, writer kodu yazar (önceden ikisi de tam
       kodu yazıyordu). Roller tablosu artık rol başına model · seviye gösteriyor.
+- [x] Rol başına süre (`⏱ düşünme 18.4s` / `⏱ yazma 9.2s` / toplam) ve düşünen
+      ile yazan çıktısı arasında ayraç.
+- [x] IntelliJ eklentisi custom plugin repository ile otomatik güncelleniyor
+      (her release'de `updatePlugins.xml`).
+- [x] codex'te `minimal` seviyesi artık geçersiz; seviye reddi model hatası
+      olarak değil kendi ipucuyla raporlanıyor.

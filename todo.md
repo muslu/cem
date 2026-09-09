@@ -139,3 +139,9 @@
       shows an auth balloon for every URL in the output.
 - [x] Pair mode: thinker plans, writer codes (was: both wrote the full code).
       `cem model` + roles table now shows model · effort per role.
+- [x] Per-role timings (`⏱ thinking 18.4s` / `⏱ writing 9.2s` / total) and a
+      separator line between the thinker's and the writer's output.
+- [x] IntelliJ plugin auto-update via a custom plugin repository
+      (`updatePlugins.xml` published with every release).
+- [x] `minimal` is no longer a valid codex effort; effort rejections get their
+      own hint instead of being reported as a model problem.

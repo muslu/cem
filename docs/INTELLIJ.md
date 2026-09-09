@@ -18,6 +18,21 @@ Turkish: [INTELLIJ.tr.md](INTELLIJ.tr.md)
 
 You'll now see **Tools → cem** with three actions, and a `cem` submenu in the editor right-click menu.
 
+## Automatic updates
+
+The plugin is not on the JetBrains Marketplace, and a plugin installed from
+disk is **never updated**. To let the IDE find updates itself, add this once:
+
+**Settings → Plugins → ⚙ → Manage Plugin Repositories → `+`**
+
+```
+https://github.com/muslu/cem/releases/latest/download/updatePlugins.xml
+```
+
+The IDE then polls that address; when a new version ships it shows up under
+**Plugins → Updates** and installs itself if automatic updates are on. The URL
+is stable — its contents are refreshed on every cem release.
+
 ## Usage
 
 | Action | Default shortcut | Effect |

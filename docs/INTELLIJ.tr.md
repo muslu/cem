@@ -18,6 +18,22 @@ English: [INTELLIJ.md](INTELLIJ.md)
 
 Artık **Tools → cem** menüsünde 3 aksiyon ve editör sağ-tık menüsünde `cem` alt menüsü var.
 
+## Otomatik güncelleme
+
+Eklenti JetBrains Marketplace'te değil; diskten kurulan eklentiler **hiç
+güncellenmez**. Güncellemeleri IDE'nin kendisinin bulması için tek seferlik
+şunu ekle:
+
+**Settings → Plugins → ⚙ → Manage Plugin Repositories → `+`**
+
+```
+https://github.com/muslu/cem/releases/latest/download/updatePlugins.xml
+```
+
+Bundan sonra IDE bu adresi periyodik yoklar; yeni sürüm çıktığında **Plugins →
+Updates** altında görünür ve otomatik güncelleme açıksa kendisi kurar. Adres
+sabittir, her cem sürümünde içeriği yenilenir.
+
 ## Kullanım
 
 | Aksiyon | Kısayol | Etkisi |

@@ -210,8 +210,13 @@ var KnownTools = map[string]ToolMeta{
 		// Geçerli değerler codex'in kendi hata mesajından: none, minimal, low,
 		// medium, high, xhigh ("none" listelenmiyor — düşünmeyi kapatmak için
 		// model seçimi daha doğru).
-		EffortArgs:      []string{"-c", "model_reasoning_effort=%s"},
-		Efforts:         []string{"minimal", "low", "medium", "high", "xhigh"},
+		EffortArgs: []string{"-c", "model_reasoning_effort=%s"},
+		// Geçerli seviyeler MODELE göre değişiyor: gpt-5.6-terra 'minimal'i
+		// reddediyor ("supported values: none, low, medium, high, xhigh, max"),
+		// eski modeller kabul ediyordu. Bu liste yalnızca öneri; araç reddederse
+		// hintEffort kullanıcıya kendi listesini gösterir. "none" bilerek yok:
+		// düşünmeyi tamamen kapatmak isteyen modeli değiştirsin.
+		Efforts:         []string{"low", "medium", "high", "xhigh", "max"},
 		LastMessageFlag: "--output-last-message",
 		UpdateCmd:       []string{"update"},
 		AuthCmd:         []string{"login"},

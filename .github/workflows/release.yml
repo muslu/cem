@@ -99,10 +99,34 @@ jobs:
           cp "$TARGET" cem-intellij.zip
           ls -la
 
+      # JetBrains eklentisi Marketplace'te değil, diskten kuruluyor; diskten
+      # kurulan eklenti hiç güncellenmez (kullanıcı 20260909.02'de kaldı).
+      # Custom plugin repository bunu çözer: IDE bu XML'i periyodik yoklar,
+      # version alanı kurulu sürümden yeniyse güncellemeyi kendisi indirir.
+      # URL sabit (latest/download), içerik her release'de yenilenir.
+      - name: updatePlugins.xml (custom plugin repository)
+        working-directory: plugin/intellij/build/distributions
+        run: |
+          cat > updatePlugins.xml <<XML
+          <?xml version="1.0" encoding="UTF-8"?>
+          <plugins>
+            <plugin id="dev.cempw.intellij"
+                    url="https://github.com/muslu/cem/releases/latest/download/cem-intellij.zip"
+                    version="${GITHUB_REF_NAME}">
+              <idea-version since-build="233"/>
+              <name>cem — multi-AI orchestrator</name>
+              <description>Run the cem CLI from inside PyCharm / IntelliJ IDEA / GoLand / WebStorm.</description>
+            </plugin>
+          </plugins>
+          XML
+          cat updatePlugins.xml
+
       - uses: actions/upload-artifact@v4
         with:
           name: cem-intellij-plugin
-          path: plugin/intellij/build/distributions/*.zip
+          path: |
+            plugin/intellij/build/distributions/*.zip
+            plugin/intellij/build/distributions/updatePlugins.xml
 
   build-vscode-extension:
     name: VS Code extension
