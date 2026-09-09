@@ -90,3 +90,5 @@
       sessiz (proje config'i hâlâ duyuruluyor).
 - [ ] README / README.tr: `cem lang`, `cem effort`, `--raw` belgelenecek.
 - [x] Quiet modda çift basım: URL geçiş kuralı cevabın tamamını sızdırıyordu, kaldırıldı.
+- [x] `cem model` komutu (`cem effort` ile simetrik); plugin artık çıktıdaki
+      her URL için auth balonu göstermiyor.

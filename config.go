@@ -205,7 +205,7 @@ var KnownTools = map[string]ToolMeta{
 		Provider:    "openai",
 		APIKeyEnv:   "OPENAI_API_KEY",
 		ModelFlag:   "--model",
-		Models:      []string{"gpt-5.5", "gpt-5-mini", "gpt-5"},
+		Models:      []string{"gpt-5.6-terra", "gpt-5.5", "gpt-5-mini", "gpt-5"},
 		// codex effort'u flag değil config anahtarı: -c model_reasoning_effort=X.
 		// Geçerli değerler codex'in kendi hata mesajından: none, minimal, low,
 		// medium, high, xhigh ("none" listelenmiyor — düşünmeyi kapatmak için

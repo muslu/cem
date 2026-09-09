@@ -135,3 +135,5 @@
       global-config line is silent (project config still announced).
 - [ ] README / README.tr: document `cem lang`, `cem effort`, `--raw`.
 - [x] Quiet-mode double print: the URL passthrough leaked whole answers; removed.
+- [x] `cem model` command (symmetric with `cem effort`); plugin no longer
+      shows an auth balloon for every URL in the output.

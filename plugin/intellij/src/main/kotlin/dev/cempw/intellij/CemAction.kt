@@ -65,29 +65,42 @@ sealed class CemAction(val mode: Mode) : AnAction() {
             return resp?.takeIf { it.isNotBlank() }
         }
 
-        /** Çıktıdan URL'leri yakala — özellikle OAuth login linklerini. */
         private val urlRegex = Regex("""https?://[^\s<>"']+""")
-        fun extractUrls(text: String): List<String> =
-            urlRegex.findAll(text).map { it.value }
-                // GitHub repo veya cem.pw gibi info linklerini filtrele;
-                // sadece auth/OAuth gibi action URL'leri öne çıkarmak için
-                // 'accounts.', '/oauth', '/auth' içerenleri öncelikli al.
-                .toList()
-                .sortedByDescending { url ->
-                    val u = url.lowercase()
-                    when {
-                        "accounts." in u -> 3
-                        "oauth"     in u -> 3
-                        "/auth"     in u -> 2
-                        "claude.ai" in u && "auth" in u -> 2
-                        else -> 0
-                    }
-                }
+
+        /** URL'in kendisi bir login akışına mı işaret ediyor? */
+        private val authUrlRegex =
+            Regex("""(?i)(accounts\.|/oauth|/auth|/login|/signin|/device|/verify)""")
+
+        /** Metinde açık bir "giriş yap" ifadesi var mı? */
+        private val authHintRegex = Regex(
+            """(?i)(sign\s?in|log\s?in|please login|authenticate|authorization code|""" +
+                """authorize|paste the code|open this url|oturum aç|giriş yap|yetkilendir)"""
+        )
+
+        /** Yerel adresler login linki değildir (MCP endpoint'leri, dev sunucular). */
+        private val localUrlRegex =
+            Regex("""(?i)https?://(127\.0\.0\.1|localhost|0\.0\.0\.0|\[::1\])""")
+
+        /**
+         * Çıktıdan LOGIN url'ini çıkar — yoksa null.
+         *
+         * Eskiden buradaki `extractUrls(...).firstOrNull()` çıktıda geçen HERHANGİ
+         * bir bağlantı için "authentication needed" balonu gösteriyordu. Kullanıcının
+         * seçtiği dosyada bir URL varsa (ör. .mcp.json içindeki
+         * http://127.0.0.1:64462/stream) yanlış uyarı çıkıyordu. Artık ya URL'in
+         * kendisi bir auth adresi olmalı, ya da metinde açık bir giriş ifadesi.
+         */
+        fun extractAuthUrl(text: String): String? {
+            val urls = urlRegex.findAll(text).map { it.value }.toList()
+                .filter { !localUrlRegex.containsMatchIn(it) }
                 .filter { url ->
-                    // Bilgi linklerini ele
                     val u = url.lowercase()
                     "github.com/muslu/cem" !in u && "cem.pw" !in u
                 }
+            if (urls.isEmpty()) return null
+            urls.firstOrNull { authUrlRegex.containsMatchIn(it) }?.let { return it }
+            return if (authHintRegex.containsMatchIn(text)) urls.first() else null
+        }
 
         /** OAuth URL'i bulunca IDE balloon notification göster + tarayıcı/kopyala butonu. */
         fun notifyAuthUrl(project: Project, url: String) {
@@ -219,9 +232,14 @@ sealed class CemAction(val mode: Mode) : AnAction() {
             val exit = process.waitFor()
             // OAuth/login URL'lerini yakala, kullanıcıya notification göster:
             // PSReadline'da uzun URL kopyalamak/yapıştırmak zor olabiliyor.
-            extractUrls(fullOutput.toString()).firstOrNull()?.let { url ->
-                ApplicationManager.getApplication().invokeLater {
-                    notifyAuthUrl(project, url)
+            // Sadece BAŞARISIZ çalıştırmalarda: auth gerçekten eksikse cem
+            // sıfırdan farklı bir kodla çıkar. Başarılı bir cevabın içinde
+            // geçen bağlantı login uyarısı değildir.
+            if (exit != 0) {
+                extractAuthUrl(fullOutput.toString())?.let { url ->
+                    ApplicationManager.getApplication().invokeLater {
+                        notifyAuthUrl(project, url)
+                    }
                 }
             }
             val totalSecs = (System.currentTimeMillis() - startTime) / 1000

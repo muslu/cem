@@ -66,6 +66,7 @@ cem/
 ├── cmd_cem.go          — Cobra root + rolesCmd, setupCmd, initCmd, statusCmd
 ├── cmd_doctor.go       — `cem doctor`: diagnostic report
 ├── cmd_effort.go       — `cem effort`: show/change reasoning effort (global + --here)
+├── cmd_model.go        — `cem model`: show/change the model per tool (global + --here)
 ├── cmd_history.go      — `cem history`: -n N, --clear
 ├── cmd_cemi.go         — `cemi`: install tools (4 known: claude, agy, gpt, cursor) + all + update
 ├── cmd_update.go       — `cem update`: cem.pw/r/'den son sürümü indir + yerine yaz

@@ -46,6 +46,13 @@ func applyLang() {
   cem effort --here gpt xhigh   → sadece bu proje (.cem.yaml)
   cem effort gpt default        → seçimi kaldır (CLI kendi seçer)`
 
+	modelCmd.Short = "Araç başına modeli göster / değiştir"
+	modelCmd.Long = `  cem model                       → mevcut modelleri göster
+  cem model gpt                   → o aracın bilinen modellerini listele
+  cem model gpt gpt-5.6-terra     → global ayarla
+  cem model --here claude sonnet  → sadece bu proje (.cem.yaml)
+  cem model gpt default           → seçimi kaldır (CLI kendi seçer)`
+
 	langCmd.Short = "Arayüz dilini göster / değiştir"
 	langCmd.Long = `  cem lang        → mevcut dili göster
   cem lang tr     → Türkçe
@@ -81,6 +88,9 @@ func applyLang() {
 		f.Usage = "sadece bu proje için (.cem.yaml)"
 	}
 	if f := effortCmd.Flags().Lookup("here"); f != nil {
+		f.Usage = "sadece bu proje için (.cem.yaml)"
+	}
+	if f := modelCmd.Flags().Lookup("here"); f != nil {
 		f.Usage = "sadece bu proje için (.cem.yaml)"
 	}
 }
