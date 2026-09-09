@@ -189,6 +189,11 @@ cem/
   and the stored credentials with them: every call fails with "Not logged in ·
   Please run /login" (measured 2026-09-09, claude 2.1.266). A flag added for
   speed must be verified with a real call before it ships.
+- **The cache key includes the working directory** and the answer is not stored
+  when the thinker asked for information ("client.go is not in the repo, please
+  share it"). Both are correctness, not tuning: the first stops one project's
+  answer from surfacing in another, the second stops a "file not found" reply
+  from being replayed for days after the user created the file.
 - **`--no-cache` skips the *read*, not the *write*.** It means "don't reuse the
   stored answer, get a fresh one and store that". Disabling the write too left
   the stale entry in place: the user saw a fresh answer, then the next normal

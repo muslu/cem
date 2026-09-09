@@ -157,3 +157,5 @@
       skipped when the thinker asked for information instead of planning.
 - [x] `--no-cache` now refreshes the stored answer instead of leaving the old
       one in place (it skips reading, not writing).
+- [x] Cache correctness: key includes the working directory; clarification
+      answers ('file not found, please share it') are never stored.

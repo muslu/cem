@@ -63,7 +63,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return err
 		}
 		printElapsed(start, L("düşünme", "thinking"))
-		if cacheWriteEnabled("thinker", rc.Global) {
+		if cacheWriteEnabled("thinker", rc.Global) && !looksLikeClarification(out) {
 			cachePut(key, "thinker", roles.Thinker, input, out, rc)
 		}
 		return nil
@@ -123,9 +123,15 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		cached := false
 		if cacheEnabled("thinker", rc.Global) {
 			if out, age, ok := cacheGet(thinkKey, rc.Global); ok {
-				thought, cached = out, true
-				fmt.Println(out)
-				printCacheHit(age)
+				// Eski sürümlerden kalmış bir "bilgi talebi" kaydı varsa
+				// kullanma: kullanıcı bu arada eksiği tamamlamış olabilir.
+				if looksLikeClarification(out) {
+					cacheDelete(thinkKey)
+				} else {
+					thought, cached = out, true
+					fmt.Println(out)
+					printCacheHit(age)
+				}
 			}
 		}
 		if !cached {
@@ -135,7 +141,11 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			if err != nil {
 				return err
 			}
-			if cacheWriteEnabled("thinker", rc.Global) {
+			// "Dosya bulunamadı, şunu paylaşın" türü cevaplar SAKLANMAZ:
+			// eksiklik giderildiğinde (dosya oluşturulunca) cevabın değişmesi
+			// gerekiyor. Saklansaydı kullanıcı dosyayı ekledikten sonra bile
+			// günlerce aynı "bulunmuyor" cevabını alırdı.
+			if cacheWriteEnabled("thinker", rc.Global) && !looksLikeClarification(thought) {
 				cachePut(thinkKey, "thinker", roles.Thinker, thinkerInput, thought, rc)
 			}
 		}

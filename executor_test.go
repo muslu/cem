@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -495,5 +496,53 @@ func TestNoCacheYazmayiKapatmaz(t *testing.T) {
 	cfg.CacheDisabled = true
 	if cacheEnabled("thinker", cfg) || cacheWriteEnabled("thinker", cfg) {
 		t.Error("cache_disabled: true hem okumayı hem yazmayı kapatmalı")
+	}
+}
+
+// TestBilgiTalebiOnbellegeYazilmaz — "dosya bulunamadı, şunu paylaşın"
+// cevabı saklanırsa, kullanıcı dosyayı ekledikten sonra bile günlerce aynı
+// cevabı alır. Sahada görüldü: "add retries to client.go" cevabı önbellekten
+// 11m 48s sonra tekrar geldi.
+func TestBilgiTalebiTespiti(t *testing.T) {
+	talepler := []string{
+		"Depoda `client.go` bulunmuyor; dosyayı paylaşın.",
+		"`client.go` dosyasını veya ilgili depo yolunu paylaşın",
+		"I could not find client.go in the repo — could you share it?",
+		"Which file did you mean?",
+	}
+	for _, s := range talepler {
+		if !looksLikeClarification(s) {
+			t.Errorf("bilgi talebi tanınmadı: %.60s", s)
+		}
+	}
+
+	planlar := []string{
+		"- Dosya: client.go\n- Fonksiyon: func withRetry() error\n- Kenar durumlar: iptal",
+		"- File: retry.go\n- Approach: exponential backoff",
+	}
+	for _, s := range planlar {
+		if looksLikeClarification(s) {
+			t.Errorf("plan bilgi talebi sanıldı: %.60s", s)
+		}
+	}
+}
+
+// TestCacheKeyDizineDuyarli — aynı soru farklı depoda farklı cevap gerektirir.
+func TestCacheKeyDizineDuyarli(t *testing.T) {
+	rc := rcWith(map[string]InstalledTool{"gpt": {Model: "gpt-5.5"}}, nil)
+	dir1, err := os.Getwd()
+	if err != nil {
+		t.Skip("çalışma dizini alınamadı")
+	}
+	k1 := cacheKey("thinker", "gpt", "add retries to client.go", rc)
+
+	tmp := t.TempDir()
+	if err := os.Chdir(tmp); err != nil {
+		t.Skip("dizin değiştirilemedi")
+	}
+	defer os.Chdir(dir1)
+
+	if cacheKey("thinker", "gpt", "add retries to client.go", rc) == k1 {
+		t.Error("farklı dizinde aynı anahtar üretildi — bir projenin cevabı diğerine sızar")
 	}
 }

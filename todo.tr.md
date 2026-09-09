@@ -112,3 +112,5 @@
       düşünen plan yerine bilgi istediyse yazan atlanıyor.
 - [x] `--no-cache` artık saklanan cevabı tazeliyor; eskisini yerinde
       bırakmıyor (okumayı atlar, yazmayı değil).
+- [x] Önbellek doğruluğu: anahtar çalışma dizinini içeriyor; bilgi talebi
+      cevapları ('dosya bulunamadı, paylaşın') hiç saklanmıyor.

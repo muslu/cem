@@ -48,13 +48,20 @@ func cacheDir() (string, error) {
 
 // cacheKey — girdi + kurulumun tamamı. Model veya düşünme seviyesi
 // değiştiğinde cevap da değişeceği için anahtar da değişmeli.
+//
+// Çalışma dizini de anahtara dahil: araçlar bulundukları dizini okuyor ve
+// cevap ona göre değişiyor. "add retries to client.go" sorusunun cevabı
+// deponun içeriğine bağlı — dizinsiz anahtar, bir projenin cevabını başka
+// projede geri verirdi.
 func cacheKey(role, toolKey, input string, rc *ResolvedConfig) string {
+	wd, _ := os.Getwd()
 	h := sha256.New()
 	parts := []string{
-		"v1", role, toolKey,
+		"v2", role, toolKey,
 		resolveModel(toolKey, rc),
 		resolveEffort(toolKey, rc),
 		Lang(),
+		wd,
 		input,
 	}
 	for _, p := range parts {
@@ -158,6 +165,15 @@ func cachePut(key, role, toolKey, input, output string, rc *ResolvedConfig) {
 		return
 	}
 	_ = os.WriteFile(filepath.Join(dir, key+".json"), data, 0o600)
+}
+
+// cacheDelete — tek bir kaydı siler (artık geçerli olmayan cevaplar için).
+func cacheDelete(key string) {
+	dir, err := cacheDir()
+	if err != nil {
+		return
+	}
+	_ = os.Remove(filepath.Join(dir, key+".json"))
 }
 
 // printCacheHit — önbellekten geldiğini gizlemeyelim: kullanıcı cevabın taze
