@@ -125,3 +125,9 @@
       tazelendi (gpt-5.6-terra).
 - [x] Kod-isteği sözlüğü Türkçe karaktersiz yazımı da tanıyor (olustur,
       duzelt, cevir): eksik varyantlar 49 saniyelik boş bir koşu üretiyordu.
+- [x] Düşünen artık görev istemediyse test planlamıyor, yazana da "en yalın
+      kodu yaz" deniyor: aynı sınıf görevde 2 dosyada 8.2 KB yerine tek
+      dosyada 1.9 KB.
+- [x] `memory/` depoya taşındı (harness yolu artık symlink) ve projenin hedefi,
+      ölçmeden gönderme geri bildirimi ve kullanıcı ortamı kısıtlarıyla
+      tazelendi.

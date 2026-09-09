@@ -1,0 +1,4 @@
+- [No Co-Authored-By in commits](feedback_no_coauthored_by.md) — never add Claude trailers; user stripped 34 commits with filter-branch on 2026-05-25
+- [cem'in hedefi](project_cem_hedef.md) — her karar token israfını önleme ölçütüyle verilir; pahalı düşünür, ucuz yazar
+- [Ölçerek gönder](feedback_olcerek_gonder.md) — performans bayrağını gerçek çağrıyla doğrulamadan yayınlama (--bare olayı)
+- [Kullanıcı ortamı](reference_kullanici_ortami.md) — ChatGPT free plan, claude-mem hook'ları, JetBrains, ASCII Türkçe

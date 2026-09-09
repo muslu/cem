@@ -170,3 +170,9 @@
       was refreshed (gpt-5.6-terra).
 - [x] Request classifier accepts ASCII-written Turkish (olustur, duzelt,
       cevir): the missing variants silently produced a 49s run with no output.
+- [x] Thinker no longer plans tests unless the task asked for them, and the
+      writer is told to write the leanest code: same class of task went from
+      8.2 KB across two files to 1.9 KB in one.
+- [x] `memory/` moved into the repo (harness path is now a symlink) and
+      refreshed with the project goal, the measure-before-shipping feedback and
+      the user's environment constraints.

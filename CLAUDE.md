@@ -4,6 +4,11 @@
 > `~/.claude/CLAUDE.md`**. Where the two conflict, this file wins.
 > Turkish version: [CLAUDE.tr.md](CLAUDE.tr.md).
 
+Session memory lives in [`memory/`](memory/MEMORY.md) — version-controlled so
+it travels with the repo. It holds what the code does not: the user's goal,
+feedback, and measured facts about their environment. It is deliberately *not*
+imported here; read it when you need context, don't duplicate its content.
+
 ---
 
 ## Project Summary

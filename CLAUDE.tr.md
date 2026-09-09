@@ -21,6 +21,12 @@ yazar; pair modunda thinker çıktısı writer'a beslenir.
 
 ---
 
+Oturum hafızası [`memory/`](memory/MEMORY.md) dizininde — depoyla birlikte
+taşınsın diye version-controlled. Kodda görünmeyeni tutar: kullanıcının hedefi,
+verdiği geri bildirimler ve ortamına dair ölçülmüş gerçekler. Buraya bilinçli
+olarak @import EDİLMEZ; gerektiğinde oku, içeriğini burada tekrarlama.
+
+
 ## Global Kurallarla Farklılaşan Noktalar
 
 Global `~/.claude/CLAUDE.md` Python + PostgreSQL + FastAPI + nginx
