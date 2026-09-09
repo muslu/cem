@@ -570,3 +570,27 @@ func TestAsciiTurkceKodIstegi(t *testing.T) {
 		}
 	}
 }
+
+// Sahada görüldü (2026-09-09): pair modunda yazan rolünün cevabı spinner'ın
+// üzerine biniyordu —
+//
+//	✎ claude yazıyor... 23.6sTTL destekli, thread-safe LRU cache...
+//	✎ claude yazıyor... 23.9s  ⏱ yazma 24.0s
+//
+// Sebep: yakalayan yol stdout'u doğrudan os.Stdout'a veriyordu, spinner yalnız
+// stderr yazımında duruyordu. claude cevabı stdout'a basıp stderr'e hiçbir şey
+// yazmadığı için spinner hiç durmuyordu. Her iki akış da spinner'ı durdurmalı.
+func TestToolStreamStdoutSpinneriDurdurur(t *testing.T) {
+	var buf strings.Builder
+	w, sw := toolStream("claude", StartSpinner("test"), &buf)
+	if _, err := w.Write([]byte("cevap satiri bir\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	w.Close()
+	if !sw.stopped {
+		t.Fatal("stdout'a yazıldı ama spinner durdurulmadı")
+	}
+	if !strings.Contains(buf.String(), "cevap satiri bir") {
+		t.Fatalf("cevap ekrana ulaşmadı: %q", buf.String())
+	}
+}

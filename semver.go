@@ -35,6 +35,15 @@ func parseSemver(s string) []int {
 	parts := strings.Split(s, ".")
 	out := make([]int, 0, len(parts))
 	for _, p := range parts {
+		// git describe eki sayıyı sıfırlıyordu: "20260909.19-dirty" →
+		// Atoi("19-dirty") hata → 0 → yerel build her çalıştırmada
+		// "yeni sürüm 20260909.18 available (current: 20260909.19-dirty)"
+		// diye eskiye güncellemeyi öneriyordu (görüldü 2026-09-09).
+		if i := strings.IndexFunc(p, func(r rune) bool {
+			return r < '0' || r > '9'
+		}); i >= 0 {
+			p = p[:i]
+		}
 		n, _ := strconv.Atoi(p)
 		out = append(out, n)
 	}

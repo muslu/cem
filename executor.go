@@ -181,6 +181,9 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return err
 		}
 		printElapsed(writeStart, L("yazma", "writing"))
+		// Toplam satırı yazma süresinin dibinde duruyordu; iki satır boşluk
+		// koşunun özetini göz atınca bulunur hale getiriyor.
+		fmt.Print("\n\n")
 		fmt.Println(styleDim.Render(fmt.Sprintf(
 			L("  ⏱ toplam %s   (düşünme %s + yazma %s)   ·  %s",
 				"  ⏱ total %s   (thinking %s + writing %s)   ·  %s"),
@@ -716,6 +719,22 @@ func (w *stopWriter) Write(p []byte) (int, error) {
 	return w.inner.Write(p)
 }
 
+// toolStream — aracın ekrana giden akışı: gürültü filtresi + ilk baytta
+// spinner'ı durduran sarmalayıcı.
+//
+// STDOUT DA stopWriter'dan GEÇMELİ. Eskiden yakalayan yol (pair modundaki
+// yazan rolü) stdout'u doğrudan os.Stdout'a veriyordu; spinner yalnızca
+// stderr'e bir şey yazıldığında duruyordu. claude cevabı stdout'a basıp
+// stderr'e hiçbir şey yazmadığı için spinner cevabın üzerine biniyordu
+// (sahada görüldü, 2026-09-09):
+//
+//	✎ claude yazıyor... 23.6sTTL destekli, thread-safe LRU cache...
+//	✎ claude yazıyor... 23.9s  ⏱ yazma 24.0s
+func toolStream(toolKey string, sp *Spinner, dst io.Writer) (io.WriteCloser, *stopWriter) {
+	sw := &stopWriter{sp: sp, inner: dst}
+	return newNoiseFilter(toolKey, sw, rawOutput), sw
+}
+
 // withKeyRotation — meta.Provider varsa cfg.APIKeys[provider] içinden sırayla
 // her key'i env değişkeni olarak set edip fn'i çağırır. fn errRateLimit
 // dönerse sonraki key denenir. Provider tanımlı değilse fn bir kez OS env'iyle
@@ -1084,12 +1103,12 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 		outTail := &tailWriter{n: 8 << 10}
 		// Ekrana giden kopya filtrelenir (banner/log gürültüsü), hata imzası
 		// taraması için tutulan kopya HAM kalır.
-		nf := newNoiseFilter(toolKey, &stopWriter{sp: sp, inner: os.Stdout}, rawOutput)
+		nf, _ := toolStream(toolKey, sp, os.Stdout)
 		cmd.Stdout = io.MultiWriter(nf, outTail)
 		// stderr'i hem konsola yansıt hem buffer'a yaz (rate-limit / auth imzasını yakalamak için).
 		// runTool zaten spinner çalıştırmıyor, stopWriter pass-through olur.
 		var errBuf bytes.Buffer
-		enf := newNoiseFilter(toolKey, &stopWriter{sp: sp, inner: os.Stderr}, rawOutput)
+		enf, _ := toolStream(toolKey, sp, os.Stderr)
 		cmd.Stderr = io.MultiWriter(enf, &errBuf)
 		cmd.Env = env
 		err := cmd.Run()
@@ -1140,6 +1159,10 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 				"✗ %s not found — install it with: cemi %s"), bin, toolKey)))
 		return "", err
 	}
+	// Spinner bu çağrıdan sağ çıkmasın: araç hiç çıktı vermeden dönerse
+	// (ya da hata yolunda) tick'lemeye devam edip sonraki satırların
+	// üzerine yazıyordu. Stop() idempotent.
+	defer sp.Stop()
 	meta := KnownTools[toolKey]
 	if usesQuietRun(meta) {
 		// Çağıranın spinner'ı varsa onu sürdür: iki ayrı spinner mesajı
@@ -1157,11 +1180,10 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 		captured.Reset()
 		// Stream + capture: thinker çıktısı plugin/terminal'e ANINDA akar
 		// ve buffer'a kopyalanır (writer fazı için).
-		nf := newNoiseFilter(toolKey, os.Stdout, rawOutput)
+		nf, _ := toolStream(toolKey, sp, os.Stdout)
 		cmd.Stdout = io.MultiWriter(nf, &captured)
 		var errBuf bytes.Buffer
-		sw := &stopWriter{sp: sp, inner: os.Stderr}
-		enf := newNoiseFilter(toolKey, sw, rawOutput)
+		enf, _ := toolStream(toolKey, sp, os.Stderr)
 		cmd.Stderr = io.MultiWriter(enf, &errBuf)
 		cmd.Env = env
 		runErr := cmd.Run()
