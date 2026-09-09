@@ -61,6 +61,7 @@ cem/
 ├── cache.go            — answer cache (thinker by default; writer is opt-in)
 ├── cmd_cache.go        — `cem cache`: list / clear
 ├── trust.go            — per-directory confirmation before tools may write there
+├── cmd_fast.go         — `cem fast`: skip the tool's user settings for speed
 ├── tool_update.go      — AI CLI updates: native `<tool> update` + daily background auto-update
 ├── detach_unix.go / detach_windows.go — platform split for detached background updates
 ├── history.go          — AppendHistory → ~/.cem/history.log (TSV)
@@ -172,6 +173,13 @@ cem/
   single-long-line answer leaks entirely. Login/error information still
   surfaces — stderr's tail is printed when the run fails or produces no final
   message.
+- **Fast mode is off by default** (`cem fast`, `ToolMeta.FastArgs`). It skips the
+  tool's user settings — hooks, permission rules, MCP — and auto-approves file
+  edits. Measured on claude 2.1.266, same task, file written in both runs:
+  **124s normally, 8s in fast mode**; the difference is the user's hook/plugin
+  setup restarting on every call. `--setting-sources ""` alone is not enough:
+  permission rules live in those files too, so the tool then refuses to write
+  ("izin verilmedi") — `--permission-mode acceptEdits` is what makes it work.
 - **Do not add `--bare` to claude's `RunFlags`.** It skips hooks/LSP/plugins —
   and the stored credentials with them: every call fails with "Not logged in ·
   Please run /login" (measured 2026-09-09, claude 2.1.266). A flag added for

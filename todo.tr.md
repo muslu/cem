@@ -103,3 +103,7 @@
 - [x] Cevap önbelleği (`cem cache`, `--no-cache`), spinner'da canlı süre,
       dizin bazlı güven onayı, sadeleşen README + README_DETAILS, SVG
       diyagramlar, zenginleşen eklenti Overview'ı.
+- [x] Hızlı mod (`cem fast`): aracın kullanıcı ayarlarını atlar — aynı görevde
+      124s → 8s ölçüldü. Varsayılan kapalı.
+- [x] Yazan rolde canlı süreli spinner; hook gürültüsü filtrelendi.
+- [x] Dile göre diyagramlar (`*.svg` İngilizce, `*.tr.svg` Türkçe).

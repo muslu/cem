@@ -312,6 +312,9 @@ func buildArgsNoPrompt(meta ToolMeta, toolKey string, rc *ResolvedConfig) []stri
 	model := resolveModel(toolKey, rc)
 	includeModel := model != "" && meta.ModelFlag != ""
 	effortArgs := buildEffortArgs(meta, toolKey, rc)
+	if resolveFast(toolKey, rc) {
+		effortArgs = append(effortArgs, meta.FastArgs...)
+	}
 	args := []string{}
 	if includeModel && meta.ModelBeforeRun {
 		args = append(args, meta.ModelFlag, model)
@@ -350,6 +353,24 @@ func buildEffortArgs(meta ToolMeta, toolKey string, rc *ResolvedConfig) []string
 		}
 	}
 	return out
+}
+
+// resolveFast — hızlı mod bu araç için açık mı. Öncelik: proje .cem.yaml >
+// global config. Araç desteklemiyorsa (FastArgs boş) her zaman false.
+func resolveFast(toolKey string, rc *ResolvedConfig) bool {
+	meta, ok := KnownTools[toolKey]
+	if !ok || len(meta.FastArgs) == 0 {
+		return false
+	}
+	if rc.Project != nil && rc.Project.Fast != nil {
+		if v, ok := rc.Project.Fast[toolKey]; ok {
+			return v
+		}
+	}
+	if t, ok := rc.Global.Tools[toolKey]; ok {
+		return t.Fast
+	}
+	return false
 }
 
 // resolveEffort — toolKey için kullanılacak düşünme seviyesi. Öncelik
@@ -435,15 +456,19 @@ func printSeparator() {
 func describeToolRun(toolKey string, rc *ResolvedConfig) string {
 	model := resolveModel(toolKey, rc)
 	effort := resolveEffort(toolKey, rc)
+	suffix := ""
+	if resolveFast(toolKey, rc) {
+		suffix = " · fast"
+	}
 	switch {
 	case model == "" && effort == "":
-		return "default"
+		return "default" + suffix
 	case model == "":
-		return "default · " + effort
+		return "default · " + effort + suffix
 	case effort == "":
-		return model
+		return model + suffix
 	default:
-		return model + " · " + effort
+		return model + " · " + effort + suffix
 	}
 }
 
@@ -903,6 +928,16 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 	}
 	args := buildArgs(meta, toolKey, rc, input)
 
+	// Yazma da dakikalar sürebiliyor ve claude cevabı tek parça halinde
+	// sonda basıyor: spinner olmadan ekran o süre boyunca ölü kalıyordu.
+	// İlk çıktı byte'ında spinner kendini kapatır (stopWriter).
+	verb := L(" düşünüyor...", " is thinking...")
+	if icon == "✍️" {
+		verb = L(" yazıyor...", " is writing...")
+	}
+	sp := StartSpinner(icon + " " + toolKey + verb)
+	defer sp.Stop()
+
 	return withKeyRotation(meta, rc.Global, func(env []string) error {
 		cmd := exec.Command(bin, args...)
 		if !meta.PromptAsArg {
@@ -913,12 +948,12 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 		outTail := &tailWriter{n: 8 << 10}
 		// Ekrana giden kopya filtrelenir (banner/log gürültüsü), hata imzası
 		// taraması için tutulan kopya HAM kalır.
-		nf := newNoiseFilter(toolKey, os.Stdout, rawOutput)
+		nf := newNoiseFilter(toolKey, &stopWriter{sp: sp, inner: os.Stdout}, rawOutput)
 		cmd.Stdout = io.MultiWriter(nf, outTail)
 		// stderr'i hem konsola yansıt hem buffer'a yaz (rate-limit / auth imzasını yakalamak için).
 		// runTool zaten spinner çalıştırmıyor, stopWriter pass-through olur.
 		var errBuf bytes.Buffer
-		enf := newNoiseFilter(toolKey, os.Stderr, rawOutput)
+		enf := newNoiseFilter(toolKey, &stopWriter{sp: sp, inner: os.Stderr}, rawOutput)
 		cmd.Stderr = io.MultiWriter(enf, &errBuf)
 		cmd.Env = env
 		err := cmd.Run()

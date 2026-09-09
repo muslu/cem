@@ -36,6 +36,14 @@ var toolNoise = map[string][]*regexp.Regexp{
 	"cursor": {
 		regexp.MustCompile(`^Using model:`),
 	},
+	"claude": {
+		// Kullanıcının hook'ları her çağrıda çalışıyor ve başarısız olduklarında
+		// komutun tamamını (yüzlerce karakter) ekrana döküyorlar. cem'in
+		// cevabıyla ilgisi yok; ham çıktı gerekiyorsa --raw.
+		regexp.MustCompile(`^\w+ hook \[`),
+		regexp.MustCompile(`hook .*\] failed:`),
+		regexp.MustCompile(`^Warning: no stdin data received`),
+	},
 }
 
 // stopAfter — bu satır görüldükten SONRAKİ her şey atılır. codex, cevabı

@@ -63,6 +63,20 @@ func applyLang() {
   dosya bırakmazdı. Açmak için ~/.cem/config.yaml içine cache_writer: true.
   Tek çalıştırmada atlamak için --no-cache.`
 
+	fastCmd.Short = "Hız için aracın kullanıcı ayarlarını atla"
+	fastCmd.Long = `  cem fast                  → hangi araçlar hızlı modda
+  cem fast claude on        → global aç
+  cem fast --here claude on → sadece bu proje (.cem.yaml)
+  cem fast claude off       → kapat
+
+  Hızlı mod aracın kullanıcı ayarlarını atlar: hook'lar, izin kuralları ve MCP
+  sunucuları yüklenmez, dosya düzenlemeleri otomatik onaylanır. claude 2.1.266
+  ile aynı görevde ölçüldü: normalde 124s, hızlı modda 8s — fark tamamen
+  hook/plugin kurulumunun her çağrıda yeniden ayağa kalkmasından geliyor.
+
+  Araç senin için yalnızca kod yazıyorsa aç. Çalışırken kendi hook'larına ya da
+  yasak kurallarına güveniyorsan kapalı bırak.`
+
 	langCmd.Short = "Arayüz dilini göster / değiştir"
 	langCmd.Long = `  cem lang        → mevcut dili göster
   cem lang tr     → Türkçe
@@ -104,6 +118,9 @@ func applyLang() {
 		f.Usage = "sadece bu proje için (.cem.yaml)"
 	}
 	if f := modelCmd.Flags().Lookup("here"); f != nil {
+		f.Usage = "sadece bu proje için (.cem.yaml)"
+	}
+	if f := fastCmd.Flags().Lookup("here"); f != nil {
 		f.Usage = "sadece bu proje için (.cem.yaml)"
 	}
 }

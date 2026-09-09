@@ -148,3 +148,7 @@
 - [x] Answer cache (`cem cache`, `--no-cache`), live elapsed time in the
       spinner, per-directory trust prompt, simplified README + README_DETAILS,
       SVG diagrams, richer plugin Overview.
+- [x] Fast mode (`cem fast`): skips the tool's user settings — measured
+      124s → 8s on the same task. Off by default.
+- [x] Writer now shows a live spinner with elapsed time; hook noise filtered.
+- [x] Language-specific diagrams (`*.svg` English, `*.tr.svg` Turkish).

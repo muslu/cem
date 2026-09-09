@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -358,4 +359,63 @@ func TestFormatDuration(t *testing.T) {
 			t.Errorf("formatDuration(%v) = %q, beklenen %q", c.d, got, c.want)
 		}
 	}
+}
+
+// TestFastArgsSirasi — hızlı mod argümanları da prompt'tan ÖNCE gelmeli;
+// claude'da -p prompt'u yutuyor.
+func TestFastArgsSirasi(t *testing.T) {
+	rc := rcWith(map[string]InstalledTool{
+		"claude": {Model: "sonnet", Effort: "low", Fast: true},
+	}, nil)
+	got := buildArgs(KnownTools["claude"], "claude", rc, "görev")
+	joined := strings.Join(got, " ")
+	for _, want := range []string{"--model sonnet", "--effort low", "--setting-sources", "--permission-mode acceptEdits"} {
+		if !contains(joined, want) {
+			t.Errorf("args %q içinde %q yok", joined, want)
+		}
+	}
+	if got[len(got)-1] != "görev" {
+		t.Errorf("prompt son argüman değil: %q", got)
+	}
+	if i := indexOf(got, "-p"); i < 0 || i != len(got)-2 {
+		t.Errorf("-p prompt'tan hemen önce değil: %q", got)
+	}
+}
+
+// TestFastVarsayilanKapali — kullanıcının izin kurallarını sessizce atlamamalı.
+func TestFastVarsayilanKapali(t *testing.T) {
+	rc := rcWith(map[string]InstalledTool{"claude": {Model: "sonnet"}}, nil)
+	if resolveFast("claude", rc) {
+		t.Error("hızlı mod varsayılan olarak açık")
+	}
+	for _, a := range buildArgs(KnownTools["claude"], "claude", rc, "x") {
+		if a == "--setting-sources" || a == "--permission-mode" {
+			t.Errorf("kapalıyken hızlı mod argümanı sızdı: %q", a)
+		}
+	}
+	// Araç desteklemiyorsa config'te true olsa bile uygulanmaz.
+	rcGpt := rcWith(map[string]InstalledTool{"gpt": {Fast: true}}, nil)
+	if resolveFast("gpt", rcGpt) {
+		t.Error("FastArgs tanımsız araçta hızlı mod açıldı")
+	}
+}
+
+// TestProjeFastGlobaliEzer — .cem.yaml global'i ezmeli (false dahil).
+func TestProjeFastGlobaliEzer(t *testing.T) {
+	rc := rcWith(
+		map[string]InstalledTool{"claude": {Fast: true}},
+		&ProjectConfig{Fast: map[string]bool{"claude": false}},
+	)
+	if resolveFast("claude", rc) {
+		t.Error("proje 'false' override'ı global 'true' tarafından eziliyor")
+	}
+}
+
+func indexOf(xs []string, want string) int {
+	for i, x := range xs {
+		if x == want {
+			return i
+		}
+	}
+	return -1
 }

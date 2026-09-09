@@ -14,27 +14,27 @@
   <text class="dim" x="88" y="22">cem — pair mode</text>
 
   <text class="dim" x="24" y="70">$</text>
-  <text class="cmd" x="42" y="70">cem -p "client.go'ya retry ekle"</text>
+  <text class="cmd" x="42" y="70">cem -p "add retries to client.go"</text>
 
-  <text class="think" x="24" y="108">🧠 DÜŞÜNEN · gpt</text>
-  <text class="dim" x="230" y="108">gpt-5.6-terra · xhigh</text>
+  <text class="think" x="24" y="108">🧠 THINKING · gpt</text>
+  <text class="dim" x="240" y="108">gpt-5.6-terra · xhigh</text>
 
-  <text class="txt" x="24" y="140">- Dosya: client.go</text>
-  <text class="txt" x="24" y="164">- Fonksiyon: func withRetry(fn func() error, n int) error</text>
-  <text class="txt" x="24" y="188">- Yaklaşım: üstel backoff, her denemede bekleme iki katına çıkar</text>
-  <text class="txt" x="24" y="212">- Kenar durumlar: context iptali, bekleme üst sınırı, son hatayı sarmala</text>
-  <text class="dim" x="24" y="244">⏱ düşünme 8.9s</text>
+  <text class="txt" x="24" y="140">- File: client.go</text>
+  <text class="txt" x="24" y="164">- Function: func withRetry(fn func() error, n int) error</text>
+  <text class="txt" x="24" y="188">- Approach: exponential backoff, doubling the wait each attempt</text>
+  <text class="txt" x="24" y="212">- Edge cases: context cancellation, backoff cap, wrap the last error</text>
+  <text class="dim" x="24" y="244">⏱ thinking 8.9s</text>
 
   <line class="rule" x1="24" y1="266" x2="876" y2="266"/>
 
-  <text class="write" x="24" y="300">✍️ YAZAN · claude</text>
-  <text class="dim" x="230" y="300">sonnet · low</text>
+  <text class="write" x="24" y="300">✍️ WRITING · claude</text>
+  <text class="dim" x="240" y="300">sonnet · low</text>
 
-  <text class="txt" x="24" y="332">client.go güncellendi — withRetry n kez yeniden dener, bekleme</text>
-  <text class="txt" x="24" y="356">30s'de sınırlanır, context iptal edilirse anında döner.</text>
-  <text class="dim" x="24" y="388">⏱ yazma 24.1s</text>
-  <text class="dim" x="24" y="412">⏱ toplam 33.0s   (düşünme 8.9s + yazma 24.1s)</text>
+  <text class="txt" x="24" y="332">client.go updated — withRetry retries n times, the wait is capped</text>
+  <text class="txt" x="24" y="356">at 30s, and it returns immediately if the context is cancelled.</text>
+  <text class="dim" x="24" y="388">⏱ writing 24.1s</text>
+  <text class="dim" x="24" y="412">⏱ total 33.0s   (thinking 8.9s + writing 24.1s)</text>
 
   <line class="rule" x1="24" y1="432" x2="876" y2="432"/>
-  <text class="dim" x="24" y="456">Pahalı model planlar · ucuz model yazar · aynı iş iki kez faturalanmaz</text>
+  <text class="dim" x="24" y="456">The expensive model plans · the cheap one writes · the same work is not billed twice</text>
 </svg>

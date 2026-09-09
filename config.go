@@ -26,6 +26,9 @@ type InstalledTool struct {
 	// Effort — düşünme/akıl yürütme seviyesi (claude: low..max,
 	// codex: minimal..xhigh). Boş ise CLI kendi default'unu kullanır.
 	Effort string `yaml:"effort,omitempty"`
+	// Fast — hızlı mod: aracın kullanıcı ayarlarını (hook, izin kuralı, MCP)
+	// yüklemesini atla. Bkz. ToolMeta.FastArgs.
+	Fast bool `yaml:"fast,omitempty"`
 }
 
 // APIKey — bir provider için saklanan tek bir API key. Label opsiyonel (insan
@@ -75,6 +78,8 @@ type ProjectConfig struct {
 	// Efforts — proje-spesifik düşünme seviyesi override'ları.
 	// Anahtar = toolKey; değer = effort seviyesi.
 	Efforts map[string]string `yaml:"efforts,omitempty"`
+	// Fast — proje-spesifik hızlı mod override'ı (araç → açık/kapalı).
+	Fast map[string]bool `yaml:"fast,omitempty"`
 }
 
 type ResolvedConfig struct {
@@ -159,6 +164,16 @@ type ToolMeta struct {
 	// stdout'a döküyor ve aynı diff'i defalarca tekrarlıyor. Bunun yerine
 	// spinner gösterilip sonunda tek, temiz cevap basılır. --raw ile devre dışı.
 	LastMessageFlag string
+	// FastArgs — "hızlı mod" argümanları. Aracın kullanıcı ayarlarını
+	// (hook'lar, izin kuralları, MCP) yüklemesini atlatır. Ölçüldü
+	// (2026-09-09, claude 2.1.266, aynı görev "not.txt'ye merhaba yaz",
+	// dosya her iki durumda da oluştu):
+	//     normal ............ 124s
+	//     hızlı mod .......... 8s
+	// Farkın tamamı kullanıcının hook/plugin kurulumunun her çağrıda
+	// yeniden ayağa kalkmasından geliyor. VARSAYILAN KAPALI: kullanıcının
+	// izin kurallarını sessizce atlamak doğru olmaz.
+	FastArgs []string
 	// UpdateCmd — aracın kendi güncelleme subcommand'ı (örn. {"update"}).
 	// Boş ise güncelleme, kurulum komutunun yeniden çalıştırılmasına düşer.
 	UpdateCmd []string
@@ -192,7 +207,12 @@ var KnownTools = map[string]ToolMeta{
 		// claude --help: --effort <level> (low, medium, high, xhigh, max)
 		EffortArgs: []string{"--effort", "%s"},
 		Efforts:    []string{"low", "medium", "high", "xhigh", "max"},
-		UpdateCmd:  []string{"update"},
+		// --setting-sources "" tek başına yetmiyor: izin kuralları da o
+		// dosyalardan geldiği için claude "yazma izni verilmedi" deyip dosya
+		// oluşturmuyordu. acceptEdits dosya düzenlemelerini onaylıyor; Bash
+		// gibi komut çalıştıran araçlar hâlâ onay istiyor.
+		FastArgs:  []string{"--setting-sources", "", "--permission-mode", "acceptEdits"},
+		UpdateCmd: []string{"update"},
 	},
 	"agy": {
 		Name:             "Antigravity",

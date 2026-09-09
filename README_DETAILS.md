@@ -246,6 +246,8 @@ your command never waits. The log is `~/.cem/auto-update.log`. Turn it off with
 | **Vim / Neovim** | shell function recipes | [docs/VIM.md](docs/VIM.md) |
 | **Emacs** | elisp recipes | [docs/EMACS.md](docs/EMACS.md) |
 
+![cem in a JetBrains IDE](docs/img/cem-intellij.svg)
+
 ### JetBrains plugin auto-update
 
 The plugin is not on the Marketplace, and a plugin installed from disk is never

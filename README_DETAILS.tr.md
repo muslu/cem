@@ -245,6 +245,8 @@ senin komutun beklemez. Log: `~/.cem/auto-update.log`. Kapatmak için
 | **Vim / Neovim** | shell fonksiyonu tarifleri | [docs/VIM.md](docs/VIM.md) |
 | **Emacs** | elisp tarifleri | [docs/EMACS.md](docs/EMACS.md) |
 
+![JetBrains IDE'de cem](docs/img/cem-intellij.tr.svg)
+
 ### JetBrains eklentisi otomatik güncelleme
 
 Eklenti Marketplace'te değil; diskten kurulan eklenti hiç güncellenmez. Şu

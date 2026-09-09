@@ -14,7 +14,7 @@
 Düşünmeyi güçlü modele, yazmayı ucuz modele bırakırsın — kararlar iyileşir,
 her satır kod için pahalı model çalıştırmazsın.
 
-![cem pair modu: düşünen planlar, yazan kodlar](docs/img/cem-pair.svg)
+![cem pair modu: düşünen planlar, yazan kodlar](docs/img/cem-pair.tr.svg)
 
 ---
 

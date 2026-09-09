@@ -95,12 +95,19 @@ func ensureWorkdirTrusted(cfg *GlobalConfig) bool {
 	return true
 }
 
-// isInteractive — stdin bir terminale bağlı mı? Pipe'la gelen girdide soru
-// sormak, cevabı prompt'un kendisinden okumak olurdu.
+// isInteractive — stdin'den gerçekten cevap alabilir miyiz? Pipe'la gelen
+// girdide soru sormak, cevabı prompt'un kendisinden okumak olurdu.
+//
+// ModeCharDevice tek başına yetmiyor: /dev/null da bir karakter aygıtı ve
+// `cem … < /dev/null` (script, CI, IDE) o kontrolü geçip soruyu soruyor,
+// ardından boş cevabı "hayır" sayıp çalıştırmayı iptal ediyordu.
 func isInteractive() bool {
 	info, err := os.Stdin.Stat()
-	if err != nil {
+	if err != nil || (info.Mode()&os.ModeCharDevice) == 0 {
 		return false
 	}
-	return (info.Mode() & os.ModeCharDevice) != 0
+	if dn, err := os.Stat(os.DevNull); err == nil && os.SameFile(info, dn) {
+		return false
+	}
+	return true
 }
