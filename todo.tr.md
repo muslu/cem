@@ -120,3 +120,6 @@
 - [x] Config'teki bozuk zaman damgası artık tüm komutları kilitlemiyor.
 - [x] Yazan artık test çalıştırıp onay istemiyor; plan 15 satırla sınırlı.
       Aynı görev: 1m 38s → 1m 06s.
+- [x] Çalıştırma başlıklarında saat var; pair toplamında tam tarih.
+- [x] IntelliJ ayarlarına düşünme seviyesi + hızlı mod eklendi, model listesi
+      tazelendi (gpt-5.6-terra).

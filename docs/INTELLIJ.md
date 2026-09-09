@@ -47,6 +47,18 @@ Working directory = project root, so `.cem.yaml` (project-local config) and API 
 
 ## Settings
 
+**Settings → Tools → cem** now also manages (all written to
+`~/.cem/config.yaml`, the same file the terminal `cem` uses):
+
+| Field | What it does |
+|---|---|
+| Thinker / Writer | which AI thinks, which one writes |
+| Model | per-role model (blank = the CLI's own default) |
+| **Reasoning effort** | suggested: thinker `high`, writer `low` |
+| **Fast mode** | runs the tool without loading its hooks/permission rules — measured 8s instead of 124s. Turn it off to keep your own hooks. |
+
+## Settings
+
 **Settings → Tools → cem**:
 
 | Field | Default | Notes |

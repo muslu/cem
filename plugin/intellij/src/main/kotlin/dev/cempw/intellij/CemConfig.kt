@@ -24,6 +24,10 @@ object CemConfig {
         var writer: String = "",
         /** toolKey → model (örn. "claude" → "opus"). Boş model = CLI default. */
         var models: MutableMap<String, String> = mutableMapOf(),
+        /** toolKey → düşünme seviyesi (low..max). Boş = CLI default. */
+        var efforts: MutableMap<String, String> = mutableMapOf(),
+        /** toolKey → hızlı mod. Yok = CLI varsayılanı (açık). */
+        var fast: MutableMap<String, Boolean> = mutableMapOf(),
     )
 
     /** Tüm 4 tool için bilinen model önerileri. cem core'la senkron tut. */
@@ -32,9 +36,21 @@ object CemConfig {
     val modelsByTool: Map<String, List<String>> = mapOf(
         "claude" to listOf("opus", "sonnet", "haiku"),
         "agy"    to listOf("gemini-3-pro", "gemini-3-flash"),
-        "gpt"    to listOf("gpt-5.5", "gpt-5-mini", "gpt-5"),
+        "gpt"    to listOf("gpt-5.6-terra", "gpt-5.5", "gpt-5-mini", "gpt-5"),
         "cursor" to listOf("claude-4.6", "gpt-5.2", "gemini-3-pro"),
     )
+
+    /**
+     * Düşünme seviyesi destekleyen araçlar. cem core'daki ToolMeta.Efforts ile
+     * senkron tut; desteklemeyen araç listede yok (combo devre dışı kalır).
+     */
+    val effortsByTool: Map<String, List<String>> = mapOf(
+        "claude" to listOf("low", "medium", "high", "xhigh", "max"),
+        "gpt"    to listOf("low", "medium", "high", "xhigh", "max"),
+    )
+
+    /** Hızlı mod tanımlı araçlar (cem core: ToolMeta.FastArgs). */
+    val fastCapable: Set<String> = setOf("claude")
 
     /** ~/.cem/config.yaml yolu. */
     fun configPath(): Path {
@@ -56,12 +72,17 @@ object CemConfig {
             val writer  = (roles?.get("writer")  as? String).orEmpty()
             val tools = raw["tools"] as? Map<String, Any?>
             val models = mutableMapOf<String, String>()
+            val efforts = mutableMapOf<String, String>()
+            val fast = mutableMapOf<String, Boolean>()
             tools?.forEach { (key, value) ->
                 val v = value as? Map<String, Any?>
                 val m = v?.get("model") as? String
                 if (!m.isNullOrBlank()) models[key] = m
+                val e = v?.get("effort") as? String
+                if (!e.isNullOrBlank()) efforts[key] = e
+                (v?.get("fast") as? Boolean)?.let { fast[key] = it }
             }
-            State(thinker, writer, models)
+            State(thinker, writer, models, efforts, fast)
         } catch (_: Exception) {
             State()
         }
@@ -97,13 +118,24 @@ object CemConfig {
 
         // tools.<key>.model
         val tools = (existing["tools"] as? Map<String, Any?>)?.toMutableMap() ?: mutableMapOf()
-        for ((key, model) in newState.models) {
+        val touched = newState.models.keys + newState.efforts.keys + newState.fast.keys
+        for (key in touched) {
             val current = (tools[key] as? Map<String, Any?>)?.toMutableMap() ?: mutableMapOf()
-            if (model.isBlank()) {
-                current.remove("model")
-            } else {
-                current["model"] = model
+
+            newState.models[key]?.let { model ->
+                if (model.isBlank()) current.remove("model") else current["model"] = model
             }
+            newState.efforts[key]?.let { effort ->
+                if (effort.isBlank()) current.remove("effort") else current["effort"] = effort
+            }
+            // Hızlı mod cem tarafında VARSAYILAN AÇIK ve config'te *bool:
+            // alanın hiç olmaması "varsayılan" demek. Kullanıcı kapatmadıkça
+            // yazmıyoruz ki CLI varsayılanı değişirse buradaki eski değer
+            // onu sabitlemesin.
+            newState.fast[key]?.let { on ->
+                if (on) current.remove("fast") else current["fast"] = false
+            }
+
             // command field boş kalmasın; tool kuruluysa CLI yazmıştır.
             if (current.isNotEmpty() || tools.containsKey(key)) {
                 tools[key] = current

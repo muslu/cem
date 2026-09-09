@@ -48,6 +48,17 @@ Working directory = proje kökü, yani `.cem.yaml` (proje config'i) ve `~/.cem/c
 
 ## Ayarlar
 
+**Settings → Tools → cem** artık şunları da yönetiyor (hepsi
+`~/.cem/config.yaml`'a yazılır, terminaldeki `cem` ile aynı dosya):
+
+| Alan | Ne işe yarar |
+|---|---|
+| Thinker / Writer | hangi AI düşünür, hangisi yazar |
+| Model | rol başına model (boş = CLI'ın kendi varsayılanı) |
+| **Düşünme seviyesi** | öneri: thinker `high`, writer `low` |
+| **Hızlı mod** | aracın hook/izin kurallarını yüklemeden çalıştırır — ölçüldü: 124s yerine 8s. Kapatırsan kendi hook'ların çalışır. |
+
+
 **Settings → Tools → cem**:
 
 | Alan | Varsayılan | Notlar |

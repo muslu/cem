@@ -195,11 +195,12 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		}
 		printElapsed(writeStart, L("yazma", "writing"))
 		fmt.Println(styleDim.Render(fmt.Sprintf(
-			L("  ⏱ toplam %s   (düşünme %s + yazma %s)",
-				"  ⏱ total %s   (thinking %s + writing %s)"),
+			L("  ⏱ toplam %s   (düşünme %s + yazma %s)   ·  %s",
+				"  ⏱ total %s   (thinking %s + writing %s)   ·  %s"),
 			formatDuration(time.Since(pairStart)),
 			formatDuration(thinkDur),
-			formatDuration(time.Since(writeStart)))))
+			formatDuration(time.Since(writeStart)),
+			pairStart.Format("2006-01-02 15:04:05"))))
 		return nil
 	}
 	return fmt.Errorf("bilinmeyen mod")
@@ -465,9 +466,12 @@ func printAIHeader(kind, toolKey string, rc *ResolvedConfig) {
 	if kind == "writer" {
 		icon, label, style = "✍️ ", L("YAZAN", "WRITING"), styleWriter
 	}
+	// Saat başlığın sağında: uzun oturumlarda terminal geçmişine bakan biri
+	// hangi çıktının ne zaman üretildiğini görebilsin.
 	fmt.Println()
 	fmt.Println(style.Render(fmt.Sprintf("  %s %s · %s", icon, label, toolKey)) +
-		styleDim.Render("  "+describeToolRun(toolKey, rc)))
+		styleDim.Render("  "+describeToolRun(toolKey, rc)+
+			"  ·  "+time.Now().Format("15:04:05")))
 }
 
 // formatDuration — kısa, okunur süre: "8.3s", "1m 04s".

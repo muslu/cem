@@ -46,6 +46,9 @@ class CemSettingsConfigurable : Configurable {
     private var writerCombo: ComboBox<String>? = null
     private var thinkerModelCombo: ComboBox<String>? = null
     private var writerModelCombo: ComboBox<String>? = null
+    private var thinkerEffortCombo: ComboBox<String>? = null
+    private var writerEffortCombo: ComboBox<String>? = null
+    private var fastCheck: javax.swing.JCheckBox? = null
     private var initial: CemConfig.State = CemConfig.State()
 
     override fun getDisplayName() = "cem"
@@ -64,6 +67,14 @@ class CemSettingsConfigurable : Configurable {
         }
         thinkerModelCombo = ComboBox<String>()
         writerModelCombo = ComboBox<String>()
+        thinkerEffortCombo = ComboBox<String>()
+        writerEffortCombo = ComboBox<String>()
+        // Hızlı mod cem tarafında varsayılan AÇIK; kutu işaretli başlar ve
+        // yalnızca kapatıldığında config'e yazılır.
+        fastCheck = javax.swing.JCheckBox(
+            "Hızlı mod — aracın hook/izin kurallarını yüklemeden çalıştır",
+            initial.fast["claude"] ?: true,
+        )
         refreshModelCombos()
 
         val form = FormBuilder.createFormBuilder()
@@ -73,8 +84,14 @@ class CemSettingsConfigurable : Configurable {
             .addComponent(JBLabel("Roles — cem setup ile aynı sorular:"))
             .addLabeledComponent(JBLabel("🧠 Thinker:"), thinkerCombo!!, 1, false)
             .addLabeledComponent(JBLabel("    Model:"), thinkerModelCombo!!, 1, false)
+            .addLabeledComponent(JBLabel("    Düşünme seviyesi:"), thinkerEffortCombo!!, 1, false)
             .addLabeledComponent(JBLabel("✍️  Writer:"), writerCombo!!, 1, false)
             .addLabeledComponent(JBLabel("    Model:"), writerModelCombo!!, 1, false)
+            .addLabeledComponent(JBLabel("    Düşünme seviyesi:"), writerEffortCombo!!, 1, false)
+            .addComponent(JBLabel("<html><i>Öneri: thinker <b>high</b> (planı o çıkarıyor), writer <b>low</b> (planı uyguluyor).</i></html>"))
+            .addSeparator()
+            .addComponent(fastCheck!!)
+            .addComponent(JBLabel("<html><i>Ölçüldü: aynı görev 124s yerine 8s. Kapatırsan kendi hook'ların ve izin kuralların çalışır.</i></html>"))
             .addComponent(JBLabel("<html><i>Boş model = CLI default. Apply ile ~/.cem/config.yaml güncellenir.</i></html>"))
             .addComponentFillVertically(JPanel(), 0)
             .panel
@@ -91,6 +108,26 @@ class CemSettingsConfigurable : Configurable {
         writerModelCombo?.let { it.model = javax.swing.DefaultComboBoxModel(modelsFor(wk).toTypedArray()) }
         thinkerModelCombo?.selectedItem = initial.models[tk]?.ifBlank { defaultLabel } ?: defaultLabel
         writerModelCombo?.selectedItem  = initial.models[wk]?.ifBlank { defaultLabel } ?: defaultLabel
+
+        thinkerEffortCombo?.let {
+            it.model = javax.swing.DefaultComboBoxModel(effortsFor(tk).toTypedArray())
+            it.selectedItem = initial.efforts[tk]?.ifBlank { defaultLabel } ?: defaultLabel
+            it.isEnabled = CemConfig.effortsByTool.containsKey(tk)
+        }
+        writerEffortCombo?.let {
+            it.model = javax.swing.DefaultComboBoxModel(effortsFor(wk).toTypedArray())
+            it.selectedItem = initial.efforts[wk]?.ifBlank { defaultLabel } ?: defaultLabel
+            it.isEnabled = CemConfig.effortsByTool.containsKey(wk)
+        }
+        // Hızlı mod yalnızca destekleyen araç rollerden birindeyse anlamlı.
+        fastCheck?.isEnabled = CemConfig.fastCapable.contains(tk) || CemConfig.fastCapable.contains(wk)
+    }
+
+    /** '(CLI default)' + aracın desteklediği seviyeler; desteklemiyorsa sadece default. */
+    private fun effortsFor(tool: String): List<String> {
+        val list = mutableListOf(defaultLabel)
+        list += CemConfig.effortsByTool[tool] ?: emptyList()
+        return list
     }
 
     /** '(CLI default)' (default) + tool'un bilinen modelleri. */
@@ -113,7 +150,21 @@ class CemSettingsConfigurable : Configurable {
         val models = initial.models.toMutableMap()
         if (tk.isNotBlank()) models[tk] = tm
         if (wk.isNotBlank()) models[wk] = wm
-        return CemConfig.State(tk, wk, models)
+
+        val efforts = initial.efforts.toMutableMap()
+        if (tk.isNotBlank() && CemConfig.effortsByTool.containsKey(tk)) {
+            efforts[tk] = normalizeModel(thinkerEffortCombo?.selectedItem as? String)
+        }
+        if (wk.isNotBlank() && CemConfig.effortsByTool.containsKey(wk)) {
+            efforts[wk] = normalizeModel(writerEffortCombo?.selectedItem as? String)
+        }
+
+        val fast = initial.fast.toMutableMap()
+        val fastOn = fastCheck?.isSelected ?: true
+        for (key in CemConfig.fastCapable) {
+            if (key == tk || key == wk) fast[key] = fastOn
+        }
+        return CemConfig.State(tk, wk, models, efforts, fast)
     }
 
     override fun isModified(): Boolean {
@@ -121,7 +172,9 @@ class CemSettingsConfigurable : Configurable {
         val cur = currentUiState()
         val rolesChanged = cur.thinker != initial.thinker || cur.writer != initial.writer
         val modelsChanged = cur.models != initial.models
-        return pathChanged || rolesChanged || modelsChanged
+        val effortsChanged = cur.efforts != initial.efforts
+        val fastChanged = cur.fast != initial.fast
+        return pathChanged || rolesChanged || modelsChanged || effortsChanged || fastChanged
     }
 
     override fun apply() {
@@ -145,6 +198,7 @@ class CemSettingsConfigurable : Configurable {
         initial = CemConfig.load()
         thinkerCombo?.selectedItem = initial.thinker.ifBlank { "claude" }
         writerCombo?.selectedItem  = initial.writer.ifBlank { "agy" }
+        fastCheck?.isSelected = initial.fast["claude"] ?: true
         refreshModelCombos()
     }
 
@@ -155,5 +209,8 @@ class CemSettingsConfigurable : Configurable {
         writerCombo = null
         thinkerModelCombo = null
         writerModelCombo = null
+        thinkerEffortCombo = null
+        writerEffortCombo = null
+        fastCheck = null
     }
 }

@@ -165,3 +165,6 @@
 - [x] A malformed timestamp in the config no longer bricks every command.
 - [x] Writer no longer tries to run tests and ask for approval; the plan is
       capped at 15 lines. Same task: 1m 38s → 1m 06s.
+- [x] Run headers carry a timestamp; pair total shows the full date.
+- [x] IntelliJ settings gained reasoning effort + fast mode, and the model list
+      was refreshed (gpt-5.6-terra).
