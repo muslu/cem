@@ -177,10 +177,12 @@ var KnownTools = map[string]ToolMeta{
 		InstallShellUnix: "curl -fsSL https://claude.ai/install.sh | bash",
 		InstallShellWin:  "irm https://claude.ai/install.ps1 | iex",
 		VersionFlag:      "--version",
-		// --bare: hook/LSP/plugin yüklemesini atlar. Writer rolü izole bir
-		// görev yapıyor (planı uygula, dosyayı yaz); IDE eklentileri ve
-		// hook'ları ayağa kaldırmak her çağrıya boşuna saniye ekliyordu.
-		RunFlags: []string{"--bare", "-p"}, // print mode (non-interactive)
+		// NOT: --bare (hook/LSP/plugin yüklemesini atlar) hız için denendi ve
+		// GERİ ALINDI: oturum bilgisini de atlıyor, her çağrı
+		// "Not logged in · Please run /login" ile düşüyor (ölçüldü 2026-09-09,
+		// claude 2.1.266). Tekrar eklemeden önce `claude --bare -p "x"`
+		// çalıştırıp gerçekten cevap döndüğünü gör.
+		RunFlags: []string{"-p"}, // print mode (non-interactive)
 		// claude -p PROMPT pozisyonel argüman alır. Stdin'le bırakırsak stdout
 		// TTY olduğunda (ModeThink/Write) REPL'e geçip kilitleniyor.
 		PromptAsArg:    true,

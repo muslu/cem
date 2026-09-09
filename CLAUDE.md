@@ -172,6 +172,10 @@ cem/
   single-long-line answer leaks entirely. Login/error information still
   surfaces — stderr's tail is printed when the run fails or produces no final
   message.
+- **Do not add `--bare` to claude's `RunFlags`.** It skips hooks/LSP/plugins —
+  and the stored credentials with them: every call fails with "Not logged in ·
+  Please run /login" (measured 2026-09-09, claude 2.1.266). A flag added for
+  speed must be verified with a real call before it ships.
 - **The writer is not cached by default** (`cacheEnabled`). It creates files and
   runs commands; replaying a stored "file created" answer would leave no file
   behind. `cache_writer: true` opts in, and the reply then says so explicitly.

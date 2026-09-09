@@ -156,7 +156,7 @@ func TestBuildArgsClaudeEffortPromptuYutmaz(t *testing.T) {
 		"claude": {Model: "sonnet", Effort: "xhigh"},
 	}, nil)
 	got := buildArgs(KnownTools["claude"], "claude", rc, "merhaba")
-	want := []string{"--model", "sonnet", "--effort", "xhigh", "--bare", "-p", "merhaba"}
+	want := []string{"--model", "sonnet", "--effort", "xhigh", "-p", "merhaba"}
 	if len(got) != len(want) {
 		t.Fatalf("args = %q\nwant %q", got, want)
 	}
