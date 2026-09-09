@@ -163,3 +163,5 @@
       second `}` of nested blocks. Removed, with tests. Blank-line collapsing
       relaxed to two so Python spacing survives.
 - [x] A malformed timestamp in the config no longer bricks every command.
+- [x] Writer no longer tries to run tests and ask for approval; the plan is
+      capped at 15 lines. Same task: 1m 38s → 1m 06s.

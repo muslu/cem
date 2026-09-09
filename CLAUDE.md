@@ -146,6 +146,12 @@ cem/
 - **Effort and model flags must land before `-p`** for tools with
   `ModelBeforeRun: true` (claude, cursor): `-p` takes the prompt as its
   argument, so anything inserted between them swallows the prompt.
+- **The writer is told not to run commands.** Left to itself it tries to run the
+  tests, cannot get approval in fast mode, and spends a turn asking the user to
+  approve or run them — pure waste on every call. The plan also carries a
+  15-line cap: an itemised list of ten test cases is paid for twice, once as
+  the thinker's output and again as the writer's input. Measured on the same
+  task: 30+ line plan / 1m 38s → 7-bullet plan / 1m 06s.
 - **In pair mode the thinker is told NOT to write code** (`buildThinkerPrompt`).
   Left alone it solves the task end to end and the writer then rewrites the
   same code — the same work billed twice, on the deliberately more expensive

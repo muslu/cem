@@ -118,3 +118,5 @@
       blokların ikinci `}` satırını yiyordu. Kaldırıldı, testi eklendi. Boş
       satır tekilleştirmesi ikiye gevşetildi (Python aralıkları korunsun).
 - [x] Config'teki bozuk zaman damgası artık tüm komutları kilitlemiyor.
+- [x] Yazan artık test çalıştırıp onay istemiyor; plan 15 satırla sınırlı.
+      Aynı görev: 1m 38s → 1m 06s.
