@@ -111,7 +111,7 @@ make clean && make build
 ./build/cemi            # araç listesi (banner ile)
 ./build/cemir           # kurulu araçlar (banner ile)
 ./build/cem roles       # aktif roller + config kaynak
-go test ./...           # 8 test, hepsi geçmeli
+go test -race ./...     # 28 test, hepsi geçmeli
 ```
 
 İlk çalıştırmada wizard açılır; `~/.cem/config.yaml` oluşur. Test
@@ -124,7 +124,8 @@ dizininde `.cem.yaml` ile proje override edilir.
 `todo.md` güncel listeyi tutar. Açık başlıklar:
 - `.claude/agents/` ve `.claude/skills/` `autoinstalltrixie` projesinin
   kalıntısı — silme/değiştirme kararı bekliyor. `.claude/` gitignore'lı.
-- Daha kapsamlı testler: `executor_test.go`, `history_test.go` yok.
+- Daha kapsamlı testler: `history_test.go` yok (`executor_test.go` ve
+  `spinner_test.go` eklendi).
 - macOS/Linux/Windows entegrasyon testleri yok.
 
 ---

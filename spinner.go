@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -14,6 +15,11 @@ type Spinner struct {
 	stop     chan struct{}
 	done     chan struct{}
 	disabled atomic.Bool
+	// once — Stop() birden fazla yerden çağrılıyor: stopWriter.Write
+	// (subprocess'in ilk stderr byte'ında, AYRI goroutine) ve Run/ModePair
+	// (captureTool döndükten sonra). Korumasız close(s.stop) ikinci çağrıda
+	// "panic: close of closed channel" veriyordu (2026-09-09'da sahada görüldü).
+	once sync.Once
 }
 
 // StartSpinner — verilen mesajla spinner başlatır. Stop() ile sonlandır.
@@ -60,10 +66,14 @@ func (s *Spinner) run() {
 	}
 }
 
+// Stop — idempotent ve goroutine-safe. Kaç kez çağrılırsa çağrılsın spinner
+// bir kez durur; her çağıran, spinner gerçekten durduktan sonra döner.
 func (s *Spinner) Stop() {
-	if s.disabled.Load() {
+	if s == nil || s.disabled.Load() {
 		return
 	}
-	close(s.stop)
-	<-s.done
+	s.once.Do(func() {
+		close(s.stop)
+		<-s.done
+	})
 }

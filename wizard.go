@@ -97,8 +97,10 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 	if !autoYes {
 		fmt.Println()
 		askModel(thinker, "🧠 thinker", cfg)
+		askEffort(thinker, "🧠 thinker", cfg)
 		if writer != thinker {
 			askModel(writer, "✍️  writer", cfg)
+			askEffort(writer, "✍️  writer", cfg)
 		}
 	}
 
@@ -339,6 +341,67 @@ func askModel(toolKey, label string, cfg *GlobalConfig) {
 	if t.Model != "" {
 		fmt.Printf("  %s model: %s\n", styleSuccess.Render("✓"), styleBold.Render(t.Model))
 	}
+}
+
+// askEffort — kullanıcıya bir tool için düşünme (reasoning) seviyesi seçtirir;
+// seçim cfg.Tools[key].Effort'a yazılır. Araç seviye seçimini desteklemiyorsa
+// (agy, cursor) sessizce döner.
+func askEffort(toolKey, label string, cfg *GlobalConfig) {
+	meta, ok := KnownTools[toolKey]
+	if !ok || len(meta.Efforts) == 0 || len(meta.EffortArgs) == 0 {
+		return
+	}
+	fmt.Printf("  %s · %s için düşünme seviyesi:\n",
+		styleBold.Render(label), styleBold.Render(meta.Name))
+	for i, e := range meta.Efforts {
+		marker := " "
+		if t, ok := cfg.Tools[toolKey]; ok && t.Effort == e {
+			marker = styleSuccess.Render("✓")
+		}
+		fmt.Printf("    %s [%d] %s%s\n", marker, i+1, e, styleDim.Render(effortHint(e)))
+	}
+	fmt.Printf("      [0] default (CLI kendi seçer)\n")
+	fmt.Print("  Seçim: ")
+	reader := bufio.NewReader(os.Stdin)
+	resp, _ := reader.ReadString('\n')
+	resp = strings.TrimSpace(resp)
+
+	t := cfg.Tools[toolKey]
+	switch resp {
+	case "":
+		// Enter = mevcut seçimi koru
+	case "0":
+		t.Effort = ""
+	default:
+		idx, err := strconv.Atoi(resp)
+		if err != nil || idx < 1 || idx > len(meta.Efforts) {
+			fmt.Println(styleDim.Render("  geçersiz, mevcut/default korundu"))
+		} else {
+			t.Effort = meta.Efforts[idx-1]
+		}
+	}
+	if cfg.Tools == nil {
+		cfg.Tools = map[string]InstalledTool{}
+	}
+	cfg.Tools[toolKey] = t
+	if t.Effort != "" {
+		fmt.Printf("  %s düşünme: %s\n", styleSuccess.Render("✓"), styleBold.Render(t.Effort))
+	}
+}
+
+// effortHint — seviyelerin maliyet/derinlik dengesini tek kelimeyle anlatır.
+func effortHint(e string) string {
+	switch e {
+	case "minimal", "low":
+		return "  (hızlı, ucuz)"
+	case "medium":
+		return "  (denge)"
+	case "high":
+		return "  (derin)"
+	case "xhigh", "max":
+		return "  (en derin, yavaş + pahalı)"
+	}
+	return ""
 }
 
 // pickInstallShell — platforma uyan shell-install komutunu döndürür; yoksa "".

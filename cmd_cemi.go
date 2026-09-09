@@ -127,10 +127,43 @@ func updateTool(name string, cfg *GlobalConfig) {
 		fmt.Printf("  %s kurulu değil — önce: cemi %s\n", name, name)
 		return
 	}
+	before := toolVersion(name, cfg)
 	fmt.Printf("  🔄 %s güncelleniyor...\n", styleBold.Render(name))
-	if err := InstallTool(name, cfg); err != nil {
-		fmt.Println(styleWarn.Render("  ⚠ " + err.Error()))
+
+	// Önce aracın KENDİ update komutu (claude/codex/agy/cursor-agent update):
+	// kurulum betiğini yeniden indirmekten hızlı ve araç kendi güncel mi
+	// olduğunu zaten biliyor. Yoksa kurulum komutuna düşülür.
+	var out strings.Builder
+	sp := StartSpinner(fmt.Sprintf("⏳ %s güncelleniyor", name))
+	native, err := updateToolNative(name, cfg, &out)
+	sp.Stop()
+
+	if !native {
+		if err := InstallTool(name, cfg); err != nil {
+			fmt.Println(styleWarn.Render("  ⚠ " + err.Error()))
+			return
+		}
+	} else if err != nil {
+		printTail(out.String(), 10)
+		fmt.Println(styleWarn.Render("  ⚠ " + name + " güncellenemedi: " + err.Error()))
 		return
+	}
+
+	after := toolVersion(name, cfg)
+	if after != "" {
+		t := cfg.Tools[name]
+		t.Version = after
+		cfg.Tools[name] = t
+	}
+	switch {
+	case before != "" && after != "" && before != after:
+		fmt.Printf("  %s %s → %s\n", styleSuccess.Render("✓"),
+			styleDim.Render(before), styleBold.Render(after))
+	case after != "":
+		fmt.Printf("  %s %s zaten güncel (%s)\n", styleSuccess.Render("✓"),
+			styleBold.Render(name), styleDim.Render(after))
+	default:
+		fmt.Printf("  %s %s güncellendi\n", styleSuccess.Render("✓"), styleBold.Render(name))
 	}
 	saveGlobalConfig(cfg)
 }

@@ -64,18 +64,13 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return errMissingRole("writer")
 		}
 
-		thinkerLabel := roles.Thinker
-		if m := resolveModel(roles.Thinker, rc); m != "" {
-			thinkerLabel += " (" + m + ")"
-		} else {
-			thinkerLabel += " (default)"
-		}
+		thinkerLabel := roles.Thinker + " (" + describeToolRun(roles.Thinker, rc) + ")"
 		// Header'ı ÖNCE bas — çıktı streaming geldiği için kullanıcı kimin
 		// konuştuğunu hemen bilsin.
 		printAIHeader("🧠 thinker", roles.Thinker, rc)
 		sp := StartSpinner("🧠 " + thinkerLabel + " düşünüyor...")
 		thought, err := captureToolWithSpinner(roles.Thinker, rc, input, sp)
-		sp.Stop() // captureTool içinde de stopWriter durdurabilir; idempotent
+		sp.Stop() // stopWriter da durdurmuş olabilir; Stop() idempotent (sync.Once)
 		if err != nil {
 			return err
 		}
@@ -95,10 +90,43 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 
 		fmt.Println()
 		printAIHeader("✍️  writer", roles.Writer, rc)
-		writerInput := buildWriterPrompt(input, thought)
+		writerInput := buildWriterPrompt(input, dedupeTrailingEcho(thought))
 		return runTool(roles.Writer, rc, writerInput, "✍️")
 	}
 	return fmt.Errorf("bilinmeyen mod")
+}
+
+// dedupeTrailingEcho — bazı CLI'lar final mesajı stream'in sonunda BİR KEZ
+// DAHA basıyor (codex exec: mesaj → "tokens used N" → aynı mesaj). Ekrandaki
+// tekrar aracın kendi çıktısı, ona karışmıyoruz; ama writer'a iki kopya
+// göndermek prompt'u boşuna iki katına çıkarır.
+//
+// Yöntem: metnin sonunda yer alan ve DAHA ÖNCE birebir geçen en uzun bloğu
+// bulup atar. minEchoLen eşiği, meşru kısa tekrarların (kısa kod parçası,
+// tekrarlanan uyarı satırı) yanlışlıkla kırpılmasını önler.
+const minEchoLen = 200
+
+func dedupeTrailingEcho(s string) string {
+	t := strings.TrimRight(s, "\n")
+	n := len(t)
+	if n < 2*minEchoLen {
+		return s
+	}
+	best := 0
+	lo, hi := minEchoLen, n/2
+	for lo <= hi {
+		mid := (lo + hi) / 2
+		if strings.Contains(t[:n-mid], t[n-mid:]) {
+			best = mid
+			lo = mid + 1
+		} else {
+			hi = mid - 1
+		}
+	}
+	if best == 0 {
+		return s
+	}
+	return strings.TrimRight(t[:n-best], "\n")
 }
 
 // buildWriterPrompt — writer'a düşünenin çıktısını + net "tekrar analiz
@@ -131,18 +159,67 @@ func buildWriterPrompt(originalTask, thinkerOutput string) string {
 func buildArgs(meta ToolMeta, toolKey string, rc *ResolvedConfig, input string) []string {
 	model := resolveModel(toolKey, rc)
 	includeModel := model != "" && meta.ModelFlag != ""
+	effortArgs := buildEffortArgs(meta, toolKey, rc)
 	args := []string{}
 	if includeModel && meta.ModelBeforeRun {
 		args = append(args, meta.ModelFlag, model)
+	}
+	// Effort de model ile aynı kuralı izler: prompt-flag'i argüman yutan
+	// araçlarda (claude -p, cursor -p) RunFlags'ten ÖNCE gelmeli.
+	if meta.ModelBeforeRun {
+		args = append(args, effortArgs...)
 	}
 	args = append(args, meta.RunFlags...)
 	if includeModel && !meta.ModelBeforeRun {
 		args = append(args, meta.ModelFlag, model)
 	}
+	if !meta.ModelBeforeRun {
+		args = append(args, effortArgs...)
+	}
 	if meta.PromptAsArg {
 		args = append(args, input)
 	}
 	return args
+}
+
+// buildEffortArgs — seçili düşünme seviyesini aracın beklediği argüman
+// biçimine çevirir. Seviye seçilmemişse veya araç desteklemiyorsa boş döner.
+func buildEffortArgs(meta ToolMeta, toolKey string, rc *ResolvedConfig) []string {
+	if len(meta.EffortArgs) == 0 {
+		return nil
+	}
+	effort := resolveEffort(toolKey, rc)
+	if effort == "" {
+		return nil
+	}
+	out := make([]string, 0, len(meta.EffortArgs))
+	for _, tpl := range meta.EffortArgs {
+		if strings.Contains(tpl, "%s") {
+			out = append(out, fmt.Sprintf(tpl, effort))
+		} else {
+			out = append(out, tpl)
+		}
+	}
+	return out
+}
+
+// resolveEffort — toolKey için kullanılacak düşünme seviyesi. Öncelik
+// resolveModel ile aynı: proje .cem.yaml → global config → CLI default.
+// Araç seviye seçimini desteklemiyorsa her zaman "" döner.
+func resolveEffort(toolKey string, rc *ResolvedConfig) string {
+	meta, ok := KnownTools[toolKey]
+	if !ok || len(meta.EffortArgs) == 0 {
+		return ""
+	}
+	if rc.Project != nil && rc.Project.Efforts != nil {
+		if e, ok := rc.Project.Efforts[toolKey]; ok && e != "" {
+			return e
+		}
+	}
+	if t, ok := rc.Global.Tools[toolKey]; ok && t.Effort != "" {
+		return t.Effort
+	}
+	return ""
 }
 
 // resolveModel — toolKey için kullanılacak modeli döndürür. Sıra:
@@ -175,13 +252,26 @@ func resolveModel(toolKey string, rc *ResolvedConfig) string {
 //	─── 🧠 thinker · claude (default) ───   // model seçilmemiş, CLI default
 func printAIHeader(role, toolKey string, rc *ResolvedConfig) {
 	bar := strings.Repeat("─", 3)
-	model := resolveModel(toolKey, rc)
-	if model == "" {
-		model = "default"
-	}
 	fmt.Println()
 	fmt.Println(styleBold.Render(fmt.Sprintf("  %s %s · %s (%s) %s",
-		bar, role, toolKey, model, bar)))
+		bar, role, toolKey, describeToolRun(toolKey, rc), bar)))
+}
+
+// describeToolRun — header/spinner etiketi: "sonnet · high", "gpt-5.6-terra",
+// seçim yoksa "default".
+func describeToolRun(toolKey string, rc *ResolvedConfig) string {
+	model := resolveModel(toolKey, rc)
+	effort := resolveEffort(toolKey, rc)
+	switch {
+	case model == "" && effort == "":
+		return "default"
+	case model == "":
+		return "default · " + effort
+	case effort == "":
+		return model
+	default:
+		return model + " · " + effort
+	}
 }
 
 func errMissingRole(name string) error {
@@ -225,13 +315,72 @@ var authFailRe = regexp.MustCompile(`(?i)(401|unauthorized|missing bearer|invali
 // gerçek alt-process hatasına dönüşür.
 var errRateLimit = errors.New("rate limit / quota")
 
+// modelUnsupportedRe — seçili modelin hesap/plan tarafından reddedildiği
+// durumlar. Auth hatasından ÖNCE denenir: mesajda ikisi birden geçebiliyor
+// ve kullanıcıyı boş yere login akışına yollamak istemiyoruz.
+var modelUnsupportedRe = regexp.MustCompile(`(?i)` +
+	`model[^\n]{0,60}?(is )?not supported` + // codex: "The 'x' model is not supported when using..."
+	`|unsupported model|unknown model|model not found|invalid model` +
+	`|model ` + "`" + `[^` + "`" + `]+` + "`" + ` does not exist` + // codex 404: model `gpt-5.5` does not exist
+	`|does not exist or you do not have access` +
+	`|no access to (the )?model|you do not have access to (this |that )?model`)
+
+// noiseLineMax — alt araçların stderr'e döktüğü ham HTTP gövdeleri tek
+// satırda 100 KB'ı bulabiliyor. İçlerinde "unauthorized", "429", "quota",
+// "authentication failed" gibi ifadeler VERİ olarak geçer; imza taramasına
+// sokulursa yanlış teşhis üretir. Ölçüldü (2026-09-09): codex'in
+// "failed to refresh available models" logu 105 KB'lık model JSON'u basıyor,
+// guardian prompt metninde "authentication failed" geçiyordu → cem gerçek
+// hatayı ("model not supported") gizleyip "auth eksik" diyordu.
+const noiseLineMax = 400
+
+// bodyDumpRe — "body: {...}" / "body: [...]" sonrası ham gövde.
+var bodyDumpRe = regexp.MustCompile(`(?i)\bbody:\s*[\[{].*$`)
+
+// sanitizeStderr — imza taraması öncesi çıktıyı temizler: ham gövde
+// dökümlerini kırpar, kalan aşırı uzun satırları tamamen atar.
+func sanitizeStderr(s string) string {
+	lines := strings.Split(s, "\n")
+	kept := make([]string, 0, len(lines))
+	for _, ln := range lines {
+		ln = bodyDumpRe.ReplaceAllString(ln, "body: <kırpıldı>")
+		if len(ln) > noiseLineMax {
+			continue
+		}
+		kept = append(kept, ln)
+	}
+	return strings.Join(kept, "\n")
+}
+
 func looksLikeRateLimit(stderr string) bool {
-	return rateLimitRe.MatchString(stderr)
+	return rateLimitRe.MatchString(sanitizeStderr(stderr))
 }
 
 func looksLikeAuthFailure(stderr string) bool {
-	return authFailRe.MatchString(stderr)
+	return authFailRe.MatchString(sanitizeStderr(stderr))
 }
+
+func looksLikeModelUnsupported(out string) bool {
+	return modelUnsupportedRe.MatchString(sanitizeStderr(out))
+}
+
+// tailWriter — sadece son n byte'ı tutar. runTool'un stdout'unu hata imzası
+// için taramak gerekiyor ama writer çıktısı MB'larca kod olabilir; tamamını
+// buffer'lamak gereksiz.
+type tailWriter struct {
+	buf []byte
+	n   int
+}
+
+func (w *tailWriter) Write(p []byte) (int, error) {
+	w.buf = append(w.buf, p...)
+	if len(w.buf) > w.n {
+		w.buf = w.buf[len(w.buf)-w.n:]
+	}
+	return len(p), nil
+}
+
+func (w *tailWriter) String() string { return string(w.buf) }
 
 // hintAuth — auth hatası tespit edildiğinde kullanıcıya net düzeltme yolu sun.
 // toolKey paramı ile 'cem auth <toolKey>' önerebiliyoruz.
@@ -250,6 +399,26 @@ func hintAuth(bin, toolKey string, meta ToolMeta, cfg *GlobalConfig) {
 			fmt.Println(styleDim.Render(fmt.Sprintf("    Veya yeni API key: cem keys add %s", meta.Provider)))
 		}
 	}
+}
+
+// hintModel — seçili model hesap/plan tarafından reddedildiğinde nereden
+// değiştirileceğini gösterir. Auth önerisi vermek burada yanlış olur.
+func hintModel(bin, toolKey string, meta ToolMeta, rc *ResolvedConfig) {
+	model := resolveModel(toolKey, rc)
+	if model == "" {
+		model = "(CLI default)"
+	}
+	fmt.Println()
+	fmt.Println(styleWarn.Render(fmt.Sprintf(
+		"  ⚠ %s: '%s' modeli bu hesap/plan ile kullanılamıyor", bin, model)))
+	if len(meta.Models) > 0 {
+		fmt.Println(styleDim.Render("    Bilinen modeller: " + strings.Join(meta.Models, ", ")))
+	}
+	fmt.Println(styleDim.Render("    Değiştir: cem setup"))
+	fmt.Println(styleDim.Render(fmt.Sprintf(
+		"      global  ~/.cem/config.yaml → tools.%s.model", toolKey)))
+	fmt.Println(styleDim.Render(fmt.Sprintf(
+		"      proje   .cem.yaml → models.%s", toolKey)))
 }
 
 // stopWriter — ilk yazımda spinner'ı durdurur, sonrasında verileri inner'a iletir.
@@ -410,22 +579,30 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 		if !meta.PromptAsArg {
 			cmd.Stdin = strings.NewReader(input)
 		}
-		cmd.Stdout = os.Stdout
+		// Bazı CLI'lar (codex) API hatasını stdout'a yazıyor; imza taraması
+		// stdout+stderr birleşimi üzerinde yapılmalı.
+		outTail := &tailWriter{n: 8 << 10}
+		cmd.Stdout = io.MultiWriter(os.Stdout, outTail)
 		// stderr'i hem konsola yansıt hem buffer'a yaz (rate-limit / auth imzasını yakalamak için).
 		// runTool zaten spinner çalıştırmıyor, stopWriter pass-through olur.
 		var errBuf bytes.Buffer
 		cmd.Stderr = io.MultiWriter(os.Stderr, &errBuf)
 		cmd.Env = env
 		err := cmd.Run()
-		if err != nil && looksLikeRateLimit(errBuf.String()) {
+		if err == nil {
+			return nil
+		}
+		combined := errBuf.String() + "\n" + outTail.String()
+		if looksLikeRateLimit(combined) {
 			return errRateLimit
 		}
-		if err != nil {
-			if looksLikeAuthFailure(errBuf.String()) {
-				hintAuth(bin, toolKey, meta, rc.Global)
-			} else {
-				fmt.Println(styleError.Render("✗ " + bin + " hata: " + err.Error()))
-			}
+		switch {
+		case looksLikeModelUnsupported(combined):
+			hintModel(bin, toolKey, meta, rc)
+		case looksLikeAuthFailure(combined):
+			hintAuth(bin, toolKey, meta, rc.Global)
+		default:
+			fmt.Println(styleError.Render("✗ " + bin + " hata: " + err.Error()))
 		}
 		return err
 	})
@@ -472,11 +649,22 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 		}
 		cmd.Env = env
 		runErr := cmd.Run()
-		if runErr != nil && looksLikeRateLimit(errBuf.String()) {
+		if runErr == nil {
+			return nil
+		}
+		combined := errBuf.String() + "\n" + captured.String()
+		if looksLikeRateLimit(combined) {
 			return errRateLimit
 		}
-		if runErr != nil && looksLikeAuthFailure(errBuf.String()) {
+		switch {
+		case looksLikeModelUnsupported(combined):
+			hintModel(bin, toolKey, meta, rc)
+		case looksLikeAuthFailure(combined):
 			hintAuth(bin, toolKey, meta, rc.Global)
+		default:
+			// Sessiz çıkmayalım: pair modunda thinker patlarsa kullanıcı
+			// tek satır cem mesajı görmeden exit 1 alıyordu.
+			fmt.Println(styleError.Render("✗ " + bin + " hata: " + runErr.Error()))
 		}
 		return runErr
 	})

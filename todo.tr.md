@@ -54,3 +54,26 @@
 ## 9. Açık (kullanıcı kararı bekliyor)
 - [ ] `.claude/agents/` ve `.claude/skills/` — `autoinstalltrixie` kalıntısı.
       Sil/değiştir kararı bekleniyor. `.claude/` artık gitignore'lı.
+
+## 12. Kararlılık + effort/otomatik güncelleme (2026-09-09)
+- [x] `Spinner.Stop()` panic: `stopWriter.Write` ve `Run`/`ModePair` ikisi
+      birden durdurunca `close of closed channel` — artık `sync.Once`,
+      nil-güvenli, race testli.
+- [x] Hata teşhisi artık dökülen HTTP gövdelerinin içindeki kelimelere
+      takılmıyor (`sanitizeStderr`); codex'in 105 KB'lık model JSON'u auth
+      hatası sanılıyordu, gerçek hata "model desteklenmiyor" idi.
+- [x] Model hataları kendi ipucunu alıyor (`hintModel`) — kullanıcı boşuna
+      login akışına yollanmıyor.
+- [x] `captureToolWithSpinner` sessiz çıkmıyor — pair modunda hiç mesaj
+      basmadan exit 1 dönüyordu.
+- [x] Writer prompt'u thinker'ın tekrarlanan son mesajını kırpıyor
+      (`dedupeTrailingEcho`) — codex exec iki kez basıyor, token iki katına
+      çıkıyordu.
+- [x] Düşünme seviyesi seçilebilir: `cem effort`, wizard adımı, `cem init`
+      adımı, `.cem.yaml > efforts`, çalıştırma başlığında görünür.
+- [x] `cemi update` araçların kendi `update` komutunu kullanıyor; kurulu
+      CLI'lar için günlük arka plan güncellemesi (`auto_update_tools: false`
+      ile kapatılır).
+- [x] `executor_test.go` + `spinner_test.go` eklendi (28 test, `-race` temiz).
+- [ ] doc:CLAUDE update — File Layout, Runtime Gotchas, kural #7 ve
+      doğrulama akışı yukarıdakine göre güncellendi.

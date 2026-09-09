@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -22,6 +23,9 @@ type InstalledTool struct {
 	// Model — CLI'a aktif çağrıda --model olarak verilecek model adı.
 	// Boş ise CLI kendi default'unu kullanır.
 	Model string `yaml:"model,omitempty"`
+	// Effort — düşünme/akıl yürütme seviyesi (claude: low..max,
+	// codex: minimal..xhigh). Boş ise CLI kendi default'unu kullanır.
+	Effort string `yaml:"effort,omitempty"`
 }
 
 // APIKey — bir provider için saklanan tek bir API key. Label opsiyonel (insan
@@ -40,6 +44,12 @@ type GlobalConfig struct {
 	// rate-limit hatasında bir sonrakine geçer. Provider adları:
 	// "anthropic" (Claude), "openai" (Codex). agy/cursor OAuth ile çalışır.
 	APIKeys map[string][]APIKey `yaml:"api_keys,omitempty"`
+	// AutoUpdateTools — kurulu AI CLI'larını günde bir kez arka planda
+	// güncelle. nil = açık (varsayılan). Kapatmak: auto_update_tools: false
+	AutoUpdateTools *bool `yaml:"auto_update_tools,omitempty"`
+	// ToolsLastUpdate — son otomatik güncelleme denemesi (başarı/başarısızlık
+	// fark etmez; sık tekrar denemeyi engeller).
+	ToolsLastUpdate time.Time `yaml:"tools_last_update,omitempty"`
 }
 
 type ProjectConfig struct {
@@ -48,6 +58,9 @@ type ProjectConfig struct {
 	// değer = CLI'a verilecek model adı. Boş veya tanımsızsa global config'deki
 	// tools.<key>.model kullanılır; o da yoksa CLI default'u.
 	Models map[string]string `yaml:"models,omitempty"`
+	// Efforts — proje-spesifik düşünme seviyesi override'ları.
+	// Anahtar = toolKey; değer = effort seviyesi.
+	Efforts map[string]string `yaml:"efforts,omitempty"`
 }
 
 type ResolvedConfig struct {
@@ -117,6 +130,18 @@ type ToolMeta struct {
 	// Models — wizard model seçicide gösterilecek öneriler. Kullanıcı bunlardan
 	// birini seçebilir veya "custom" ile manuel string girebilir.
 	Models []string
+	// EffortArgs — düşünme seviyesi argüman şablonu; her eleman fmt.Sprintf
+	// ile seviyeye göre doldurulur. Örnekler:
+	//   claude: {"--effort", "%s"}              → --effort high
+	//   codex : {"-c", "model_reasoning_effort=%s"}
+	// Boş ise araç seviye seçimini desteklemiyor demektir.
+	EffortArgs []string
+	// Efforts — geçerli seviyeler (wizard listesi + doğrulama). İlk eleman
+	// listenin en ucuzu olacak şekilde artan sırada tutulur.
+	Efforts []string
+	// UpdateCmd — aracın kendi güncelleme subcommand'ı (örn. {"update"}).
+	// Boş ise güncelleme, kurulum komutunun yeniden çalıştırılmasına düşer.
+	UpdateCmd []string
 	// AuthCmd — 'cem auth <tool>' tarafından çağrılacak login subcommand.
 	// Boş ise sadece binary çalıştırılır (CLI ilk açılışta kendi prompt'unu açar,
 	// Claude Code böyle çalışır).
@@ -139,6 +164,10 @@ var KnownTools = map[string]ToolMeta{
 		ModelFlag:      "--model",
 		ModelBeforeRun: true, // -p PROMPT'un arasına --model girmesin
 		Models:         []string{"opus", "sonnet", "haiku"},
+		// claude --help: --effort <level> (low, medium, high, xhigh, max)
+		EffortArgs: []string{"--effort", "%s"},
+		Efforts:    []string{"low", "medium", "high", "xhigh", "max"},
+		UpdateCmd:  []string{"update"},
 	},
 	"agy": {
 		Name:             "Antigravity",
@@ -152,8 +181,9 @@ var KnownTools = map[string]ToolMeta{
 		// --sandbox, --print-timeout). Model Google tarafında seçiliyor. Yine de
 		// Models listesi gösterilir ki wizard'da tercih kaydedilebilsin —
 		// CLI ileride --model eklerse ModelFlag'i set etmek yeterli olacak.
-		Models:  []string{"gemini-3-pro", "gemini-3-flash"},
-		AuthCmd: []string{"login"},
+		Models:    []string{"gemini-3-pro", "gemini-3-flash"},
+		UpdateCmd: []string{"update"},
+		AuthCmd:   []string{"login"},
 	},
 	"gpt": {
 		Name:        "Codex",
@@ -162,12 +192,19 @@ var KnownTools = map[string]ToolMeta{
 		InstallCmd:  []string{"npm", "install", "-g", "@openai/codex"},
 		VersionFlag: "--version",
 		RunFlags:    []string{"exec", "--skip-git-repo-check"}, // non-interactive, herhangi bir dizinden
-		PromptAsArg: true,                                       // codex exec "prompt"
+		PromptAsArg: true,                                      // codex exec "prompt"
 		Provider:    "openai",
 		APIKeyEnv:   "OPENAI_API_KEY",
 		ModelFlag:   "--model",
 		Models:      []string{"gpt-5.5", "gpt-5-mini", "gpt-5"},
-		AuthCmd:     []string{"login"},
+		// codex effort'u flag değil config anahtarı: -c model_reasoning_effort=X.
+		// Geçerli değerler codex'in kendi hata mesajından: none, minimal, low,
+		// medium, high, xhigh ("none" listelenmiyor — düşünmeyi kapatmak için
+		// model seçimi daha doğru).
+		EffortArgs: []string{"-c", "model_reasoning_effort=%s"},
+		Efforts:    []string{"minimal", "low", "medium", "high", "xhigh"},
+		UpdateCmd:  []string{"update"},
+		AuthCmd:    []string{"login"},
 	},
 	"cursor": {
 		Name:             "Cursor",
@@ -181,6 +218,7 @@ var KnownTools = map[string]ToolMeta{
 		ModelFlag:        "--model",
 		ModelBeforeRun:   true, // cursor-agent -p arg yutmasın diye
 		Models:           []string{"claude-4.6", "gpt-5.2", "gemini-3-pro"},
+		UpdateCmd:        []string{"update"},
 		AuthCmd:          []string{"login"},
 	},
 }

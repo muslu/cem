@@ -24,6 +24,7 @@ var rootCmd = &cobra.Command{
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		OpenSourceNotice()
 		checkUpdateNotice()
+		maybeAutoUpdateTools()
 	},
 	// Banner her çalıştırmada değil sadece help'te görünsün
 	// Kullanım sırasında kısa prefix yeterli
@@ -223,9 +224,21 @@ var initCmd = &cobra.Command{
 			if m := pickProjectModel(t, "🧠 thinker", rc.Global); m != "" {
 				pc.Models[t] = m
 			}
+			if e := pickProjectEffort(t, "🧠 thinker", rc.Global); e != "" {
+				if pc.Efforts == nil {
+					pc.Efforts = map[string]string{}
+				}
+				pc.Efforts[t] = e
+			}
 			if w != t {
 				if m := pickProjectModel(w, "✍️  writer", rc.Global); m != "" {
 					pc.Models[w] = m
+				}
+				if e := pickProjectEffort(w, "✍️  writer", rc.Global); e != "" {
+					if pc.Efforts == nil {
+						pc.Efforts = map[string]string{}
+					}
+					pc.Efforts[w] = e
 				}
 			}
 			if len(pc.Models) == 0 {
@@ -289,6 +302,41 @@ func pickToolWithDefault(label string, toolOrder []string, cfg *GlobalConfig, fa
 // pickProjectModel — cem init için: kullanıcıya proje-spesifik model seçtirir.
 // Mevcut global model (varsa) varsayılan olarak sunulur. Boş seçim = global'i
 // devral (proje override yok).
+// pickProjectEffort — 'cem init' sırasında proje-bazlı düşünme seviyesi.
+// Boş dönerse .cem.yaml'a yazılmaz, global geçerli kalır.
+func pickProjectEffort(toolKey, label string, global *GlobalConfig) string {
+	meta, ok := KnownTools[toolKey]
+	if !ok || len(meta.Efforts) == 0 || len(meta.EffortArgs) == 0 {
+		return ""
+	}
+	current := ""
+	if t, ok := global.Tools[toolKey]; ok {
+		current = t.Effort
+	}
+	if current == "" {
+		current = "CLI default"
+	}
+	fmt.Printf("  %s · %s için proje düşünme seviyesi (global: %s):\n",
+		styleBold.Render(label), styleBold.Render(meta.Name), styleDim.Render(current))
+	for i, e := range meta.Efforts {
+		fmt.Printf("      [%d] %s%s\n", i+1, e, styleDim.Render(effortHint(e)))
+	}
+	fmt.Printf("      [0] global'i kullan (override yok)\n")
+	fmt.Print("  Seçim: ")
+	reader := bufio.NewReader(os.Stdin)
+	resp, _ := reader.ReadString('\n')
+	resp = strings.TrimSpace(resp)
+	if resp == "" || resp == "0" {
+		return ""
+	}
+	idx, err := strconv.Atoi(resp)
+	if err != nil || idx < 1 || idx > len(meta.Efforts) {
+		fmt.Println(styleDim.Render("  geçersiz, global kullanılacak"))
+		return ""
+	}
+	return meta.Efforts[idx-1]
+}
+
 func pickProjectModel(toolKey, label string, global *GlobalConfig) string {
 	meta, ok := KnownTools[toolKey]
 	if !ok || meta.ModelFlag == "" || len(meta.Models) == 0 {

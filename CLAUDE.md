@@ -49,14 +49,19 @@ nginx production standards from the global guide do not apply here.
 cem/
 ├── main.go             — Binary-name dispatch + LDFLAGS version
 ├── config.go           — GlobalConfig + ProjectConfig + ResolvedConfig + KnownTools
-├── config_test.go      — ActiveRoles override + KnownTools sanity (8 tests)
-├── executor.go         — ModeThink/Write/Pair + Run + ReadStdin
-├── spinner.go          — TTY-aware single-line spinner (pair mode)
+├── config_test.go      — ActiveRoles override + KnownTools sanity
+├── executor.go         — ModeThink/Write/Pair + Run + ReadStdin + effort/model resolve
+├── executor_test.go    — stderr signature triage, effort args, trailing-echo dedupe
+├── spinner.go          — TTY-aware single-line spinner (pair mode); Stop() is idempotent
+├── spinner_test.go     — Stop() idempotency + concurrency (regression: closed-channel panic)
+├── tool_update.go      — AI CLI updates: native `<tool> update` + daily background auto-update
+├── detach_unix.go / detach_windows.go — platform split for detached background updates
 ├── history.go          — AppendHistory → ~/.cem/history.log (TSV)
 ├── wizard.go           — RunSetupWizard, InstallTool, RemoveTool, ShowRoles, askYN
 ├── banner.go           — ASCII art + lipgloss styles + ShowConfigSource
 ├── cmd_cem.go          — Cobra root + rolesCmd, setupCmd, initCmd, statusCmd
 ├── cmd_doctor.go       — `cem doctor`: diagnostic report
+├── cmd_effort.go       — `cem effort`: show/change reasoning effort (global + --here)
 ├── cmd_history.go      — `cem history`: -n N, --clear
 ├── cmd_cemi.go         — `cemi`: install tools (4 known: claude, agy, gpt, cursor) + all + update
 ├── cmd_update.go       — `cem update`: cem.pw/r/'den son sürümü indir + yerine yaz
@@ -92,7 +97,10 @@ cem/
 6. **YAML marshalling** — `gopkg.in/yaml.v3`. Lowercase snake_case tags.
 7. **Adding an AI tool** — append a `ToolMeta` to `KnownTools` and a key
    to `orderedToolKeys`. Do not touch the installer/remover/wizard; they
-   read the map automatically.
+   read the map automatically. Fill `UpdateCmd` (the tool's own `update`
+   subcommand) so auto-update covers it, and `EffortArgs`/`Efforts` if the
+   CLI exposes a reasoning-effort knob — `EffortArgs` is a `fmt.Sprintf`
+   template list (`{"--effort", "%s"}` vs `{"-c", "model_reasoning_effort=%s"}`).
 8. **Adding a Cobra subcommand** — create `cmd_<name>.go` with its own
    `init()` that calls `rootCmd.AddCommand(...)`. Avoid touching
    `cmd_cem.go`'s init block.
@@ -102,6 +110,27 @@ cem/
     dev; `make install` (sudo) for system-wide.
 
 ---
+
+## Runtime Gotchas
+
+- **Never scan a subprocess's raw output for error signatures without
+  `sanitizeStderr`.** AI CLIs dump HTTP response bodies into stderr as single
+  100 KB lines; words like `unauthorized`, `429`, `quota`,
+  `authentication failed` appear there as *data*. Matching them raw makes cem
+  misreport a model error as an auth failure, or burn every API key on a
+  phantom rate limit.
+- **Diagnosis order in `runTool`/`captureToolWithSpinner`:** rate limit →
+  model unsupported → auth failure → generic. Model errors must be checked
+  before auth: several CLIs mention both in one message.
+- **`Spinner.Stop()` is called from two places** — `stopWriter.Write` (on the
+  subprocess's first stderr byte, a *different goroutine*) and `Run` in
+  `ModePair`. It is `sync.Once`-guarded; keep it that way.
+- **Effort and model flags must land before `-p`** for tools with
+  `ModelBeforeRun: true` (claude, cursor): `-p` takes the prompt as its
+  argument, so anything inserted between them swallows the prompt.
+- **Auto-update runs detached** (`detachProcess`) and cannot write back to the
+  config; version fields are refreshed on the *next* run in
+  `maybeAutoUpdateTools`. Disable with `auto_update_tools: false`.
 
 ## Bans (for this project)
 
@@ -139,7 +168,7 @@ make clean && make build
 ./build/cemi            # tool list (banner included)
 ./build/cemir           # installed-tools list (banner included)
 ./build/cem roles       # active roles + config source
-go test ./...           # 8 tests, all should pass
+go test -race ./...     # 28 tests, all should pass
 ```
 
 The first run launches a wizard and creates `~/.cem/config.yaml`. Inside a
@@ -153,7 +182,8 @@ test directory, a `.cem.yaml` file overrides the global config.
 - `.claude/agents/` and `.claude/skills/` are leftovers from the
   `autoinstalltrixie` project; the cleanup decision is still pending.
   `.claude/` is gitignored so they don't enter the repo.
-- Broader test coverage: no `executor_test.go` or `history_test.go`.
+- Broader test coverage: `history_test.go` still missing (`executor_test.go` and
+  `spinner_test.go` now exist).
 - No macOS/Linux/Windows integration tests.
 
 ---

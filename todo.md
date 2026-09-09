@@ -97,6 +97,28 @@
       progress — investigate or accept.
 - [ ] Cursor + Antigravity API key rotation: providers don't publish CLI
       env-var docs yet (OAuth only). Skipped from rotation.
-- [ ] `executor_test.go`, `history_test.go` — coverage gap remains.
+- [ ] `history_test.go` — coverage gap remains (`executor_test.go`,
+      `spinner_test.go` done).
 - [ ] LICENSE file (README references MIT but no LICENSE in the tree).
 - [ ] `.claude/agents/` cleanup decision still pending.
+
+## 12. Reliability + effort/auto-update (2026-09-09)
+- [x] `Spinner.Stop()` panic: `close of closed channel` when both
+      `stopWriter.Write` and `Run`/`ModePair` stopped it — now `sync.Once`,
+      nil-safe, race-tested.
+- [x] Error triage no longer matches signatures inside dumped HTTP bodies
+      (`sanitizeStderr`); codex's 105 KB model JSON was reported as an auth
+      failure while the real error was "model not supported".
+- [x] Model errors get their own hint (`hintModel`) instead of sending the
+      user into a pointless login flow.
+- [x] `captureToolWithSpinner` no longer exits silently — pair mode used to
+      return exit 1 with no cem message at all.
+- [x] Writer prompt strips the thinker's duplicated final message
+      (`dedupeTrailingEcho`) — codex exec prints it twice, doubling tokens.
+- [x] Reasoning effort is selectable: `cem effort`, wizard step, `cem init`
+      step, `.cem.yaml > efforts`, shown in the run header.
+- [x] `cemi update` uses each tool's own `update` subcommand; daily detached
+      auto-update for installed CLIs (`auto_update_tools: false` to disable).
+- [x] `executor_test.go` + `spinner_test.go` added (28 tests, `-race` clean).
+- [ ] doc:CLAUDE update — File Layout, Runtime Gotchas, conventions #7,
+      validation flow refreshed for the above.
