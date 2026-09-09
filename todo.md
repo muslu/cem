@@ -155,3 +155,5 @@
 - [x] Fast mode is now the default; role-based effort defaults
       (`applyRoleDefaults`); `cem doctor` audits the cost setup; the writer is
       skipped when the thinker asked for information instead of planning.
+- [x] `--no-cache` now refreshes the stored answer instead of leaving the old
+      one in place (it skips reading, not writing).

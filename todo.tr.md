@@ -110,3 +110,5 @@
 - [x] Hızlı mod artık varsayılan; rol bazlı seviye varsayılanları
       (`applyRoleDefaults`); `cem doctor` maliyet kurulumunu denetliyor;
       düşünen plan yerine bilgi istediyse yazan atlanıyor.
+- [x] `--no-cache` artık saklanan cevabı tazeliyor; eskisini yerinde
+      bırakmıyor (okumayı atlar, yazmayı değil).

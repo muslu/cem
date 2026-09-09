@@ -475,3 +475,25 @@ func indexOf(xs []string, want string) int {
 	}
 	return -1
 }
+
+// TestNoCacheYazmayiKapatmaz — --no-cache "eski cevabı kullanma, tazesini al
+// ve KAYDET" demek. Yazmayı da kapatınca kullanıcı taze cevabı görüyor ama
+// bir sonraki çağrıda eski kayıt geri geliyordu (sahada görüldü).
+func TestNoCacheYazmayiKapatmaz(t *testing.T) {
+	defer func() { noCache = false }()
+	cfg := &GlobalConfig{}
+
+	noCache = true
+	if cacheEnabled("thinker", cfg) {
+		t.Error("--no-cache okumayı kapatmadı")
+	}
+	if !cacheWriteEnabled("thinker", cfg) {
+		t.Error("--no-cache yazmayı da kapattı — taze cevap saklanmıyor")
+	}
+
+	noCache = false
+	cfg.CacheDisabled = true
+	if cacheEnabled("thinker", cfg) || cacheWriteEnabled("thinker", cfg) {
+		t.Error("cache_disabled: true hem okumayı hem yazmayı kapatmalı")
+	}
+}

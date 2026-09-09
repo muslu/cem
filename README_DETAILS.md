@@ -212,7 +212,8 @@ they work and the answer is printed once, instead of the tool echoing every
 command it ran and every diff it produced.
 
 ```sh
-cem --raw -p "…"     # turn filtering off: raw tool output, banners and all
+cem --raw -p "…"       # turn filtering off: raw tool output, banners and all
+cem --no-cache "…"     # ignore the stored answer, ask again and store the new one
 ```
 
 Each role prints how long it took, and pair mode adds the total:

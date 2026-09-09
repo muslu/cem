@@ -189,6 +189,10 @@ cem/
   and the stored credentials with them: every call fails with "Not logged in ·
   Please run /login" (measured 2026-09-09, claude 2.1.266). A flag added for
   speed must be verified with a real call before it ships.
+- **`--no-cache` skips the *read*, not the *write*.** It means "don't reuse the
+  stored answer, get a fresh one and store that". Disabling the write too left
+  the stale entry in place: the user saw a fresh answer, then the next normal
+  call replayed a 12-minute-old one (seen in the field).
 - **The writer is not cached by default** (`cacheEnabled`). It creates files and
   runs commands; replaying a stored "file created" answer would leave no file
   behind. `cache_writer: true` opts in, and the reply then says so explicitly.

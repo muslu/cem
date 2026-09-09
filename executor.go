@@ -63,7 +63,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return err
 		}
 		printElapsed(start, L("düşünme", "thinking"))
-		if cacheEnabled("thinker", rc.Global) {
+		if cacheWriteEnabled("thinker", rc.Global) {
 			cachePut(key, "thinker", roles.Thinker, input, out, rc)
 		}
 		return nil
@@ -135,7 +135,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			if err != nil {
 				return err
 			}
-			if cacheEnabled("thinker", rc.Global) {
+			if cacheWriteEnabled("thinker", rc.Global) {
 				cachePut(thinkKey, "thinker", roles.Thinker, thinkerInput, thought, rc)
 			}
 		}

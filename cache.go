@@ -73,11 +73,9 @@ func cacheTTL(cfg *GlobalConfig) time.Duration {
 	return time.Duration(hours) * time.Hour
 }
 
-// cacheEnabled — --no-cache bayrağı her şeyi ezer; writer ayrıca opt-in.
-func cacheEnabled(role string, cfg *GlobalConfig) bool {
-	if noCache {
-		return false
-	}
+// cacheAllowed — bu rol için önbellek hiç devrede mi? (okuma/yazma ortak
+// koşullar: config'te kapatılmış olabilir, writer opt-in.)
+func cacheAllowed(role string, cfg *GlobalConfig) bool {
 	if cfg != nil && cfg.CacheDisabled {
 		return false
 	}
@@ -85,6 +83,25 @@ func cacheEnabled(role string, cfg *GlobalConfig) bool {
 		return cfg != nil && cfg.CacheWriter
 	}
 	return true
+}
+
+// cacheEnabled — önbellekten OKUMA. --no-cache okumayı atlar.
+func cacheEnabled(role string, cfg *GlobalConfig) bool {
+	if noCache {
+		return false
+	}
+	return cacheAllowed(role, cfg)
+}
+
+// cacheWriteEnabled — önbelleğe YAZMA. --no-cache yazmayı KAPATMAZ, tam
+// tersine amacı budur: taze cevabı alıp saklananın üzerine yazmak.
+//
+// Önceden --no-cache yazmayı da kapatıyordu ve sonuç kafa karıştırıcıydı:
+// kullanıcı --no-cache ile taze cevabı alıyor, bir sonraki normal çağrıda
+// dakikalar önceki eski cevap geri geliyordu (sahada görüldü: --no-cache'ten
+// hemen sonra "♻ önbellekten (11m 47s önce)").
+func cacheWriteEnabled(role string, cfg *GlobalConfig) bool {
+	return cacheAllowed(role, cfg)
 }
 
 // cacheGet — geçerli (süresi dolmamış) kayıt varsa çıktıyı ve yaşını döndürür.

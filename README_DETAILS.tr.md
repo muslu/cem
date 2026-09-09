@@ -210,7 +210,8 @@ döner ve cevap bir kez basılır; araç çalıştırdığı her komutu ve üret
 diff'i ekrana dökmez.
 
 ```sh
-cem --raw -p "…"     # filtreyi kapat: ham araç çıktısı, banner'lar dahil
+cem --raw -p "…"       # filtreyi kapat: ham araç çıktısı, banner'lar dahil
+cem --no-cache "…"     # saklanan cevabı kullanma; yeniden sor ve yenisini sakla
 ```
 
 Her rol ne kadar sürdüğünü yazar, pair modunda toplam da eklenir:
