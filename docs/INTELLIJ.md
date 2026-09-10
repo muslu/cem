@@ -68,7 +68,10 @@ The `Terminal` tab runs commands in the project root — `go test ./...`,
 `git diff`, `npm run build` — so the answer and the command output stay in one
 window. It goes through the shell, so pipes, redirects and `&&` work. It is not
 a full pty: use the IDE's own terminal for `vim`, `top` or anything that expects
-a real terminal. `⏹` stops a running command.
+a real terminal. `⏹` stops a running command, and `＋` opens another terminal
+tab — a `go run` left serving on :8080 would otherwise block everything else.
+The first tab stays open; the extra ones can be closed, and closing one kills
+whatever it was running.
 
 ### Selection and shortcuts
 

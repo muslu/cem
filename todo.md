@@ -278,3 +278,8 @@ on first run, then builds → signs → verifies the signature.
 - [x] Plugin: Terminal tab. Commands run in the project root through the shell
       (pipes, `&&`, redirects work), `⏹` stops one. Not a full pty — the IDE's
       own terminal stays the place for interactive programs.
+- [x] Plugin: multiple terminal tabs. `＋` opens another one — a long-running
+      command (`go run`) used to block the single tab. The first tab is fixed;
+      the extras close, and closing one kills its command. Numbering comes from
+      the highest existing number, not the tab count, which would have produced
+      a second "Terminal 3" after closing "Terminal 2".

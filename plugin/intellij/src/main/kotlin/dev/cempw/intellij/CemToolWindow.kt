@@ -46,7 +46,7 @@ class CemToolWindowFactory : ToolWindowFactory {
         toolWindow.contentManager.addContent(content)
         // Komut çalıştırmak için ikinci sabit sekme: yazan rol dosya üretince
         // testi/derlemeyi aynı pencerede koşturmak için.
-        CemTab.commandTab(project, toolWindow)
+        CemTab.commandTab(project, toolWindow, first = true)
         toolWindow.contentManager.setSelectedContent(content)
     }
 }
@@ -481,7 +481,7 @@ class CemTab {
          * seferlik komutlar: kabuk üzerinden çalıştırıldığı için pipe,
          * yönlendirme ve && zincirleri geçerli.
          */
-        fun commandTab(project: Project, toolWindow: ToolWindow): CemTab {
+        fun commandTab(project: Project, toolWindow: ToolWindow, first: Boolean = false): CemTab {
             val tab = CemTab()
             tab.appendStyled(commandWelcomeText(project), bold = false, color = JBColor.GRAY)
 
@@ -489,9 +489,19 @@ class CemTab {
                 toolTipText = "çalışan komutu durdur"
                 isEnabled = false
             }
+            // Uzun süren komut (go run, npm start, tail -f) sekmeyi meşgul
+            // ediyor: aynı anda başka komut çalıştırmak için yeni sekme şart.
+            val ekle = JButton("＋").apply {
+                toolTipText = "yeni terminal sekmesi"
+                addActionListener { commandTab(project, toolWindow) }
+            }
+            val butonlar = JPanel(BorderLayout()).apply {
+                add(stop, BorderLayout.WEST)
+                add(ekle, BorderLayout.EAST)
+            }
             val input = attachInput(
                 tab,
-                west = stop,
+                west = butonlar,
                 tooltip = "Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar",
             ) { line ->
                 if (tab.process?.isAlive == true) {
@@ -511,13 +521,39 @@ class CemTab {
                 }
             }
 
-            val content = ContentFactory.getInstance().createContent(tab.component, "Terminal", false)
-            content.isCloseable = false
-            content.isPinned = true
-            // Sekme kapanmıyor ama pencere kapanınca çalışan komut da ölsün.
+            // İlk terminal sabit (kapanmaz), sonrakiler kapanabilir: kullanıcı
+            // birini kapatınca elinde hiç terminal kalmaması kötü olurdu.
+            val title = if (first) "Terminal" else nextTerminalTitle(toolWindow)
+            val content = ContentFactory.getInstance().createContent(tab.component, title, false)
+            content.isCloseable = !first
+            content.isPinned = first
+            // Sekme kapanınca (ya da pencere kapanınca) çalışan komut ölsün.
             content.setDisposer(Disposable { tab.cancel() })
             toolWindow.contentManager.addContent(content)
+            if (!first) {
+                toolWindow.contentManager.setSelectedContent(content)
+                toolWindow.show()
+            }
             return tab
+        }
+
+        /**
+         * Sıradaki terminal adı: "Terminal 2", "Terminal 3"…
+         *
+         * Kapatılan sekmelerin numarası yeniden kullanılmıyor — mevcut en
+         * büyük numaranın bir fazlası alınıyor. Sayıyı sekme sayısından
+         * türetmek, 2 ve 3 açıkken 2'yi kapatınca ikinci bir "Terminal 3"
+         * üretirdi.
+         */
+        private fun nextTerminalTitle(toolWindow: ToolWindow): String {
+            var enBuyuk = 1
+            for (c in toolWindow.contentManager.contents) {
+                val ad = c.displayName ?: continue
+                if (!ad.startsWith("Terminal")) continue
+                val n = ad.removePrefix("Terminal").trim().toIntOrNull() ?: 1
+                if (n > enBuyuk) enBuyuk = n
+            }
+            return "Terminal ${enBuyuk + 1}"
         }
 
         private fun commandWelcomeText(project: Project): String =
@@ -525,7 +561,9 @@ class CemTab {
             Terminal — komutlar proje kökünde ve kabuk üzerinden çalışır.
             Dizin: ${project.basePath ?: "?"}
 
-            Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar · ⏹ durdur
+            Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar
+            ⏹ çalışan komutu durdurur · ＋ yeni terminal sekmesi açar
+            (uzun süren komut — go run, npm start — sekmeyi meşgul eder)
             Not: tam bir pty değil — vim/top gibi interaktif programlar için IDE'nin
             kendi Terminal penceresini kullan.
 

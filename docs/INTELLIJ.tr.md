@@ -67,7 +67,10 @@ yeniden faturalanıyor. Kırpma bunun sessizce büyümesini engelliyor.
 `git diff`, `npm run build` — böylece cevap ve komut çıktısı aynı pencerede
 kalıyor. Kabuk üzerinden geçtiği için pipe, yönlendirme ve `&&` çalışıyor. Tam
 bir pty değil: `vim`, `top` gibi gerçek terminal bekleyen programlar için
-IDE'nin kendi Terminal'ini kullan. `⏹` çalışan komutu durduruyor.
+IDE'nin kendi Terminal'ini kullan. `⏹` çalışan komutu durduruyor, `＋` yeni bir
+terminal sekmesi açıyor — :8080'de servis eden bir `go run` aksi halde her şeyi
+kilitliyordu. İlk sekme kapanmıyor; sonrakiler kapanabiliyor ve kapatılan sekme
+içindeki komutu da öldürüyor.
 
 ### Seçim ve kısayollar
 

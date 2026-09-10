@@ -55,7 +55,8 @@
                 the window — <code>go test</code>, <code>git diff</code>,
                 <code>npm run build</code>. Pipes, redirects and <code>&amp;&amp;</code>
                 work; it is not a full pty, so use the IDE's own terminal for
-                interactive programs.</li>
+                interactive programs. <b>＋</b> opens another terminal tab, so a
+                server left running does not block the next command.</li>
             <li><b>Interactive</b> tab: type a prompt and press Enter, like a REPL.
                 The selector on the left picks the mode (pair / think / write),
                 <code>Shift+Enter</code> adds a line and

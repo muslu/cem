@@ -230,3 +230,8 @@ kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarı
 - [x] Eklentide Terminal sekmesi: komutlar proje kökünde, kabuk üzerinden
       (pipe / && / yönlendirme çalışıyor), ⏹ ile durdurma. Tam pty değil —
       interaktif programlar için IDE'nin kendi terminali.
+- [x] Eklentide birden çok terminal sekmesi: `＋` yeni sekme açıyor. `go run`
+      gibi uzun süren komut tek sekmeyi kilitliyordu. İlk sekme sabit,
+      sonrakiler kapanabilir ve kapatılınca komutu öldürüyor; numara mevcut en
+      büyükten türetiliyor (sekme sayısından türetmek kapatma sonrası aynı adı
+      iki kez üretiyordu).
