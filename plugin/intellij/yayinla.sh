@@ -178,6 +178,16 @@ parola_al() {
     [[ -n "$CEM_KEYPASS" ]] || hata "parola boş"
 }
 
+# Yanlış parola signPlugin'de BouncyCastle yığın izi olarak çıkıyor
+# ("pad block corrupted" → 20 satır Java stack trace, sebebi görünmüyor).
+# Anahtarı önce openssl ile açmayı dene: hata tek satırda anlaşılsın.
+parola_dogrula() {
+    openssl pkey -in "$IMZA_DIZIN/private.pem" -passin env:CEM_KEYPASS -noout 2>/dev/null && return
+    hata "parola özel anahtarı açmıyor ($IMZA_DIZIN/private.pem).
+   Doğru parolayı yaz:  printf '%s' 'PAROLA' > $IMZA_DIZIN/parola && chmod 600 $IMZA_DIZIN/parola
+   Parolayı hatırlamıyorsan:  ./yayinla.sh --anahtar-yenile"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 3) Derle + imzala
 # ─────────────────────────────────────────────────────────────────────────────
@@ -188,6 +198,7 @@ main() {
     paketleri_kur
     local JDK; JDK="$(jdk21_kur)"
     anahtar_hazirla
+    parola_dogrula
 
     local -a gopt=(
         "-Dorg.gradle.java.home=$JDK"   # PATH'teki java 11 olabilir; Gradle 9 en az 17 istiyor
