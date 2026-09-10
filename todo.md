@@ -257,3 +257,6 @@ on first run, then builds → signs → verifies the signature.
 - [x] README badges point at the Marketplace listing. GitHub strips `<iframe>`
       and `<script>`, so the JetBrains embeddable card/install widgets only
       work on cem.pw — snippets are in `OPERATIONS.md`.
+- [x] `20260910.03` shipped: GitHub release (32 assets) + a signed zip uploaded
+      to the Marketplace. The Marketplace still reports `approve: false` — a new
+      plugin sits in moderation, and versions stay invisible until it clears.

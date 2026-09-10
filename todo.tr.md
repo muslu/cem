@@ -210,3 +210,6 @@ kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarı
 - [x] README rozetleri Marketplace sayfasına bakıyor. GitHub `<iframe>` ve
       `<script>` etiketlerini siliyor; JetBrains gömülebilir kart/kurulum
       widget'ları yalnız cem.pw'de çalışır — snippet'ler `OPERATIONS.tr.md`'de.
+- [x] `20260910.03` yayınlandı: GitHub release (32 asset) + Marketplace'e
+      imzalı zip. Marketplace `approve: false` — yeni eklenti moderasyonda,
+      onaya kadar sürüm listede görünmüyor.

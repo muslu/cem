@@ -12,6 +12,11 @@ metadata:
 (`plugins.jetbrains.com/plugin/34196`), ilk yükleme kullanıcı tarafından elle
 yapıldı. `updatePlugins.xml` custom repository akışı yedek olarak duruyor.
 
+**Son yayın:** `20260910.03` (2026-09-10) — GitHub release 32 asset ile çıktı,
+Marketplace'e imzalı zip yüklendi. Marketplace API'si eklenti için hâlâ
+`approve: false` diyor: yeni eklenti moderasyonda, onay gelene kadar
+`/api/plugins/34196/updates` boş liste döner ve sürüm listede görünmez.
+
 **Tek komutla yayın:** `./surum-yayinla.sh` (kullanıcı "yayınla" dediğinde
 çalıştırılacak — ayrıntı CLAUDE.tr.md "Git & Release"). Marketplace adımı
 `~/.cem-signing/parola` + `~/.cem-signing/token` dosyalarına bakıyor (chmod
