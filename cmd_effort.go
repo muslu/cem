@@ -143,6 +143,11 @@ func showEfforts(rc *ResolvedConfig) {
 	fmt.Println(styleBold.Render(L("  Düşünme seviyeleri", "  Reasoning effort")))
 	fmt.Println()
 	for _, key := range orderedToolKeys {
+		// HTTP model sunucularında hızlı mod / effort kavramı yok — ayarları
+		// `cem endpoint` yönetiyor.
+		if isHTTPTool(key) {
+			continue
+		}
 		meta := KnownTools[key]
 		if len(meta.Efforts) == 0 || len(meta.EffortArgs) == 0 {
 			fmt.Printf("  %s %-8s %s\n", styleDim.Render("○"), key,

@@ -65,6 +65,9 @@ cem/
 ├── noise.go            — noiseFilter: strips AI CLI banners/logs from the output
 ├── cache.go            — answer cache (thinker by default; writer is opt-in)
 ├── cmd_cache.go        — `cem cache`: list / clear
+├── http_tool.go        — HTTP model servers (ollama/LM Studio/unsloth): streaming chat, probe, model list
+├── http_tool_test.go   — endpoint precedence, both stream formats, HTTP errors
+├── cmd_endpoint.go     — `cem endpoint`: address / key / model of HTTP servers
 ├── trust.go            — per-directory confirmation before tools may write there
 ├── cmd_fast.go         — `cem fast`: skip the tool's user settings for speed
 ├── tool_update.go      — AI CLI updates: native `<tool> update` + daily background auto-update
@@ -119,7 +122,10 @@ cem/
    `0755`.
 6. **YAML marshalling** — `gopkg.in/yaml.v3`. Lowercase snake_case tags.
 7. **Adding an AI tool** — append a `ToolMeta` to `KnownTools` and a key
-   to `orderedToolKeys`. Do not touch the installer/remover/wizard; they
+   to `orderedToolKeys`. A tool that speaks HTTP instead of being a
+   subprocess sets `HTTPAPI` (`"openai"` or `"ollama"`) plus
+   `DefaultBaseURL`, and then skips install/remove/auto-update/effort/fast
+   automatically (`isHTTPTool`, `installableToolKeys`). Do not touch the installer/remover/wizard; they
    read the map automatically. Fill `UpdateCmd` (the tool's own `update`
    subcommand) so auto-update covers it, and `EffortArgs`/`Efforts` if the
    CLI exposes a reasoning-effort knob — `EffortArgs` is a `fmt.Sprintf`
@@ -244,6 +250,18 @@ cem/
 - **The writer's cache key is the user's request, not the prompt it received.**
   The plan is regenerated slightly differently each time; keying on it would
   miss every repeat of the same task.
+- **Setup is mandatory, and the wizard needs a terminal.** Running with a half
+  configuration means sending the request to a tool the user never chose — and
+  paying for it. `loadAndCheckSetup` refuses to continue: with a TTY it offers
+  the wizard and re-checks the saved config afterwards (a wizard interrupted
+  with Ctrl+C used to leave the same half state); without a TTY (plugin, pipe,
+  CI) it prints `cem setup` and exits, because the wizard's questions would
+  scroll past with nobody to answer them.
+- **An HTTP model server's model name is never guessed.** ollama/LM Studio hold
+  whatever the user pulled; a made-up name either 404s or, worse, runs a
+  different model. `endpointModel` returns an error and points at
+  `cem endpoint <tool> --model`, and the wizard asks the server for its list
+  (`/api/tags`, `/v1/models`) before asking the user.
 - **A `PromptAsArg` tool needs the terminal's stdin, not `/dev/null`.** When the
   prompt travels as an argument (agy, claude, cursor) stdin was left unset, so
   an interactive OAuth prompt ("Or, paste the authorization code here and press

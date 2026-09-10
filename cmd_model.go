@@ -125,6 +125,11 @@ func showModels(rc *ResolvedConfig) {
 	fmt.Println(styleBold.Render(L("  Modeller", "  Models")))
 	fmt.Println()
 	for _, key := range orderedToolKeys {
+		// HTTP sunucularının modeli endpoint ayarında duruyor; burada
+		// göstermek iki ayrı doğruluk kaynağı gibi görünürdü.
+		if isHTTPTool(key) {
+			continue
+		}
 		meta := KnownTools[key]
 		active := resolveModel(key, rc)
 		src := "global"

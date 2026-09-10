@@ -95,7 +95,7 @@ func runDoctor() {
 
 	fmt.Println()
 	fmt.Println(styleBold.Render(L("  Araçlar (PATH kontrolü)", "  Tools (PATH check)")))
-	order := orderedToolKeys
+	order := installableToolKeys()
 	for _, key := range order {
 		meta := KnownTools[key]
 		cmd := resolveCommand(key, rc)
@@ -113,6 +113,37 @@ func runDoctor() {
 				styleBold.Render(meta.Name)))
 		default:
 			tick("ok", fmt.Sprintf("%-8s %s", meta.Name, styleDim.Render(L("kurulu değil", "not installed"))))
+		}
+	}
+
+	// Model sunucuları: PATH değil, adres ve erişilebilirlik önemli. Sadece
+	// yapılandırılmış olanlar yoklanır — kurulmamış üç sunucuyu her doctor
+	// çağrısında 8 saniye timeout'la denemek anlamsız.
+	if yapilandirilmis := configuredHTTPTools(rc); len(yapilandirilmis) > 0 {
+		fmt.Println()
+		fmt.Println(styleBold.Render(L("  Model sunucuları", "  Model servers")))
+		for _, key := range yapilandirilmis {
+			ep := resolveEndpoint(key, rc)
+			modeller, err := probeEndpoint(key, rc)
+			switch {
+			case err != nil:
+				tick("fail", fmt.Sprintf("%-9s %s → %s", styleBold.Render(key),
+					styleDim.Render(ep.BaseURL), err.Error()))
+			case len(modeller) == 0:
+				tick("warn", fmt.Sprintf(L("%-9s %s → cevap veriyor ama model bildirmiyor",
+					"%-9s %s → answers but reports no models"),
+					styleBold.Render(key), styleDim.Render(ep.BaseURL)))
+			default:
+				model, merr := endpointModel(key, rc, ep)
+				if merr != nil {
+					tick("warn", fmt.Sprintf(L("%-9s %s → model seçilmedi (cem endpoint %s --model <ad>)",
+						"%-9s %s → no model selected (cem endpoint %s --model <name>)"),
+						styleBold.Render(key), styleDim.Render(ep.BaseURL), key))
+					break
+				}
+				tick("ok", fmt.Sprintf("%-9s %s · %s", styleBold.Render(key),
+					styleDim.Render(ep.BaseURL), model))
+			}
 		}
 	}
 

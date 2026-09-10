@@ -36,6 +36,23 @@ JetBrains IDE eklentisi: **Settings → Plugins → Marketplace → `cem` ara**
 ([sayfa](https://plugins.jetbrains.com/plugin/34196)). VS Code ve diğer
 editörler: [README_DETAILS.tr.md](README_DETAILS.tr.md).
 
+### Lua HTTP Sunucusu (İsteğe Bağlı)
+
+Dahil edilen Lua HTTP sunucusunu (`server.lua`) çalıştırmak istiyorsan:
+
+```sh
+# LuaSocket kur
+luarocks install luasocket        # veya
+apt-get install lua-socket        # Debian/Ubuntu
+brew install lua-socket           # macOS
+dnf install lua-socket            # Fedora
+
+# Sunucuyu başlat
+lua5.4 server.lua
+```
+
+**Not:** LuaSocket, çalıştırdığın Lua sürümü için kurulu olmalı.
+
 ## Kullan
 
 ```sh

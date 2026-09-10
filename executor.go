@@ -513,6 +513,17 @@ func printSeparator() {
 // describeToolRun — header/spinner etiketi: "sonnet · high", "gpt-5.6-terra",
 // seçim yoksa "default".
 func describeToolRun(toolKey string, rc *ResolvedConfig) string {
+	// HTTP araçta effort ve fast mod yok; kullanıcının görmesi gereken şey
+	// hangi sunucuya gittiği ve hangi modeli çalıştırdığı.
+	if isHTTPTool(toolKey) {
+		ep := resolveEndpoint(toolKey, rc)
+		model, err := endpointModel(toolKey, rc, ep)
+		if err != nil {
+			model = L("model yok", "no model")
+		}
+		return model + " · " + endpointHost(ep.BaseURL)
+	}
+
 	model := resolveModel(toolKey, rc)
 	effort := resolveEffort(toolKey, rc)
 	// Hızlı mod artık varsayılan; her başlıkta tekrarlamak gürültü olurdu.
@@ -1193,6 +1204,19 @@ func printRestoreSummary(written, same, conflict int) {
 
 // runTool — stdin'i pipe edip stdout/stderr'i kullanıcıya gösterir
 func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
+	// HTTP endpoint aracı: PATH'te binary aranmaz, istek doğrudan sunucuya
+	// gider. Cevap akarken spinner ilk içerikte durur (streamChat).
+	if isHTTPTool(toolKey) {
+		verb := L(" düşünüyor...", " is thinking...")
+		if icon == "✍️" {
+			verb = L(" yazıyor...", " is writing...")
+		}
+		sp := StartSpinner(icon + " " + toolKey + verb)
+		defer sp.Stop()
+		_, err := runHTTPTool(toolKey, rc, input, sp, true)
+		return err
+	}
+
 	bin := resolveCommand(toolKey, rc)
 	if _, err := exec.LookPath(bin); err != nil {
 		fmt.Println(styleError.Render(
@@ -1279,6 +1303,11 @@ func captureTool(toolKey string, rc *ResolvedConfig, input string) (string, erro
 // ilk byte'ı stderr'e yazdığında verilen spinner durur (OAuth prompt'ları görünsün).
 // sp nil ise düz capture.
 func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp *Spinner) (string, error) {
+	if isHTTPTool(toolKey) {
+		defer sp.Stop()
+		return runHTTPTool(toolKey, rc, input, sp, true)
+	}
+
 	bin := resolveCommand(toolKey, rc)
 	if _, err := exec.LookPath(bin); err != nil {
 		fmt.Println(styleError.Render(

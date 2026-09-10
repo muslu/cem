@@ -92,7 +92,7 @@ func initCemiCmd() {
 
 func installAll(cfg *GlobalConfig) {
 	// Sıralı liste (map rastgele sıralı)
-	order := orderedToolKeys
+	order := installableToolKeys()
 
 	for _, key := range order {
 		meta, ok := KnownTools[key]
@@ -185,7 +185,7 @@ func printToolList(cfg *GlobalConfig) {
 	fmt.Printf(L("  Kurulu: %s / %d araç\n\n", "  Installed: %s / %d tools\n\n"),
 		styleBold.Render(fmt.Sprintf("%d", installed)), available)
 
-	order := orderedToolKeys
+	order := installableToolKeys()
 	for _, key := range order {
 		meta := KnownTools[key]
 		if t, ok := cfg.Tools[key]; ok {

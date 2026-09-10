@@ -260,3 +260,14 @@ on first run, then builds → signs → verifies the signature.
 - [x] `20260910.03` shipped: GitHub release (32 assets) + a signed zip uploaded
       to the Marketplace. The Marketplace still reports `approve: false` — a new
       plugin sits in moderation, and versions stay invisible until it clears.
+- [x] Local / self-hosted models: `ollama`, `lmstudio`, `unsloth` are tools
+      now. They are not subprocesses — cem speaks HTTP (OpenAI-compatible
+      `/v1/chat/completions` and ollama's `/api/chat`) and streams the answer.
+      `cem endpoint <tool> <ip:port> [--model X] [--key K] [--test]
+      [--modeller] [--here]`. Install/remove/auto-update/effort/fast are
+      skipped for them, and the model name is asked of the server, never
+      guessed.
+- [x] Setup is mandatory: cem refuses to run unconfigured. With a terminal it
+      offers the wizard and re-verifies what was saved (a wizard interrupted
+      with Ctrl+C left the same half state); without one (plugin, pipe, CI) it
+      prints `cem setup` and exits.

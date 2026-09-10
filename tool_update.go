@@ -102,7 +102,7 @@ func maybeAutoUpdateTools() {
 	}
 
 	targets := make([]string, 0, len(cfg.Tools))
-	for _, key := range orderedToolKeys {
+	for _, key := range installableToolKeys() {
 		if _, ok := cfg.Tools[key]; !ok {
 			continue
 		}

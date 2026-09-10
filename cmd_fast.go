@@ -139,6 +139,11 @@ func showFast(rc *ResolvedConfig) {
 	fmt.Println(styleBold.Render(L("  Hızlı mod", "  Fast mode")))
 	fmt.Println()
 	for _, key := range orderedToolKeys {
+		// HTTP model sunucularında hızlı mod / effort kavramı yok — ayarları
+		// `cem endpoint` yönetiyor.
+		if isHTTPTool(key) {
+			continue
+		}
 		meta := KnownTools[key]
 		if len(meta.FastArgs) == 0 {
 			fmt.Printf("  %s %-8s %s\n", styleDim.Render("○"), key,

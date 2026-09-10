@@ -173,6 +173,33 @@ efforts:
 
 Oluşturmak için `cem init` (sihirbaz) veya `cem init gpt claude` (doğrudan).
 
+### Yerel ve kendi sunucundaki modeller (ollama · LM Studio · unsloth)
+
+Bu üçü CLI değil — cem onlarla HTTP üzerinden konuşur, dolayısıyla kurulacak
+bir şey yok: adres verirsin. Sunucu başka bir makinede de olabilir (LAN'daki
+GPU kutusu, reverse proxy arkasındaki kiralık sunucu).
+
+```sh
+cem endpoint                                # ayarlı sunucular
+cem endpoint ollama 192.168.1.10:11434      # adresi ver (şema opsiyonel)
+cem endpoint ollama --modeller              # sunucunun gerçekten sunduğu modeller
+cem endpoint ollama --model qwen3-coder     # birini seç
+cem endpoint unsloth --key sk-...           # Authorization: Bearer olarak gider
+cem endpoint lmstudio --test                # ayakta mı?
+cem endpoint --here ollama gpu.lan:11434    # sadece bu proje (.cem.yaml)
+cem roles ollama claude                     # düşünen rolü olarak kullan
+```
+
+Model adı asla tahmin edilmez. Yerel sunucuda yanlış ad, istemediğin bir modeli
+çalıştırmak demek; bu yüzden cem sunucuya hangi modellere sahip olduğunu sorar
+(ollama için `/api/tags`, OpenAI uyumlu olanlar için `/v1/models`) ve biri
+seçilmeden çalışmaz. API anahtarı zorunlu değil — ollama ve LM Studio yerelde
+anahtarsız çalışır, ağa açılmış bir sunucu genelde ister.
+
+Cevap üretildikçe akar: yerel 70B model uzun cevapta dakikalar harcayabiliyor
+ve tamamını beklemek "takıldı" gibi görünür. İstek üst sınırı 30 dakika, ama
+bağlanmanın kendi 5 saniyelik sınırı var — kapalı port hemen hata verir.
+
 ## 6. Giriş ve API key'leri
 
 Bir AI aracı kurulduktan sonra cem nasıl giriş yapacağını sorar:

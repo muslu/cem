@@ -175,6 +175,34 @@ efforts:
 
 Create one with `cem init` (wizard) or `cem init gpt claude` (direct).
 
+### Local and self-hosted models (ollama · LM Studio · unsloth)
+
+These three are not CLIs — cem talks to them over HTTP, so there is nothing to
+install: you give it an address. A server on another machine works the same way
+(a GPU box on the LAN, a rented instance behind a reverse proxy).
+
+```sh
+cem endpoint                                # configured servers
+cem endpoint ollama 192.168.1.10:11434      # set the address (scheme optional)
+cem endpoint ollama --modeller              # models the server actually offers
+cem endpoint ollama --model qwen3-coder     # pick one
+cem endpoint unsloth --key sk-...           # sent as an Authorization: Bearer header
+cem endpoint lmstudio --test                # is it up?
+cem endpoint --here ollama gpu.lan:11434    # this project only (.cem.yaml)
+cem roles ollama claude                     # use it as the thinker
+```
+
+The model name is never guessed. On a local server a wrong name means running a
+model you did not intend, so cem asks the server which models it has
+(`/api/tags` for ollama, `/v1/models` for the OpenAI-compatible ones) and
+refuses to run until one is chosen. The API key is optional — ollama and LM
+Studio need none locally; a server exposed to the network usually does.
+
+Answers stream as they are produced: a local 70B model can spend minutes on a
+long reply, and waiting for the whole thing looks like a hang. The request
+ceiling is 30 minutes, but connecting has its own 5-second limit so a closed
+port fails immediately instead of hanging.
+
 ## 6. Login and API keys
 
 After installing an AI tool, cem asks how to authenticate:

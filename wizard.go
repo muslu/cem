@@ -63,6 +63,15 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 		if _, ok := cfg.Tools[key]; ok {
 			installed = styleSuccess.Render(" ✓")
 		}
+		// HTTP sunucularında "kurulu" diye bir durum yok; kullanıcının görmesi
+		// gereken şey adresin ayarlı olup olmadığı.
+		if isHTTPTool(key) {
+			if e, ok := cfg.Endpoints[key]; ok && e.BaseURL != "" {
+				installed = styleSuccess.Render(" ✓ " + endpointHost(e.BaseURL))
+			} else {
+				installed = styleDim.Render(L(" (adres gerekli)", " (needs an address)"))
+			}
+		}
 		fmt.Printf("  %s  %-12s %s%s\n",
 			colorMuted.Render(fmt.Sprintf("[%d]", i+1)),
 			styleBold.Render(meta.Name),
@@ -93,6 +102,12 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 	// Kurulu değilse kur
 	fmt.Println()
 	for _, key := range []string{thinker, writer} {
+		// Model sunucusu kurulmaz: adresi, modeli ve gerekiyorsa anahtarı
+		// sorulur.
+		if isHTTPTool(key) {
+			askEndpoint(key, cfg)
+			continue
+		}
 		if _, ok := cfg.Tools[key]; !ok {
 			meta := KnownTools[key]
 			if askYN(fmt.Sprintf("  %s kurulsun mu?", styleBold.Render(meta.Name))) {
@@ -107,9 +122,11 @@ func RunSetupWizard(cfg *GlobalConfig) error {
 	// Model seçimi — her rol için ayrı, varsayılan: CLI default'u (boş kalır)
 	if !autoYes {
 		fmt.Println()
-		askModel(thinker, "🧠 thinker", cfg)
-		askEffort(thinker, "🧠 thinker", cfg)
-		if writer != thinker {
+		if !isHTTPTool(thinker) {
+			askModel(thinker, "🧠 thinker", cfg)
+			askEffort(thinker, "🧠 thinker", cfg)
+		}
+		if writer != thinker && !isHTTPTool(writer) {
 			askModel(writer, "✍️  writer", cfg)
 			askEffort(writer, "✍️  writer", cfg)
 		}
@@ -1011,4 +1028,89 @@ func askYN(prompt string) bool {
 	resp, _ := reader.ReadString('\n')
 	resp = strings.ToLower(strings.TrimSpace(resp))
 	return resp == "y" || resp == "yes" || resp == "e" || resp == "evet"
+}
+
+// askEndpoint — HTTP model sunucusunun adresi, anahtarı ve modeli.
+//
+// Kurulum adımının yerini alır: ollama/LM Studio/unsloth kurulmaz, çalışan bir
+// sunucunun adresi verilir. Model adı TAHMİN EDİLMEZ — yerel sunucuda yanlış
+// ad, kullanıcının indirmediği bir modeli çağırmak ya da sessizce başka bir
+// modeli çalıştırmak demek. Bu yüzden önce sunucuya sorulur (/api/tags,
+// /v1/models); erişilemezse elle yazdırılır.
+func askEndpoint(key string, cfg *GlobalConfig) {
+	meta := KnownTools[key]
+	if cfg.Endpoints == nil {
+		cfg.Endpoints = map[string]Endpoint{}
+	}
+	ep := cfg.Endpoints[key]
+	if ep.BaseURL == "" {
+		ep.BaseURL = meta.DefaultBaseURL
+	}
+
+	fmt.Println()
+	fmt.Printf(L("  %s adresi [%s]: ", "  %s address [%s]: "),
+		styleBold.Render(meta.Name), ep.BaseURL)
+	if v := readLine(); v != "" {
+		ep.BaseURL = normalizeBaseURL(v)
+	}
+
+	fmt.Print(L("  API anahtarı (yerel sunucuda boş bırak): ",
+		"  API key (leave empty for a local server): "))
+	if v := readLine(); v != "" {
+		ep.APIKey = v
+	}
+
+	// Model listesi için adresi geçici olarak yaz: probeEndpoint config'ten
+	// okuyor.
+	cfg.Endpoints[key] = ep
+	rc := &ResolvedConfig{Global: cfg}
+
+	modeller, err := probeEndpoint(key, rc)
+	switch {
+	case err != nil:
+		fmt.Println(styleWarn.Render(L("  ⚠ sunucuya ulaşılamadı: ", "  ⚠ cannot reach the server: ") + err.Error()))
+		fmt.Println(styleDim.Render(L("    Adresi sonra düzeltebilirsin: cem endpoint "+key+" <ip:port>",
+			"    You can fix the address later: cem endpoint "+key+" <ip:port>")))
+	case len(modeller) == 0:
+		fmt.Println(styleWarn.Render(L("  ⚠ sunucu cevap veriyor ama hiç model bildirmiyor",
+			"  ⚠ the server answers but reports no models")))
+	default:
+		fmt.Println(styleSuccess.Render(fmt.Sprintf(
+			L("  ✓ sunucu cevap verdi — %d model", "  ✓ server answered — %d models"), len(modeller))))
+		for i, m := range modeller {
+			if i >= 12 { // uzun listeyi kırp: seçim numarayla ya da adla yapılıyor
+				fmt.Println(styleDim.Render(fmt.Sprintf(L("    … ve %d model daha", "    … and %d more"), len(modeller)-i)))
+				break
+			}
+			fmt.Printf("    %s %s\n", colorMuted.Render(fmt.Sprintf("[%d]", i+1)), m)
+		}
+	}
+
+	varsayilan := ep.Model
+	if varsayilan == "" && len(modeller) > 0 {
+		varsayilan = modeller[0]
+	}
+	fmt.Printf(L("  Model [%s]: ", "  Model [%s]: "), orDefault(varsayilan))
+	girdi := readLine()
+	switch {
+	case girdi == "":
+		ep.Model = varsayilan
+	default:
+		// Numara girildiyse listeden seç, değilse yazılan adı kullan
+		// (sunucuda olan her adı kabul ediyoruz: liste öneri).
+		if n, err := strconv.Atoi(girdi); err == nil && n >= 1 && n <= len(modeller) {
+			ep.Model = modeller[n-1]
+		} else {
+			ep.Model = girdi
+		}
+	}
+
+	cfg.Endpoints[key] = ep
+	if ep.Model == "" {
+		fmt.Println(styleWarn.Render(L("  ⚠ model seçilmedi — çalıştırmadan önce: cem endpoint "+key+" --model <ad>",
+			"  ⚠ no model selected — before running: cem endpoint "+key+" --model <name>")))
+		return
+	}
+	fmt.Printf("  %s %s · %s\n", styleSuccess.Render("✓"),
+		styleBold.Render(endpointHost(ep.BaseURL)), ep.Model)
 }

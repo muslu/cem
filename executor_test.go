@@ -256,8 +256,10 @@ func TestDescribeToolRun(t *testing.T) {
 }
 
 // TestTumAraclarinUpdateKomutuVar — otomatik güncelleme bunlara dayanıyor.
+// HTTP model sunucuları hariç: kurulmuş bir binary olmadığı için
+// güncellenecek bir şey de yok (installableToolKeys).
 func TestTumAraclarinUpdateKomutuVar(t *testing.T) {
-	for _, key := range orderedToolKeys {
+	for _, key := range installableToolKeys() {
 		if len(KnownTools[key].UpdateCmd) == 0 {
 			t.Errorf("%s için UpdateCmd tanımsız — otomatik güncelleme atlanır", key)
 		}

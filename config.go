@@ -48,6 +48,11 @@ type GlobalConfig struct {
 	// rate-limit hatasında bir sonrakine geçer. Provider adları:
 	// "anthropic" (Claude), "openai" (Codex). agy/cursor OAuth ile çalışır.
 	APIKeys map[string][]APIKey `yaml:"api_keys,omitempty"`
+	// Endpoints — HTTP tabanlı araçların adresi/anahtarı (ollama, lmstudio,
+	// unsloth). Anahtar = toolKey. Bu araçlar PATH'te binary aramaz; adres
+	// `cem endpoint <araç> <ip:port>` ile verilir ve ağdaki bir makine de
+	// olabilir (LAN'daki GPU sunucusu gibi).
+	Endpoints map[string]Endpoint `yaml:"endpoints,omitempty"`
 	// Lang — arayüz dili: "tr" | "en". Boş ise ortamdan tahmin edilir
 	// (CEM_LANG > LANG); setup sihirbazı ilk açılışta kullanıcıya sorar.
 	Lang string `yaml:"lang,omitempty"`
@@ -76,6 +81,21 @@ type GlobalConfig struct {
 	ToolsLastUpdate string `yaml:"tools_last_update,omitempty"`
 }
 
+// Endpoint — HTTP konuşan bir aracın adresi, anahtarı ve modeli.
+//
+// API anahtarı zorunlu değil: ollama ve LM Studio yerelde anahtarsız çalışır.
+// Ağa açılmış bir sunucuda (reverse proxy arkasında vLLM/unsloth) Bearer
+// anahtarı gerekiyorsa APIKey doldurulur.
+type Endpoint struct {
+	BaseURL string `yaml:"base_url"`
+	APIKey  string `yaml:"api_key,omitempty"`
+	// Model — bu endpoint'te kullanılacak model adı. tools.<key>.model
+	// alanından ÖNCE gelir; ikisi de boşsa istek modelsiz gönderilmez,
+	// kullanıcı uyarılır (yerel sunucuda model adını tahmin etmek yanlış
+	// modeli çalıştırmak demek).
+	Model string `yaml:"model,omitempty"`
+}
+
 type ProjectConfig struct {
 	Roles *Roles `yaml:"roles,omitempty"`
 	// Models — proje-spesifik model override'ları. Anahtar = toolKey (claude, agy, ...);
@@ -87,6 +107,9 @@ type ProjectConfig struct {
 	Efforts map[string]string `yaml:"efforts,omitempty"`
 	// Fast — proje-spesifik hızlı mod override'ı (araç → açık/kapalı).
 	Fast map[string]bool `yaml:"fast,omitempty"`
+	// Endpoints — proje-spesifik HTTP endpoint override'ı. Aynı projeyi iki
+	// makinede açan biri farklı bir model sunucusuna bakabilir.
+	Endpoints map[string]Endpoint `yaml:"endpoints,omitempty"`
 }
 
 type ResolvedConfig struct {
@@ -138,6 +161,14 @@ type ToolMeta struct {
 	// false ise (varsayılan) stdin üzerinden pipe edilir. Codex 'exec "prompt"'
 	// gibi pozisyonel pattern bekleyen araçlar için gerekli.
 	PromptAsArg bool
+	// HTTPAPI boş değilse araç subprocess DEĞİL, bir HTTP servisidir:
+	//   "openai" → POST {base}/v1/chat/completions (LM Studio, unsloth/vLLM)
+	//   "ollama" → POST {base}/api/chat
+	// Bu araçlar için kurulum/kaldırma (cemi/cemir), PATH kontrolü, fast mod,
+	// effort ve auto-update uygulanmaz.
+	HTTPAPI string
+	// DefaultBaseURL — kullanıcı adres vermediyse denenecek yerel adres.
+	DefaultBaseURL string
 	// Provider — bu tool'un kullandığı API provider'ı ("anthropic", "openai").
 	// Boş ise API key rotasyonu devre dışı (OAuth-only tool: agy, cursor).
 	Provider string
@@ -279,12 +310,61 @@ var KnownTools = map[string]ToolMeta{
 		UpdateCmd:        []string{"update"},
 		AuthCmd:          []string{"login"},
 	},
+
+	// ── HTTP endpoint araçları ───────────────────────────────────────────
+	// Bunlar subprocess değil: cem doğrudan HTTP konuşur. Kurulum/kaldırma
+	// uygulanmaz, adres `cem endpoint <araç> <ip:port>` ile verilir. Yerel
+	// model sunucusu ağdaki başka bir makinede de olabilir (LAN'daki GPU
+	// kutusu), bu yüzden adres serbest — 127.0.0.1 yalnızca varsayılan.
+	"ollama": {
+		Name:           "Ollama",
+		Description:    "Ollama sunucusu — yerel ya da ağdaki model (ollama.com)",
+		HTTPAPI:        "ollama",
+		DefaultBaseURL: "http://127.0.0.1:11434",
+		// Öneri listesi; gerçek liste `cem endpoint ollama --modeller` ile
+		// sunucudan çekilir (/api/tags), çünkü hangi modelin çekilmiş olduğunu
+		// yalnız sunucu bilir.
+		Models: []string{"qwen3-coder", "llama3.3", "deepseek-r1", "gemma3"},
+	},
+	"lmstudio": {
+		Name:           "LM Studio",
+		Description:    "LM Studio yerel sunucusu — OpenAI uyumlu (lmstudio.ai)",
+		HTTPAPI:        "openai",
+		DefaultBaseURL: "http://127.0.0.1:1234",
+	},
+	"unsloth": {
+		Name:           "Unsloth",
+		Description:    "Unsloth ile servis edilen model — vLLM/llama.cpp, OpenAI uyumlu",
+		HTTPAPI:        "openai",
+		DefaultBaseURL: "http://127.0.0.1:8000",
+	},
 }
 
 // orderedToolKeys — wizard/installer listelerinin sabit sırası.
 // KnownTools map iterasyonu rastgele; UI tutarlılığı için bu liste kullanılır.
 var orderedToolKeys = []string{
 	"claude", "agy", "gpt", "cursor",
+	// HTTP endpoint araçları listelerin sonunda: kurulum gerektirmedikleri
+	// için cemi/cemir onları atlar (isHTTPTool).
+	"ollama", "lmstudio", "unsloth",
+}
+
+// isHTTPTool — araç subprocess yerine HTTP endpoint mi.
+func isHTTPTool(toolKey string) bool {
+	return KnownTools[toolKey].HTTPAPI != ""
+}
+
+// installableToolKeys — kurulup kaldırılabilen (binary'si olan) araçlar.
+// cemi/cemir/auto-update bu listeyi kullanır: bir model sunucusunu "kurmak"
+// diye bir şey yok, adresi verilir.
+func installableToolKeys() []string {
+	out := make([]string, 0, len(orderedToolKeys))
+	for _, k := range orderedToolKeys {
+		if !isHTTPTool(k) {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // lastToolUpdate — damgayı zamana çevirir; çözülemezse sıfır değer.

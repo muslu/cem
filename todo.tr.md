@@ -213,3 +213,13 @@ kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarı
 - [x] `20260910.03` yayınlandı: GitHub release (32 asset) + Marketplace'e
       imzalı zip. Marketplace `approve: false` — yeni eklenti moderasyonda,
       onaya kadar sürüm listede görünmüyor.
+- [x] Yerel/kendi sunucundaki modeller: `ollama`, `lmstudio`, `unsloth` araç
+      olarak eklendi. Bunlar subprocess değil — cem HTTP konuşuyor (OpenAI
+      uyumlu `/v1/chat/completions` ve ollama `/api/chat`), cevap akıyor.
+      `cem endpoint <araç> <ip:port> [--model X] [--key K] [--test]
+      [--modeller] [--here]`. Kurulum/kaldırma/auto-update/effort/fast bu
+      araçlarda atlanıyor; model adı tahmin edilmiyor, sunucudan soruluyor.
+- [x] Setup zorunlu: yapılandırma yapılmadan çalışmıyor. Terminal varsa
+      sihirbaz teklif ediliyor ve sonrasında kayıt DOĞRULANIYOR (Ctrl+C ile
+      kesilen sihirbaz yarım durum bırakıyordu); terminal yoksa (eklenti,
+      pipe, CI) `cem setup` deyip çıkıyor.

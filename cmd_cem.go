@@ -433,14 +433,43 @@ func loadAndCheckSetup() (*ResolvedConfig, error) {
 		return nil, err
 	}
 	if !rc.Global.Setup || rc.Global.Roles.Thinker == "" {
+		// Setup ZORUNLU. Yarım yapılandırmayla çalıştırmak, kullanıcının
+		// seçmediği bir araca istek göndermek (ve faturasını ödemek) demek.
+		//
+		// Terminal yoksa sihirbaz da çalıştırılamaz: eklentiden, pipe'tan ya
+		// da CI'dan gelen çağrıda sorular ekrana basılır, cevap gelmez ve
+		// akış körlemesine ilerler. O durumda hata verip ne yapılacağını
+		// söylemek tek doğru davranış.
 		PrintBanner(BannerCem)
-		fmt.Println(styleWarn.Render("  ⚡ İlk çalıştırma — sihirbaz başlatılıyor...\n"))
+		fmt.Println(styleWarn.Render(L("  ⚡ cem henüz yapılandırılmadı — kurulum yapılmadan çalışmaz.",
+			"  ⚡ cem is not configured yet — it does not run before setup.")))
+		fmt.Println()
+
+		if !isInteractiveStdin() {
+			fmt.Println(styleError.Render(L("✗ Terminal yok, sihirbaz çalıştırılamaz.",
+				"✗ No terminal available, the wizard cannot run.")))
+			fmt.Println(styleDim.Render(L("    Bir terminalde bir kez çalıştır:  cem setup",
+				"    Run this once in a terminal:  cem setup")))
+			return nil, fmt.Errorf("%s", L("kurulum yapılmadı", "setup not completed"))
+		}
+
+		if !askYN(L("  Sihirbazı şimdi çalıştıralım mı?", "  Run the setup wizard now?")) {
+			fmt.Println(styleDim.Render(L("    Hazır olduğunda:  cem setup", "    When you are ready:  cem setup")))
+			return nil, fmt.Errorf("%s", L("kurulum yapılmadı", "setup not completed"))
+		}
+
 		if err := RunSetupWizard(rc.Global); err != nil {
 			return nil, err
 		}
 		rc, err = LoadConfig()
 		if err != nil {
 			return nil, err
+		}
+		// Sihirbaz yarıda kesilmiş olabilir (Ctrl+C, boş seçim): kaydı
+		// doğrulamadan devam etmek aynı yarım-yapılandırma sorununa döner.
+		if !rc.Global.Setup || rc.Global.Roles.Thinker == "" {
+			fmt.Println(styleError.Render(L("✗ Kurulum tamamlanmadı.", "✗ Setup was not completed.")))
+			return nil, fmt.Errorf("%s", L("kurulum yapılmadı", "setup not completed"))
 		}
 	}
 	return rc, nil

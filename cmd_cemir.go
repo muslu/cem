@@ -85,7 +85,7 @@ func removeAll(cfg *GlobalConfig) {
 		return
 	}
 
-	order := orderedToolKeys
+	order := installableToolKeys()
 	failed := []string{}
 	for _, key := range order {
 		if _, ok := cfg.Tools[key]; !ok {

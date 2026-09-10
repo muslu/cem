@@ -104,22 +104,19 @@ jobs:
       # Custom plugin repository bunu çözer: IDE bu XML'i periyodik yoklar,
       # version alanı kurulu sürümden yeniyse güncellemeyi kendisi indirir.
       # URL sabit (latest/download), içerik her release'de yenilenir.
+      # Diskten kurulan eklenti hiç güncellenmez; custom plugin repository
+      # bunu çözer: IDE bu XML'i periyodik yoklar ve version alanı kurulu
+      # sürümden yeniyse güncellemeyi kendisi indirir. URL sabit
+      # (latest/download), içerik her release'de yenilenir.
+      #
+      # Açıklama plugin.xml'den okunur — burada elle yazılan tek satırlık özet
+      # IDE'nin eklenti ekranında TEK SATIR olarak görünüyordu (2026-09-10).
       - name: updatePlugins.xml (custom plugin repository)
-        working-directory: plugin/intellij/build/distributions
+        working-directory: plugin/intellij
         run: |
-          cat > updatePlugins.xml <<XML
-          <?xml version="1.0" encoding="UTF-8"?>
-          <plugins>
-            <plugin id="dev.cempw.cem"
-                    url="https://github.com/muslu/cem/releases/latest/download/cem-intellij.zip"
-                    version="${GITHUB_REF_NAME}">
-              <idea-version since-build="233"/>
-              <name>cem</name>
-              <description>Run the cem CLI from inside PyCharm / IntelliJ IDEA / GoLand / WebStorm.</description>
-            </plugin>
-          </plugins>
-          XML
-          cat updatePlugins.xml
+          python3 updateplugins_uret.py "${GITHUB_REF_NAME}" > build/distributions/updatePlugins.xml
+          head -14 build/distributions/updatePlugins.xml
+          wc -c build/distributions/updatePlugins.xml
 
       - uses: actions/upload-artifact@v4
         with:
