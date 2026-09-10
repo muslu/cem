@@ -87,7 +87,7 @@ Make sure the editor (code area) has focus. The actions are bound to `editorText
 
 ### `idea.log` errors
 
-**Help → Show Log in Explorer / Finder** → search for `dev.cempw.intellij`. Open a GitHub issue with the stack trace.
+**Help → Show Log in Explorer / Finder** → search for `dev.cempw.cem`. Open a GitHub issue with the stack trace.
 
 ## Build from source
 

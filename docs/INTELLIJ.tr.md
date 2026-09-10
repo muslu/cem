@@ -87,7 +87,7 @@ Editör (kod alanı) focus'ta olmalı. Aksiyonlar `editorTextFocus`'a bağlı.
 
 ### `idea.log`
 
-**Help → Show Log in Explorer / Finder** → `dev.cempw.intellij` ara. Stack trace ile GitHub issue aç.
+**Help → Show Log in Explorer / Finder** → `dev.cempw.cem` ara. Stack trace ile GitHub issue aç.
 
 ## Kaynaktan derleme
 

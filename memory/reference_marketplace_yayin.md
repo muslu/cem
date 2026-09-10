@@ -13,9 +13,15 @@ metadata:
 Repo tarafı yayına hazır (imza yapılandırması, `verifyPlugin`, `CHANGELOG.md`,
 ad `cem`, CalVer sürüm, uyuyan `publish-intellij-plugin` CI job'ı).
 
-**Yayın kimliği:** plugin id `dev.cempw.intellij` (DEĞİŞMEZ), vendor maili
+**Yayın kimliği:** plugin id `dev.cempw.cem` (DEĞİŞMEZ; `dev.cempw.intellij` Marketplace tarafından reddedildi — ID 'intellij' içeremiyor), vendor maili
 `musluyuksektepe@gmail.com` (kullanıcının seçimi — `hi@cem.pw` yerine, çünkü
 JetBrains moderasyon yazışması oraya gidiyor ve çalışan bir kutu olmalı).
+
+**Yerel yayın script'i:** `plugin/intellij/yayinla.sh` — paket kurulumu, JDK 21,
+anahtar üretimi, derle+imzala+imza doğrula, `--yayinla` ile publishPlugin.
+İmza anahtarı `~/.cem-signing/{private.pem,chain.crt}` (2026-09-10'da üretildi,
+sertifika 2036'ya kadar). Anahtar kaybolursa aynı kimlikle güncelleme
+gönderilemez — yedeklenmesi gerekiyor.
 
 **Elle yapılacaklar** `todo.tr.md` → "JetBrains Marketplace (açık)" başlığında.
 Kritik iki nokta: ilk yayın **elle** yüklenmek zorunda ve **ZIP** yüklenir

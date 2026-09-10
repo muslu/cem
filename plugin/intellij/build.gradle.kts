@@ -107,6 +107,12 @@ tasks {
         compilerOptions.jvmTarget = JvmTarget.JVM_17
     }
 
+    // verifyPluginSignature, signPlugin'in çıktısını okuyor ama bağımlılığını
+    // bildirmiyor; Gradle 9 bunu hata sayıp derlemeyi durduruyor.
+    verifyPluginSignature {
+        dependsOn(signPlugin)
+    }
+
     // buildSearchableOptions kapalıyken prepareJarSearchableOptions var olmayan
     // build/tmp/buildSearchableOptions dizinini girdi bekliyor ve TEMİZ bir
     // checkout'ta derleme patlıyor ("An input file was expected to be present").

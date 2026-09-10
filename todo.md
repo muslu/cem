@@ -226,3 +226,19 @@ Left for the user (cannot be automated):
 - [ ] After approval: create the `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`,
       `PRIVATE_KEY`, `PRIVATE_KEY_PASSWORD` secrets and set
       `PUBLISH_MARKETPLACE=true`.
+
+### Marketplace upload rejected the plugin ID (fixed)
+
+`dev.cempw.intellij` was refused at upload: *"The plugin ID should not include
+the word 'intellij'"*. Changed to **`dev.cempw.cem`** — in `plugin.xml` and in
+the `updatePlugins.xml` the release workflow generates. The Kotlin package is
+still `dev.cempw.intellij`; Marketplace does not care about package names.
+
+**Consequence:** an already installed `dev.cempw.intellij` build is a different
+plugin as far as the IDE is concerned. It will not auto-update to the new ID —
+uninstall the old one once, then install the new build.
+
+`plugin/intellij/yayinla.sh` now does the whole local release: installs the
+missing packages (`nala`), finds or installs JDK 21, generates the signing key
+on first run, then builds → signs → verifies the signature.
+`--surum <tag>`, `--dogrula`, `--yayinla`, `--anahtar-yenile`.

@@ -1,5 +1,9 @@
 <idea-plugin>
-    <id>dev.cempw.intellij</id>
+    <!-- Marketplace plugin ID'de 'intellij' kelimesini reddediyor (upload
+         2026-09-10'da bu yüzden takıldı). Kotlin paketi dev.cempw.intellij
+         kaldı — paket adı Marketplace'i ilgilendirmiyor.
+         DİKKAT: ID ilk yayından sonra DEĞİŞTİRİLEMEZ. -->
+    <id>dev.cempw.cem</id>
     <name>cem</name>
     <vendor email="musluyuksektepe@gmail.com" url="https://cem.pw">cem.pw</vendor>
 

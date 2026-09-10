@@ -181,3 +181,18 @@ Kullanıcıya kalanlar (otomatikleştirilemez):
 - [ ] Onay sonrası: `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`, `PRIVATE_KEY`,
       `PRIVATE_KEY_PASSWORD` secret'larını oluştur ve
       `PUBLISH_MARKETPLACE=true` yap.
+
+### Marketplace plugin ID'yi reddetti (düzeltildi)
+
+`dev.cempw.intellij` yüklemede reddedildi: *"The plugin ID should not include
+the word 'intellij'"*. **`dev.cempw.cem`** yapıldı — `plugin.xml` ve release
+workflow'unun ürettiği `updatePlugins.xml` içinde. Kotlin paketi
+`dev.cempw.intellij` kaldı; Marketplace paket adına bakmıyor.
+
+**Sonucu:** kurulu `dev.cempw.intellij` sürümü IDE açısından BAŞKA bir eklenti.
+Yeni ID'ye kendiliğinden güncellenmez — eskisini bir kez kaldırıp yenisini kur.
+
+`plugin/intellij/yayinla.sh` yerel yayının tamamını yapıyor: eksik paketleri
+kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarını
+üretir, sonra derler → imzalar → imzayı doğrular.
+`--surum <tag>`, `--dogrula`, `--yayinla`, `--anahtar-yenile`.

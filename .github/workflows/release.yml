@@ -110,7 +110,7 @@ jobs:
           cat > updatePlugins.xml <<XML
           <?xml version="1.0" encoding="UTF-8"?>
           <plugins>
-            <plugin id="dev.cempw.intellij"
+            <plugin id="dev.cempw.cem"
                     url="https://github.com/muslu/cem/releases/latest/download/cem-intellij.zip"
                     version="${GITHUB_REF_NAME}">
               <idea-version since-build="233"/>
