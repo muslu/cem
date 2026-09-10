@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"io"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -631,5 +634,56 @@ func TestSoruWriterAtlanir(t *testing.T) {
 	}
 	if looksLikeQuestion("") {
 		t.Error("boş metin soru sayıldı")
+	}
+}
+
+// attachStdin: prompt argümanla giden araçlarda istek metni stdin'e YAZILMAZ
+// (araç onu argümandan okuyor) — stdin interaktif oturum açma için serbest
+// kalır. Regresyon: agy Windows'ta OAuth kodu isteyince okuyacak stdin
+// bulamıyordu, kod kabuğa yapıştırılıyordu.
+func TestAttachStdinPromptArgumanliAracaMetinYazmaz(t *testing.T) {
+	cmd := exec.Command("true")
+	attachStdin(cmd, ToolMeta{PromptAsArg: true}, "istek metni", false)
+	if cmd.Stdin != nil {
+		t.Fatalf("PromptAsArg araçta stdin bağlanmamalı (quiet mod), bağlandı: %T", cmd.Stdin)
+	}
+
+	cmd2 := exec.Command("true")
+	attachStdin(cmd2, ToolMeta{PromptAsArg: true}, "istek metni", true)
+	if r, ok := cmd2.Stdin.(*strings.Reader); ok {
+		t.Fatalf("PromptAsArg araçta istek metni stdin'e yazıldı (%d byte) — argümandan gidiyor", r.Len())
+	}
+}
+
+// Prompt stdin ile giden araçlarda metin stdin'e yazılmaya devam etmeli.
+func TestAttachStdinPromptStdinliAracaMetniVerir(t *testing.T) {
+	cmd := exec.Command("true")
+	attachStdin(cmd, ToolMeta{}, "istek metni", true)
+	r, ok := cmd.Stdin.(*strings.Reader)
+	if !ok {
+		t.Fatalf("stdin'den prompt alan araçta reader beklenir, gelen: %T", cmd.Stdin)
+	}
+	buf, _ := io.ReadAll(r)
+	if string(buf) != "istek metni" {
+		t.Fatalf("stdin'e yazılan metin yanlış: %q", buf)
+	}
+}
+
+// Interaktif OAuth istemi görülünce ipucu bir kez basılır ve akış bozulmaz.
+func TestAuthPromptNoticeBirKezUyarir(t *testing.T) {
+	var out bytes.Buffer
+	w := &authPromptNotice{inner: &out, toolKey: "agy"}
+	metin := "Authentication required. Please visit the URL to log in:\nOr, paste the authorization code here and press Enter:\n"
+	if _, err := io.WriteString(w, metin); err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(w, "paste the authorization code here and press Enter:\n")
+
+	got := out.String()
+	if !strings.Contains(got, metin) {
+		t.Fatal("aracın kendi çıktısı olduğu gibi geçmeli")
+	}
+	if n := strings.Count(got, "cem auth agy --code"); n != 1 {
+		t.Fatalf("ipucu tam bir kez basılmalı, %d kez basıldı", n)
 	}
 }

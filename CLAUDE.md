@@ -244,6 +244,17 @@ cem/
 - **The writer's cache key is the user's request, not the prompt it received.**
   The plan is regenerated slightly differently each time; keying on it would
   miss every repeat of the same task.
+- **A `PromptAsArg` tool needs the terminal's stdin, not `/dev/null`.** When the
+  prompt travels as an argument (agy, claude, cursor) stdin was left unset, so
+  an interactive OAuth prompt ("Or, paste the authorization code here and press
+  Enter") had nothing to read: the tool waited 60s and died, and the user's
+  paste landed in the shell instead. On Windows PowerShell read `4/0ATs…` as a
+  command and answered *"You must provide a value expression following the '/'
+  operator"* three times in a row (field report, 2026-09-10, agy 1.1.28).
+  `attachStdin` hands the terminal over when cem's own stdin is a TTY — never
+  when it is a pipe (that data was already consumed by `ReadStdin`, and the
+  tool would block on EOF) and never in quiet mode (the raw stream is hidden
+  there, so the user would be typing blind).
 - **Auto-update runs detached** (`detachProcess`) and cannot write back to the
   config; version fields are refreshed on the *next* run in
   `maybeAutoUpdateTools`. Disable with `auto_update_tools: false`.

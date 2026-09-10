@@ -604,6 +604,43 @@ const noiseLineMax = 400
 // bodyDumpRe — "body: {...}" / "body: [...]" sonrası ham gövde.
 var bodyDumpRe = regexp.MustCompile(`(?i)\bbody:\s*[\[{].*$`)
 
+// isInteractiveStdin — cem'in kendi stdin'i terminal mi (pipe/dosya değil).
+func isInteractiveStdin() bool {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
+}
+
+// attachStdin — alt sürecin stdin'ini bağlar.
+//
+// Prompt stdin ile gidiyorsa istek metnini yazarız. Argümanla gidiyorsa
+// (PromptAsArg: agy, claude, cursor) stdin serbesttir ve şimdiye kadar BOŞ
+// bırakılıyordu — yani /dev/null. Araç interaktif OAuth kodu istediğinde
+// ("Or, paste the authorization code here and press Enter") okuyacak bir şey
+// bulamıyor, 60 saniye bekleyip düşüyor; kullanıcı da kodu kabuğa yapıştırıyor.
+// Windows'ta sahada tam olarak bu oldu (2026-09-10, agy): PowerShell kodu
+// komut sanıp "You must provide a value expression following the '/' operator"
+// verdi, üç denemede de aynı hata.
+//
+// cem'in stdin'i TTY ise terminali araca devrediyoruz: yapıştırılan kod doğru
+// sürece gider ve login akışı yerinde tamamlanır. Pipe ile veri geldiyse
+// (cem < dosya, ya da eklentiden çağrı) devretmiyoruz: o veri ReadStdin() ile
+// zaten okundu ve aracı EOF beklerken kilitlerdi. Quiet mod (runQuiet) da
+// devretmez — orada ham akış ekrana basılmadığı için kullanıcı neyi
+// yanıtladığını göremez, körlemesine yazdırmak yerine hata verip
+// 'cem auth <araç>' önerisine düşmek daha doğru.
+func attachStdin(cmd *exec.Cmd, meta ToolMeta, input string, interactive bool) {
+	if !meta.PromptAsArg {
+		cmd.Stdin = strings.NewReader(input)
+		return
+	}
+	if interactive && isInteractiveStdin() {
+		cmd.Stdin = os.Stdin
+	}
+}
+
 // sanitizeStderr — imza taraması öncesi çıktıyı temizler: ham gövde
 // dökümlerini kırpar, kalan aşırı uzun satırları tamamen atar.
 func sanitizeStderr(s string) string {
@@ -746,8 +783,48 @@ func (w *stopWriter) Write(p []byte) (int, error) {
 //	✎ claude yazıyor... 23.6sTTL destekli, thread-safe LRU cache...
 //	✎ claude yazıyor... 23.9s  ⏱ yazma 24.0s
 func toolStream(toolKey string, sp *Spinner, dst io.Writer) (io.WriteCloser, *stopWriter) {
-	sw := &stopWriter{sp: sp, inner: dst}
+	sw := &stopWriter{sp: sp, inner: &authPromptNotice{inner: dst, toolKey: toolKey}}
 	return newNoiseFilter(toolKey, sw, rawOutput), sw
+}
+
+// interactiveAuthRe — aracın oturum açmak için ekranda kod/onay beklediği an.
+// authFailRe'den ayrı ve DAHA DAR: burada amaç hatayı sınıflamak değil, akış
+// sürerken kullanıcıya nereye yazacağını söylemek.
+var interactiveAuthRe = regexp.MustCompile(`(?i)(paste the authorization code|waiting for authentication|please visit the url to log in)`)
+
+// authPromptNotice — araç interaktif OAuth kodu isterse BİR kez ipucu basar.
+//
+// Sahada (Windows, agy, 2026-09-10) kullanıcı kodu kabuğa yapıştırdı ve
+// PowerShell onu komut sandı. Kök nedeni attachStdin düzeltti (kod artık
+// araca gidiyor); bu satır ikinci tuzağı kapatıyor: PSReadLine çok uzun
+// satırların yapıştırmasını kırpabiliyor, o durumda kodu panoya koyup aracı
+// yeniden başlatan yardımcı var (cem auth <araç> --code <kod>).
+type authPromptNotice struct {
+	inner   io.Writer
+	toolKey string
+	tail    []byte
+	seen    bool
+}
+
+func (a *authPromptNotice) Write(p []byte) (int, error) {
+	n, err := a.inner.Write(p)
+	if a.seen || n == 0 {
+		return n, err
+	}
+	// Imza satır ortasında bölünebilir: son 512 byte'ı taşı.
+	a.tail = append(a.tail, p[:n]...)
+	if len(a.tail) > 512 {
+		a.tail = a.tail[len(a.tail)-512:]
+	}
+	if interactiveAuthRe.Match(a.tail) {
+		a.seen = true
+		fmt.Fprintln(a.inner)
+		fmt.Fprintln(a.inner, styleDim.Render(fmt.Sprintf(
+			L("    ⓘ kodu BURAYA yapıştırıp Enter'a bas (kabuğa değil). Yapıştırma kırpılırsa: cem auth %s --code <kod>",
+				"    ⓘ paste the code HERE and press Enter (not into the shell). If the paste gets truncated: cem auth %s --code <code>"),
+			a.toolKey)))
+	}
+	return n, err
 }
 
 // withKeyRotation — meta.Provider varsa cfg.APIKeys[provider] içinden sırayla
@@ -994,9 +1071,7 @@ func runQuiet(toolKey string, rc *ResolvedConfig, input string, meta ToolMeta,
 	}
 	runErr := withKeyRotation(meta, rc.Global, func(env []string) error {
 		cmd := exec.Command(bin, args...)
-		if !meta.PromptAsArg {
-			cmd.Stdin = strings.NewReader(input)
-		}
+		attachStdin(cmd, meta, input, false)
 		// Ham akış ekrana gitmez ama hata imzası taraması için tutulur.
 		outTail := &tailWriter{n: 8 << 10}
 		cmd.Stdout = outTail
@@ -1149,9 +1224,7 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 
 	return withKeyRotation(meta, rc.Global, func(env []string) error {
 		cmd := exec.Command(bin, args...)
-		if !meta.PromptAsArg {
-			cmd.Stdin = strings.NewReader(input)
-		}
+		attachStdin(cmd, meta, input, true)
 		// Bazı CLI'lar (codex) API hatasını stdout'a yazıyor; imza taraması
 		// stdout+stderr birleşimi üzerinde yapılmalı.
 		outTail := &tailWriter{n: 8 << 10}
@@ -1228,9 +1301,7 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 	var captured bytes.Buffer
 	err := withKeyRotation(meta, rc.Global, func(env []string) error {
 		cmd := exec.Command(bin, args...)
-		if !meta.PromptAsArg {
-			cmd.Stdin = strings.NewReader(input)
-		}
+		attachStdin(cmd, meta, input, true)
 		captured.Reset()
 		// Stream + capture: thinker çıktısı plugin/terminal'e ANINDA akar
 		// ve buffer'a kopyalanır (writer fazı için).
