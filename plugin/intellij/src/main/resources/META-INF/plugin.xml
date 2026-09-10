@@ -47,6 +47,15 @@
                 <b>write</b> mode, ready to type;
                 to send a whole file, right-click it in the project tree
                 (<b>cem: review file… / ask about file…</b>)</li>
+            <li><b>Keep talking:</b> every run opens its own tab with an input box
+                underneath. Answer a question the tool asked, or say "now do X too" —
+                the previous turn is carried along as context (trimmed, because
+                context is billed again on every turn).</li>
+            <li><b>Terminal</b> tab: run commands in the project root without leaving
+                the window — <code>go test</code>, <code>git diff</code>,
+                <code>npm run build</code>. Pipes, redirects and <code>&amp;&amp;</code>
+                work; it is not a full pty, so use the IDE's own terminal for
+                interactive programs.</li>
             <li><b>Interactive</b> tab: type a prompt and press Enter, like a REPL.
                 The selector on the left picks the mode (pair / think / write),
                 <code>Shift+Enter</code> adds a line and

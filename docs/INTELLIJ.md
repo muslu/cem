@@ -51,6 +51,27 @@ is stable — its contents are refreshed on every cem release.
 | `cem: write on selection` | `Ctrl+Alt+W` (`⌥⌘W`) | Runs `cem -w "<selection>"` (writer only) |
 | `cem: pair on selection`  | `Ctrl+Alt+P` (`⌥⌘P`) | Runs `cem -p "<selection>"` (thinker → writer) |
 
+### Keep talking in a run tab
+
+Every run opens its own tab, and each tab has an input box underneath it. Type
+there and the same tab starts another turn with the previous ones carried along
+as context — that is how you answer a question the tool asked ("do you want to
+revert all of them?") or add to what it just did.
+
+The context is trimmed to the last few thousand characters. cem has no session:
+each call is a fresh process, so continuing means re-sending the earlier turns,
+and every turn is billed again. Trimming keeps that from growing silently.
+
+### Terminal tab
+
+The `Terminal` tab runs commands in the project root — `go test ./...`,
+`git diff`, `npm run build` — so the answer and the command output stay in one
+window. It goes through the shell, so pipes, redirects and `&&` work. It is not
+a full pty: use the IDE's own terminal for `vim`, `top` or anything that expects
+a real terminal. `⏹` stops a running command.
+
+### Selection and shortcuts
+
 If nothing is selected, the cursor lands in the input box at the bottom of the
 **cem** tool window with the mode preselected — no modal dialog, and the open
 file is not sent by mistake. Output streams to that same tool window, one tab

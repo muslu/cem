@@ -50,6 +50,27 @@ sabittir, her cem sürümünde içeriği yenilenir.
 | `cem: write on selection` | `Ctrl+Alt+W` (`⌥⌘W`) | `cem -w "<seçim>"` — writer |
 | `cem: pair on selection`  | `Ctrl+Alt+P` (`⌥⌘P`) | `cem -p "<seçim>"` — thinker → writer |
 
+### Çalıştırma sekmesinde sohbete devam
+
+Her çalıştırma kendi sekmesini açıyor ve her sekmenin altında bir giriş kutusu
+var. Oraya yazınca aynı sekmede yeni bir tur başlıyor ve önceki turlar bağlam
+olarak taşınıyor — aracın sorduğu soruya ("tümünü geri almak mı istiyorsunuz?")
+böyle cevap veriyorsun, ya da yaptığı işe ekleme yapıyorsun.
+
+Bağlam son birkaç bin karaktere kırpılıyor. cem'in oturumu yok: her çağrı yeni
+bir süreç, yani devam etmek önceki turları yeniden göndermek demek ve her tur
+yeniden faturalanıyor. Kırpma bunun sessizce büyümesini engelliyor.
+
+### Terminal sekmesi
+
+`Terminal` sekmesi komutları proje kökünde çalıştırıyor — `go test ./...`,
+`git diff`, `npm run build` — böylece cevap ve komut çıktısı aynı pencerede
+kalıyor. Kabuk üzerinden geçtiği için pipe, yönlendirme ve `&&` çalışıyor. Tam
+bir pty değil: `vim`, `top` gibi gerçek terminal bekleyen programlar için
+IDE'nin kendi Terminal'ini kullan. `⏹` çalışan komutu durduruyor.
+
+### Seçim ve kısayollar
+
 Seçim yoksa imleç, **cem** tool window'unun altındaki giriş kutusuna gelir ve
 mod önceden seçilidir — modal pencere yok, açık dosya yanlışlıkla gönderilmez.
 Çıktı aynı tool window'a akar, her çalıştırma kendi tab'ında.

@@ -5,7 +5,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
@@ -17,6 +19,8 @@ import java.awt.BorderLayout
 import java.awt.event.ActionEvent
 import java.util.WeakHashMap
 import javax.swing.AbstractAction
+import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextArea
@@ -40,6 +44,9 @@ class CemToolWindowFactory : ToolWindowFactory {
         content.isCloseable = false   // kapanmaz — kullanıcı her seferinde input'a yazar
         content.isPinned = true
         toolWindow.contentManager.addContent(content)
+        // Komut çalıştırmak için ikinci sabit sekme: yazan rol dosya üretince
+        // testi/derlemeyi aynı pencerede koşturmak için.
+        CemTab.commandTab(project, toolWindow)
         toolWindow.contentManager.setSelectedContent(content)
     }
 }
@@ -78,6 +85,17 @@ class CemTab {
     @Volatile private var pendingContext: String? = null
     /** Tab kapatıldı mı (idempotency için). */
     @Volatile var cancelled = false
+    /**
+     * Bu sekmedeki konuşma dökümü — "sohbete devam" bunu bağlam olarak
+     * gönderiyor. cem her çağrıda yeni bir süreç: aracın kendi oturumu yok,
+     * bu yüzden devam eden istekte önceki tur METİN olarak taşınmak zorunda.
+     *
+     * Sınırlı tutuluyor: bağlam her turda yeniden faturalanıyor. Son
+     * transcriptLimit karakter yeterli — asıl soru ve son cevap orada.
+     */
+    private val transcript = StringBuilder()
+    /** Çalıştırma sekmesindeki takip girdisi (sohbete devam). */
+    private var followUp: JTextArea? = null
 
     init {
         component = JPanel(BorderLayout()).apply {
@@ -134,6 +152,60 @@ class CemTab {
         }
     }
 
+    /** Bir turu (istek + cevap) döküme ekler; baştan kırpar. */
+    fun noteExchange(request: String, answer: String) {
+        transcript.append("KULLANICI: ").append(request.trim()).append("\n")
+            .append("CEM: ").append(answer.trim()).append("\n\n")
+        if (transcript.length > transcriptLimit) {
+            transcript.delete(0, transcript.length - transcriptLimit)
+        }
+    }
+
+    /**
+     * Devam isteğini önceki turların bağlamıyla sarar.
+     *
+     * Neden düz metin: cem'in (ve altındaki araçların) oturum kavramı yok;
+     * "önceki cevabına göre şunu yap" demek için önceki cevabı yeniden
+     * göndermek gerekiyor. Kırpma sondan yapılır — kullanıcının son sorusu ve
+     * aracın son cevabı, ilk turdan daha önemli.
+     */
+    fun followUpPrompt(message: String): String {
+        if (transcript.isEmpty()) return message
+        return buildString {
+            append("Bu bir devam isteği. Önceki konuşma (kısaltılmış):\n")
+            append("---\n").append(transcript).append("---\n\n")
+            append("Yeni istek: ").append(message)
+        }
+    }
+
+    /** Takip girdisini kilitle/aç — süreç çalışırken yeni istek gönderilmesin. */
+    fun setInputEnabled(enabled: Boolean) {
+        val area = followUp ?: return
+        com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
+            area.isEnabled = enabled
+            if (enabled) area.requestFocusInWindow()
+        }
+    }
+
+    /**
+     * Çalıştırma sekmesine "sohbete devam" kutusu ekler: cevabın altına yazıp
+     * Enter'a basınca aynı sekmede yeni tur başlar ve önceki turlar bağlam
+     * olarak gider. Araç soru sorduğunda (ör. "tümünü geri almak mı
+     * istiyorsunuz?") cevap verebilmenin tek yolu buydu — eskiden her istek
+     * tek seferlikti, kullanıcı cevabı yazacak yer bulamıyordu.
+     */
+    fun enableFollowUp(project: Project, mode: CemAction.Mode) {
+        followUp = attachInput(
+            this,
+            west = null,
+            tooltip = "Enter ↵ devam et · Shift+Enter satır atla · ↑/↓ önceki istekler",
+        ) { typed ->
+            appendDim("→ ${mode.name.lowercase()}: ${promptSnippet(typed, 80)}")
+            setInputEnabled(false)
+            CemAction.continueInTab(project, this, mode, typed)
+        }
+    }
+
     fun appendHeader(mode: String, snippet: String) {
         appendStyled(
             "─── cem $mode · ${promptSnippet(snippet, 80)} ───\n",
@@ -169,6 +241,114 @@ class CemTab {
     }
 
     companion object {
+        /**
+         * Devam bağlamının üst sınırı (karakter). Bağlam her turda yeniden
+         * gönderiliyor, yani her tur yeniden faturalanıyor: sınırsız döküm
+         * uzun bir sohbette maliyeti sessizce katlar.
+         */
+        private const val transcriptLimit = 4000
+
+        /**
+         * Alt girdi kutusu + shell tarzı geçmiş. Üç yerde kullanılıyor:
+         * Interactive sekmesi, çalıştırma sekmesinde "sohbete devam" ve komut
+         * sekmesi. Enter gönderir, Shift+Enter satır atlar, ↑/↓ geçmişi gezer.
+         */
+        private fun attachInput(
+            tab: CemTab,
+            west: JComponent?,
+            tooltip: String,
+            onSubmit: (String) -> Unit,
+        ): JTextArea {
+            val input = JTextArea(2, 20).apply {
+                lineWrap = true
+                wrapStyleWord = true
+                toolTipText = tooltip
+            }
+            val inputPanel = JPanel(BorderLayout()).apply {
+                if (west != null) {
+                    add(JPanel(BorderLayout()).apply {
+                        add(west, BorderLayout.WEST)
+                        add(JLabel("  › "), BorderLayout.EAST)
+                    }, BorderLayout.WEST)
+                } else {
+                    add(JLabel("  › "), BorderLayout.WEST)
+                }
+                add(
+                    JBScrollPane(
+                        input,
+                        ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER,
+                    ),
+                    BorderLayout.CENTER,
+                )
+            }
+            // statusLabel zaten SOUTH; girdiyi onun ÜZERİNE koy.
+            tab.component.remove(tab.statusLabel)
+            tab.component.add(
+                JPanel(BorderLayout()).apply {
+                    add(inputPanel, BorderLayout.NORTH)
+                    add(tab.statusLabel, BorderLayout.SOUTH)
+                },
+                BorderLayout.SOUTH,
+            )
+
+            // Shell tarzı geçmiş. historyIndex = history.size → taslak düzenleniyor.
+            val history = mutableListOf<String>()
+            var historyIndex = 0
+            var draft = ""
+
+            // JTextArea'da ↑/↓ imleci satır atlatır. Çok satırlı taslakta
+            // geçmişe atlamak yazılanı çöpe atardı: metin tek satırsa geçmiş,
+            // değilse aracın kendi imleç hareketi çalışır.
+            val caretUp = input.getActionForKeyStroke(KeyStroke.getKeyStroke("UP"))
+            val caretDown = input.getActionForKeyStroke(KeyStroke.getKeyStroke("DOWN"))
+
+            input.actionMap.put("cem.submit", object : AbstractAction() {
+                override fun actionPerformed(e: ActionEvent) {
+                    val typed = input.text.trim()
+                    if (typed.isEmpty()) return
+                    input.text = ""
+                    if (history.isEmpty() || history.last() != typed) history.add(typed)
+                    historyIndex = history.size
+                    draft = ""
+                    onSubmit(typed)
+                }
+            })
+            input.inputMap.put(KeyStroke.getKeyStroke("ENTER"), "cem.submit")
+
+            input.actionMap.put("cem.newline", object : AbstractAction() {
+                override fun actionPerformed(e: ActionEvent) {
+                    input.insert("\n", input.caretPosition)
+                }
+            })
+            input.inputMap.put(KeyStroke.getKeyStroke("shift ENTER"), "cem.newline")
+
+            input.actionMap.put("cem.history.prev", object : AbstractAction() {
+                override fun actionPerformed(e: ActionEvent) {
+                    if (input.text.contains('\n')) { caretUp?.actionPerformed(e); return }
+                    if (history.isEmpty()) return
+                    if (historyIndex == history.size) draft = input.text
+                    if (historyIndex > 0) historyIndex--
+                    input.text = history[historyIndex]
+                    input.caretPosition = input.document.length
+                }
+            })
+            input.inputMap.put(KeyStroke.getKeyStroke("UP"), "cem.history.prev")
+
+            input.actionMap.put("cem.history.next", object : AbstractAction() {
+                override fun actionPerformed(e: ActionEvent) {
+                    if (input.text.contains('\n')) { caretDown?.actionPerformed(e); return }
+                    if (history.isEmpty() || historyIndex >= history.size) return
+                    historyIndex++
+                    input.text = if (historyIndex == history.size) draft else history[historyIndex]
+                    input.caretPosition = input.document.length
+                }
+            })
+            input.inputMap.put(KeyStroke.getKeyStroke("DOWN"), "cem.history.next")
+
+            return input
+        }
+
         /**
          * Sekme adı / başlık için prompt özeti.
          *
@@ -229,6 +409,12 @@ class CemTab {
 
             Seçim yokken kısayola basmak dialog açmaz: modu ayarlayıp
             imleci aşağıdaki kutuya getirir.
+
+            Her çalıştırma kendi sekmesini açar ve o sekmenin altındaki kutuya
+            yazarak SOHBETE DEVAM edilir: önceki tur bağlam olarak gider, araç
+            bir soru sorduysa cevabını orada yazarsın.
+            Terminal sekmesi: komutları proje kökünde çalıştırır (go test, git diff).
+
             Settings → Tools → cem ile thinker/writer/model değiştirilir.
 
             ─── geçmiş ───
@@ -254,15 +440,6 @@ class CemTab {
             val tab = CemTab()
             tab.appendStyled(welcomeText(), bold = false, color = JBColor.GRAY)
 
-            // Tek satırlık alan yerine ÇOK SATIRLI kutu: kısayollar artık modal
-            // dialog yerine buraya odaklanıyor, dialog'un tek üstünlüğü olan
-            // çok-satırlı yazma imkânı kaybolmamalı. Enter gönderir,
-            // Shift+Enter satır atlar.
-            val input = JTextArea(2, 20).apply {
-                lineWrap = true
-                wrapStyleWord = true
-                toolTipText = "Enter ↵ gönder · Shift+Enter satır atla · ↑/↓ önceki prompt"
-            }
             // Mod seçici: dialog'lu akışta mod kısayolla sabitleniyordu
             // (Ctrl+Alt+W = write). Girdi kutuya taşınınca modun da burada
             // görünür ve değiştirilebilir olması gerekiyor.
@@ -272,96 +449,138 @@ class CemTab {
                 }
                 toolTipText = "pair: düşünen → yazan · think: sadece düşünen · write: sadece yazan"
             }
+
+            val input = attachInput(
+                tab,
+                west = modeBox,
+                tooltip = "Enter ↵ gönder · Shift+Enter satır atla · ↑/↓ önceki prompt",
+            ) { typed ->
+                val mode = modeBox.selectedItem as? CemAction.Mode ?: CemAction.Mode.PAIR
+                val context = tab.takePendingContext()
+                val prompt = if (context != null) "$typed\n\n$context" else typed
+                tab.appendDim("→ ${mode.name.lowercase()}: ${promptSnippet(typed, 80)}")
+                CemAction.launchCem(project, mode, prompt)
+            }
             tab.inputArea = input
             tab.modeBox = modeBox
 
-            val inputPanel = JPanel(BorderLayout()).apply {
-                add(JPanel(BorderLayout()).apply {
-                    add(modeBox, BorderLayout.WEST)
-                    add(JLabel("  › "), BorderLayout.EAST)
-                }, BorderLayout.WEST)
-                add(
-                    JBScrollPane(
-                        input,
-                        ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER,
-                    ),
-                    BorderLayout.CENTER,
-                )
-            }
-            // statusLabel zaten SOUTH; input'u onun ÜZERİNE koy (south wrap içinde)
-            tab.component.remove(tab.statusLabel)
-            val southWrap = JPanel(BorderLayout()).apply {
-                add(inputPanel, BorderLayout.NORTH)
-                add(tab.statusLabel, BorderLayout.SOUTH)
-            }
-            tab.component.add(southWrap, BorderLayout.SOUTH)
-
-            // Shell-style prompt history. Bash gibi: Enter → ekle; ↑/↓ gez.
-            // historyIndex = history.size → "henüz tarihçeye dönmedi", input düzenleniyor.
-            val history = mutableListOf<String>()
-            var historyIndex = 0
-            var draft = ""
-
-            // JTextArea'da ↑/↓ imleci satır atlatır. Çok satırlı bir taslakta
-            // tarihçeye atlamak yazılanı çöpe atardı: metin tek satırsa tarihçe,
-            // değilse aracın kendi imleç hareketi çalışır.
-            val caretUp = input.getActionForKeyStroke(KeyStroke.getKeyStroke("UP"))
-            val caretDown = input.getActionForKeyStroke(KeyStroke.getKeyStroke("DOWN"))
-
-            input.actionMap.put("cem.submit", object : AbstractAction() {
-                override fun actionPerformed(e: ActionEvent) {
-                    val typed = input.text.trim()
-                    if (typed.isEmpty()) return
-                    val mode = modeBox.selectedItem as? CemAction.Mode ?: CemAction.Mode.PAIR
-                    val context = tab.takePendingContext()
-                    val prompt = if (context != null) "$typed\n\n$context" else typed
-                    input.text = ""
-                    // Duplikatları arka arkaya eklemeyiz (bash HIST_IGNORE_DUPS).
-                    if (history.isEmpty() || history.last() != typed) history.add(typed)
-                    historyIndex = history.size
-                    draft = ""
-                    tab.appendDim("→ ${mode.name.lowercase()}: ${promptSnippet(typed, 80)}")
-                    CemAction.launchCem(project, mode, prompt)
-                }
-            })
-            input.inputMap.put(KeyStroke.getKeyStroke("ENTER"), "cem.submit")
-
-            input.actionMap.put("cem.newline", object : AbstractAction() {
-                override fun actionPerformed(e: ActionEvent) {
-                    input.insert("\n", input.caretPosition)
-                }
-            })
-            input.inputMap.put(KeyStroke.getKeyStroke("shift ENTER"), "cem.newline")
-
-            input.actionMap.put("cem.history.prev", object : AbstractAction() {
-                override fun actionPerformed(e: ActionEvent) {
-                    if (input.text.contains('\n')) { caretUp?.actionPerformed(e); return }
-                    if (history.isEmpty()) return
-                    // İlk ↑ basışında mevcut taslağı kaydet
-                    if (historyIndex == history.size) draft = input.text
-                    if (historyIndex > 0) {
-                        historyIndex--
-                        input.text = history[historyIndex]
-                        input.caretPosition = input.text.length
-                    }
-                }
-            })
-            input.inputMap.put(KeyStroke.getKeyStroke("UP"), "cem.history.prev")
-
-            input.actionMap.put("cem.history.next", object : AbstractAction() {
-                override fun actionPerformed(e: ActionEvent) {
-                    if (input.text.contains('\n')) { caretDown?.actionPerformed(e); return }
-                    if (historyIndex >= history.size) return
-                    historyIndex++
-                    input.text = if (historyIndex == history.size) draft else history[historyIndex]
-                    input.caretPosition = input.text.length
-                }
-            })
-            input.inputMap.put(KeyStroke.getKeyStroke("DOWN"), "cem.history.next")
-
             interactiveTabs[project] = tab
             return tab
+        }
+
+        /**
+         * "Terminal" sekmesi — cem penceresinden komut çalıştırma.
+         *
+         * Neden burada: yazan rol dosya üretiyor, sonra kullanıcı `go test`,
+         * `git diff`, `npm run build` çalıştırmak istiyor ve bunun için başka
+         * bir araç penceresine geçmek gerekiyordu. Aynı pencerede kalmak,
+         * cevabı ve komut çıktısını yan yana tutuyor.
+         *
+         * IDE'nin kendi Terminal'inin yerine geçmez (tam bir pty değil,
+         * interaktif programlar — vim, top — burada çalışmaz). Amaç tek
+         * seferlik komutlar: kabuk üzerinden çalıştırıldığı için pipe,
+         * yönlendirme ve && zincirleri geçerli.
+         */
+        fun commandTab(project: Project, toolWindow: ToolWindow): CemTab {
+            val tab = CemTab()
+            tab.appendStyled(commandWelcomeText(project), bold = false, color = JBColor.GRAY)
+
+            val stop = JButton("⏹").apply {
+                toolTipText = "çalışan komutu durdur"
+                isEnabled = false
+            }
+            val input = attachInput(
+                tab,
+                west = stop,
+                tooltip = "Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar",
+            ) { line ->
+                if (tab.process?.isAlive == true) {
+                    tab.appendError("önceki komut hâlâ çalışıyor — ⏹ ile durdur")
+                } else {
+                    tab.appendStyled("\n$ $line\n", bold = true, color = JBColor.foreground())
+                    runShellCommand(project, tab, line, stop)
+                }
+            }
+            tab.inputArea = input
+            stop.addActionListener {
+                tab.process?.let { p ->
+                    if (p.isAlive) {
+                        p.destroy()
+                        tab.appendDim("─── durduruldu ───")
+                    }
+                }
+            }
+
+            val content = ContentFactory.getInstance().createContent(tab.component, "Terminal", false)
+            content.isCloseable = false
+            content.isPinned = true
+            // Sekme kapanmıyor ama pencere kapanınca çalışan komut da ölsün.
+            content.setDisposer(Disposable { tab.cancel() })
+            toolWindow.contentManager.addContent(content)
+            return tab
+        }
+
+        private fun commandWelcomeText(project: Project): String =
+            """
+            Terminal — komutlar proje kökünde ve kabuk üzerinden çalışır.
+            Dizin: ${project.basePath ?: "?"}
+
+            Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar · ⏹ durdur
+            Not: tam bir pty değil — vim/top gibi interaktif programlar için IDE'nin
+            kendi Terminal penceresini kullan.
+
+            """.trimIndent() + "\n"
+
+        /**
+         * Komutu kabukla çalıştırır ve çıktıyı sekmeye akıtır.
+         *
+         * Kabuk şart: kullanıcı "go build ./... && go test" ya da
+         * "grep -rn foo | head" yazabiliyor. Windows'ta PowerShell, diğer
+         * yerlerde /bin/sh. stderr stdout'a katılıyor (redirectErrorStream):
+         * hata mesajı çıktının neresinde olduğunu görmek gerekiyor.
+         */
+        private fun runShellCommand(project: Project, tab: CemTab, line: String, stop: JButton) {
+            ApplicationManager.getApplication().executeOnPooledThread {
+                val başlangıç = System.currentTimeMillis()
+                try {
+                    val cmd =
+                        if (SystemInfo.isWindows) listOf("powershell.exe", "-NoProfile", "-Command", line)
+                        else listOf("/bin/sh", "-lc", line)
+                    val pb = ProcessBuilder(cmd).redirectErrorStream(true)
+                    project.basePath?.let { pb.directory(java.io.File(it)) }
+                    val process = pb.start()
+                    // stdin'i kapat: girdi bekleyen komut sessizce asılı kalmasın.
+                    try { process.outputStream.close() } catch (_: Exception) {}
+                    tab.process = process
+                    ApplicationManager.getApplication().invokeLater { stop.isEnabled = true }
+
+                    val reader = java.io.InputStreamReader(process.inputStream, Charsets.UTF_8)
+                    val buf = CharArray(2048)
+                    while (!tab.cancelled) {
+                        val n = reader.read(buf)
+                        if (n < 0) break
+                        val chunk = String(buf, 0, n)
+                        ApplicationManager.getApplication().invokeLater { tab.appendRaw(chunk) }
+                    }
+                    val exit = process.waitFor()
+                    val süre = (System.currentTimeMillis() - başlangıç) / 1000
+                    ApplicationManager.getApplication().invokeLater {
+                        stop.isEnabled = false
+                        if (exit == 0) {
+                            tab.appendDim("─── bitti (${süre}s) ───")
+                            tab.setStatus("✓ ${süre}s")
+                        } else {
+                            tab.appendError("─── çıkış $exit (${süre}s) ───")
+                            tab.setStatus("✗ çıkış $exit · ${süre}s")
+                        }
+                    }
+                } catch (e: Exception) {
+                    ApplicationManager.getApplication().invokeLater {
+                        stop.isEnabled = false
+                        tab.appendError("komut çalıştırılamadı: ${e.message}")
+                    }
+                }
+            }
         }
 
         /** Proje başına Interactive sekmesi — aksiyonlar girdi kutusunu buradan bulur. */

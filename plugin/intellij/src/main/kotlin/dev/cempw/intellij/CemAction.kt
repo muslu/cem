@@ -206,6 +206,9 @@ sealed class CemAction(val mode: Mode) : AnAction() {
             val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("cem")
                 ?: return
             val tab = CemTab.newRun(toolWindow, mode.name.lowercase(), prompt.take(80))
+            // Sohbete devam kutusu: araç soru sorduğunda ya da kullanıcı
+            // "şunu da ekle" demek istediğinde aynı sekmede yeni tur açılır.
+            tab.enableFollowUp(project, mode)
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {
                     runCem(project, mode, prompt, tab)
@@ -218,7 +221,36 @@ sealed class CemAction(val mode: Mode) : AnAction() {
             }
         }
 
-        private fun runCem(project: Project, mode: Mode, prompt: String, tab: CemTab) {
+        /**
+         * Aynı sekmede devam turu: önceki turlar bağlam olarak gönderilir.
+         *
+         * cem'in oturumu yok — her çağrı yeni bir süreç. Devam etmenin tek
+         * yolu önceki konuşmayı metin olarak taşımak (CemTab.followUpPrompt),
+         * o yüzden bağlam kırpılıyor: her tur yeniden faturalanıyor.
+         */
+        fun continueInTab(project: Project, tab: CemTab, mode: Mode, message: String) {
+            val prompt = tab.followUpPrompt(message)
+            ApplicationManager.getApplication().executeOnPooledThread {
+                try {
+                    runCem(project, mode, prompt, tab, requestForTranscript = message)
+                } catch (e: Exception) {
+                    LOG.warn("cem follow-up failed", e)
+                    ApplicationManager.getApplication().invokeLater {
+                        tab.appendError("Failed to invoke cem: ${e.message}")
+                    }
+                } finally {
+                    tab.setInputEnabled(true)
+                }
+            }
+        }
+
+        private fun runCem(
+            project: Project,
+            mode: Mode,
+            prompt: String,
+            tab: CemTab,
+            requestForTranscript: String = prompt,
+        ) {
             val cemPath = resolveCemBinary()
             val workDir = project.basePath
             val cmd = mutableListOf(cemPath)
@@ -275,6 +307,11 @@ sealed class CemAction(val mode: Mode) : AnAction() {
                 }
             }
             val totalSecs = (System.currentTimeMillis() - startTime) / 1000
+            // Turu döküme yaz: bir sonraki "sohbete devam" isteği bunu bağlam
+            // olarak gönderiyor. Gönderilen prompt DEĞİL, kullanıcının yazdığı
+            // istek kaydediliyor — devam turunda prompt zaten önceki dökümü
+            // içeriyor, onu tekrar eklemek bağlamı her turda katlardı.
+            tab.noteExchange(requestForTranscript, fullOutput.toString())
             // Tab kapatıldıysa final mesajı yazmıyoruz — content zaten gitti
             if (tab.cancelled) return
             ApplicationManager.getApplication().invokeLater {
@@ -285,6 +322,7 @@ sealed class CemAction(val mode: Mode) : AnAction() {
                     tab.appendDim("─── done in ${totalSecs}s ───")
                     tab.setStatus("✓ done  ·  ${totalSecs}s")
                 }
+                tab.setInputEnabled(true)
             }
         }
     }

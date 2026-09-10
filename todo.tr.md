@@ -223,3 +223,10 @@ kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarı
       sihirbaz teklif ediliyor ve sonrasında kayıt DOĞRULANIYOR (Ctrl+C ile
       kesilen sihirbaz yarım durum bırakıyordu); terminal yoksa (eklenti,
       pipe, CI) `cem setup` deyip çıkıyor.
+- [x] Eklentide sohbete devam: her çalıştırma sekmesinin altında giriş kutusu
+      var, önceki turlar bağlam olarak gidiyor (son 4000 karaktere kırpılı —
+      bağlam her turda yeniden faturalanıyor). Araç soru sorduğunda cevap
+      verilecek yer yoktu; her istek tek seferlikti.
+- [x] Eklentide Terminal sekmesi: komutlar proje kökünde, kabuk üzerinden
+      (pipe / && / yönlendirme çalışıyor), ⏹ ile durdurma. Tam pty değil —
+      interaktif programlar için IDE'nin kendi terminali.

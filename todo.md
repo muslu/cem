@@ -271,3 +271,10 @@ on first run, then builds → signs → verifies the signature.
       offers the wizard and re-verifies what was saved (a wizard interrupted
       with Ctrl+C left the same half state); without one (plugin, pipe, CI) it
       prints `cem setup` and exits.
+- [x] Plugin: keep talking in a run tab. Each run tab now has an input box and
+      carries the earlier turns as context (trimmed to 4000 characters —
+      context is billed again every turn). A question from the tool had nowhere
+      to be answered; every request was one-shot.
+- [x] Plugin: Terminal tab. Commands run in the project root through the shell
+      (pipes, `&&`, redirects work), `⏹` stops one. Not a full pty — the IDE's
+      own terminal stays the place for interactive programs.
