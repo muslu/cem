@@ -10,11 +10,10 @@ metadata:
 `plugin/intellij` derlemesi (`gradle compileKotlin` / `buildPlugin`) bu makinede
 iki nedenle düz çalışmıyor; ikisi de ölçüldü (2026-09-09):
 
-1. **JDK 21 kurulu değil.** `/usr/lib/jvm` yalnız 8/11, `~/.jdks` yalnız
-   temurin-17. Gradle'ın kendisi JVM 17+ istiyor (JAVA_HOME=temurin-17),
-   toolchain ise 21 istiyor. Kalıcı çözüm: `sudo nala install openjdk-21-jdk`
-   ya da Temurin 21'i `~/.jdks` altına açıp
-   `-Porg.gradle.java.installations.paths=<yol>` ile göstermek.
+1. **JDK 21 gerekiyor** (`/usr/lib/jvm` yalnız 8/11). Gradle'ın kendisi JVM 17+
+   istiyor (JAVA_HOME=temurin-17), toolchain ise 21. 2026-09-10'da Temurin 21
+   kalıcı olarak `~/.jdks/jdk-21.0.12.1+1` altına açıldı; derlerken
+   `-Porg.gradle.java.installations.paths=$HOME/.jdks/jdk-21.0.12.1+1` ver.
 2. **Türkçe locale derlemeyi kırıyor.** tr_TR'de büyük harfe çevirme
    `APPLICATION` yerine `APPLİCATİON` üretiyor ve plugin-structure IDE
    descriptor'ını okuyamıyor:
@@ -23,4 +22,6 @@ iki nedenle düz çalışmıyor; ikisi de ölçüldü (2026-09-09):
    ile çalıştır.
 
 Gradle wrapper binary'si depoda yok; `~/.gradle/wrapper/dists/gradle-9.3.1-bin/*/gradle-9.3.1/bin/gradle`
-kullanılıyor. Ölçmeden göndermeme kuralı için [[feedback-olcerek-gonder]].
+kullanılıyor. `buildPlugin` **`--offline` ile çalışmıyor**:
+`java-compiler-ant-tasks` (instrumentCode) cache'te yok, ağ gerekiyor —
+`compileKotlin` offline yeterli. Ölçmeden göndermeme kuralı için [[feedback-olcerek-gonder]].

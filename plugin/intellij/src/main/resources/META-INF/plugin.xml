@@ -19,7 +19,7 @@
 
         <h3>How to use it</h3>
         <ol>
-            <li>Select some code in the editor. <i>No selection = a prompt dialog opens.</i></li>
+            <li>Select some code in the editor. <i>No selection = the cursor lands in the input box at the bottom of the cem tool window.</i></li>
             <li>Press a shortcut, or use <b>Tools &rarr; cem</b> / the editor context menu.</li>
             <li>Read the result in the <b>cem</b> tool window at the bottom — each run gets its own tab.</li>
         </ol>
@@ -39,10 +39,13 @@
                 <i>"add retries with exponential backoff"</i></li>
             <li>Select a failing test &rarr; <code>Ctrl+Alt+I</code> &rarr;
                 <i>"why does this fail?"</i> — reasoning only, nothing is written</li>
-            <li>No selection &rarr; <code>Ctrl+Alt+W</code> &rarr; a prompt dialog opens;
+            <li>No selection &rarr; <code>Ctrl+Alt+W</code> &rarr; the input box opens in
+                <b>write</b> mode, ready to type;
                 to send a whole file, right-click it in the project tree
                 (<b>cem: review file… / ask about file…</b>)</li>
-            <li><b>Interactive</b> tab: type a prompt and press Enter, like a REPL;
+            <li><b>Interactive</b> tab: type a prompt and press Enter, like a REPL.
+                The selector on the left picks the mode (pair / think / write),
+                <code>Shift+Enter</code> adds a line and
                 <code>&uarr;</code>/<code>&darr;</code> walk through earlier prompts</li>
         </ul>
 
@@ -99,21 +102,21 @@
             <action id="dev.cempw.intellij.ThinkAction"
                     class="dev.cempw.intellij.CemAction$Think"
                     text="cem: think on selection"
-                    description="Send selected text to the cem thinker. Empty selection → input dialog.">
+                    description="Send selected text to the cem thinker. Empty selection → type in the tool window input box.">
                 <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt I"/>
             </action>
 
             <action id="dev.cempw.intellij.WriteAction"
                     class="dev.cempw.intellij.CemAction$Write"
                     text="cem: write on selection"
-                    description="Send selected text to the cem writer. Empty selection → input dialog.">
+                    description="Send selected text to the cem writer. Empty selection → type in the tool window input box.">
                 <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt W"/>
             </action>
 
             <action id="dev.cempw.intellij.PairAction"
                     class="dev.cempw.intellij.CemAction$Pair"
                     text="cem: pair on selection"
-                    description="Run cem pair mode (thinker → writer). Empty selection → input dialog.">
+                    description="Run cem pair mode (thinker → writer). Empty selection → type in the tool window input box.">
                 <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt P"/>
             </action>
 
@@ -122,7 +125,7 @@
             <action id="dev.cempw.intellij.AskAction"
                     class="dev.cempw.intellij.CemAskAction"
                     text="cem: ask freely…"
-                    description="Open a prompt dialog and run cem -p (no editor required).">
+                    description="Focus the cem input box and run cem -p (no editor required).">
                 <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt A"/>
             </action>
         </group>

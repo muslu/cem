@@ -187,3 +187,9 @@
       yazılır?" ran the writer (because the thinker's answer had a code block)
       and left an unwanted `hello.lua` in the working directory. Questions skip
       the writer; polite imperatives ("siler misin?") still don't.
+- [x] IntelliJ plugin: the prompt no longer arrives in a modal dialog. A
+      shortcut with no selection focuses a multi-line input box at the bottom
+      of the tool window with the mode preselected (`pair`/`think`/`write`
+      selector on its left); Enter sends, Shift+Enter adds a line, ↑/↓ still
+      walk the history. "ask about file…" attaches the file as context and
+      waits for the instruction in the same box.

@@ -45,6 +45,14 @@ sealed class CemAction(val mode: Mode) : AnAction() {
         launchCem(project, mode, text)
     }
 
+    /** Seçim yokken gösterilecek ipucu — açık dosya varsa adıyla. */
+    private fun noSelectionHint(fileName: String?): String =
+        if (fileName != null) {
+            "  ↓ ${mode.name.lowercase()} · seçim yok (açık dosya: $fileName) — sorunu aşağıya yaz, Enter ↵"
+        } else {
+            "  ↓ ${mode.name.lowercase()} · sorunu aşağıya yaz, Enter ↵"
+        }
+
     /**
      * Seçim yoksa AÇIK DOSYAYI PROMPT SANMA.
      *
@@ -65,6 +73,11 @@ sealed class CemAction(val mode: Mode) : AnAction() {
         val fileName = editor?.let {
             FileDocumentManager.getInstance().getFile(it.document)?.name
         }
+        // Modal dialog yerine araç penceresinin altındaki girdi kutusu:
+        // dialog ekranın ortasını kapatıyor, fare istiyor ve iptal edilince
+        // yazılan metin kayboluyordu. Kutu kalıcı — mod da orada görünür.
+        // Araç penceresi hiç yoksa (kayıt edilmemişse) dialog'a düşeriz.
+        if (CemTab.askInInput(project, mode, null, noSelectionHint(fileName))) return null
         val message = if (fileName != null) {
             "cem'e ne sormak istiyorsun? (seçim yok — açık dosya: $fileName)"
         } else {
@@ -284,6 +297,11 @@ sealed class CemAction(val mode: Mode) : AnAction() {
 class CemAskAction : AnAction() {
     override fun actionPerformed(event: AnActionEvent) {
         val project = event.project ?: return
+        if (CemTab.askInInput(
+                project, CemAction.Mode.PAIR, null,
+                "  ↓ pair · sorunu aşağıya yaz, Enter ↵",
+            )
+        ) return
         val prompt = CemAction.promptUser(project, "What do you want to ask cem?") ?: return
         CemAction.launchCem(project, CemAction.Mode.PAIR, prompt)
     }
@@ -331,16 +349,24 @@ sealed class CemFileAction(private val instruction: String) : AnAction() {
             Messages.showWarningDialog(project, "Seçili dosyaların hiçbiri okunamadı.", "cem")
             return
         }
-        val actualInstruction = if (instruction == "__ASK__") {
-            CemAction.promptUser(
+        val context = sb.toString().trim()
+        if (instruction == "__ASK__") {
+            // Talimat girdi kutusunda alınır; dosya içeriği bağlam olarak
+            // bekletilir ve Enter'a basıldığında prompt'un altına eklenir.
+            val names = files.filter { !it.isDirectory }.joinToString(", ") { it.name }
+            if (CemTab.askInInput(
+                    project, CemAction.Mode.PAIR, context,
+                    "  ↓ pair · $names eklendi — talimatını aşağıya yaz, Enter ↵",
+                )
+            ) return
+            val typed = CemAction.promptUser(
                 project,
                 "Bu dosya(lar) için cem'e ne sormak istiyorsun?",
             ) ?: return
-        } else {
-            instruction
+            CemAction.launchCem(project, CemAction.Mode.PAIR, "$typed\n\n$context")
+            return
         }
-        val prompt = "$actualInstruction\n\n${sb.toString().trim()}"
-        CemAction.launchCem(project, CemAction.Mode.PAIR, prompt)
+        CemAction.launchCem(project, CemAction.Mode.PAIR, "$instruction\n\n$context")
     }
 
     private fun readFile(file: VirtualFile): String? = try {

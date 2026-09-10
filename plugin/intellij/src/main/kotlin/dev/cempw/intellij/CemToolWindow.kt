@@ -4,18 +4,24 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.wm.IdeFocusManager
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
+import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.components.JBTextField
 import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentFactory
 import java.awt.BorderLayout
 import java.awt.event.ActionEvent
+import java.util.WeakHashMap
 import javax.swing.AbstractAction
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JTextArea
 import javax.swing.JTextPane
 import javax.swing.KeyStroke
+import javax.swing.ScrollPaneConstants
 import javax.swing.text.SimpleAttributeSet
 import javax.swing.text.StyleConstants
 
@@ -59,6 +65,16 @@ class CemTab {
     val statusLabel = JLabel(" ")
     /** Çalışan subprocess. Tab kapanırsa öldürülür. */
     @Volatile var process: Process? = null
+    /** Interactive sekmesinin girdi alanı — yalnız o sekmede dolu. */
+    private var inputArea: JTextArea? = null
+    /** Interactive sekmesinin mod seçici (pair / think / write). */
+    private var modeBox: ComboBox<CemAction.Mode>? = null
+    /**
+     * Girdinin ALTINA iliştirilecek bağlam (ör. dosya içeriği). Kullanıcı
+     * talimatını yazıp Enter'a basınca prompt'a eklenir ve TEMİZLENİR —
+     * yoksa bir sonraki soruya da yapışır ve iki kere faturalanır.
+     */
+    @Volatile private var pendingContext: String? = null
     /** Tab kapatıldı mı (idempotency için). */
     @Volatile var cancelled = false
 
@@ -77,6 +93,28 @@ class CemTab {
     fun setStatus(text: String) {
         com.intellij.openapi.application.ApplicationManager.getApplication()
             .invokeLater { statusLabel.text = " $text" }
+    }
+
+    /**
+     * Girdi kutusunu bir istek için hazırla: modu seç, bağlamı iliştir,
+     * imleci içine al. Kısayollar artık modal dialog yerine burayı kullanıyor.
+     */
+    fun prepareInput(mode: CemAction.Mode, context: String?, hint: String?) {
+        val area = inputArea ?: return
+        modeBox?.selectedItem = mode
+        pendingContext = context
+        hint?.let { appendDim(it) }
+        IdeFocusManager.getGlobalInstance().doWhenFocusSettlesDown {
+            area.requestFocusInWindow()
+            area.caretPosition = area.document.length
+        }
+    }
+
+    /** Bekleyen bağlamı alıp temizler (tek kullanımlık). */
+    private fun takePendingContext(): String? {
+        val c = pendingContext
+        pendingContext = null
+        return c
     }
 
     /** Tab kapatıldığında çağırılır: subprocess'i öldür. */
@@ -177,9 +215,10 @@ class CemTab {
             ⚡ cem — Compose · Execute · Multiplex
             One command, many AIs.
 
-            Aşağıdaki input'a sorunu yaz, Enter'a bas → cem -p "..." (pair)
-            Düşünen plan yapar, yazan kodu yazar; soru kod istemiyorsa
-            yazan otomatik atlanır — sekme adı yine "pair" görünür.
+            Aşağıdaki kutuya sorunu yaz, Enter'a bas. Soldaki seçici modu
+            belirler: pair (düşünen → yazan) · think · write.
+            Enter gönderir, Shift+Enter satır atlar, ↑/↓ önceki promptlar.
+            Soru kod istemiyorsa yazan otomatik atlanır.
 
             Editör shortcut'ları:
               Ctrl+Alt+I  →  cem: think on selection
@@ -187,7 +226,8 @@ class CemTab {
               Ctrl+Alt+P  →  cem: pair on selection (thinker → writer)
               Ctrl+Alt+A  →  cem: ask freely (custom prompt)
 
-            Tip: editör seçimi olmadan kısayol → input dialog açılır.
+            Seçim yokken kısayola basmak dialog açmaz: modu ayarlayıp
+            imleci aşağıdaki kutuya getirir.
             Settings → Tools → cem ile thinker/writer/model değiştirilir.
 
             ─── geçmiş ───
@@ -213,12 +253,38 @@ class CemTab {
             val tab = CemTab()
             tab.appendStyled(welcomeText(), bold = false, color = JBColor.GRAY)
 
-            val input = JBTextField()
-            input.toolTipText = "Sorunu yaz, Enter ↵   ·   ↑/↓ önceki/sonraki prompt"
+            // Tek satırlık alan yerine ÇOK SATIRLI kutu: kısayollar artık modal
+            // dialog yerine buraya odaklanıyor, dialog'un tek üstünlüğü olan
+            // çok-satırlı yazma imkânı kaybolmamalı. Enter gönderir,
+            // Shift+Enter satır atlar.
+            val input = JTextArea(2, 20).apply {
+                lineWrap = true
+                wrapStyleWord = true
+                toolTipText = "Enter ↵ gönder · Shift+Enter satır atla · ↑/↓ önceki prompt"
+            }
+            // Mod seçici: dialog'lu akışta mod kısayolla sabitleniyordu
+            // (Ctrl+Alt+W = write). Girdi kutuya taşınınca modun da burada
+            // görünür ve değiştirilebilir olması gerekiyor.
+            val modeBox = ComboBox(arrayOf(CemAction.Mode.PAIR, CemAction.Mode.THINK, CemAction.Mode.WRITE)).apply {
+                renderer = SimpleListCellRenderer.create("") { it.name.lowercase() }
+                toolTipText = "pair: düşünen → yazan · think: sadece düşünen · write: sadece yazan"
+            }
+            tab.inputArea = input
+            tab.modeBox = modeBox
 
             val inputPanel = JPanel(BorderLayout()).apply {
-                add(JLabel(" cem ›  "), BorderLayout.WEST)
-                add(input, BorderLayout.CENTER)
+                add(JPanel(BorderLayout()).apply {
+                    add(modeBox, BorderLayout.WEST)
+                    add(JLabel("  › "), BorderLayout.EAST)
+                }, BorderLayout.WEST)
+                add(
+                    JBScrollPane(
+                        input,
+                        ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+                        ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER,
+                    ),
+                    BorderLayout.CENTER,
+                )
             }
             // statusLabel zaten SOUTH; input'u onun ÜZERİNE koy (south wrap içinde)
             tab.component.remove(tab.statusLabel)
@@ -234,23 +300,40 @@ class CemTab {
             var historyIndex = 0
             var draft = ""
 
-            input.actionMap.put("submit", object : AbstractAction() {
+            // JTextArea'da ↑/↓ imleci satır atlatır. Çok satırlı bir taslakta
+            // tarihçeye atlamak yazılanı çöpe atardı: metin tek satırsa tarihçe,
+            // değilse aracın kendi imleç hareketi çalışır.
+            val caretUp = input.getActionForKeyStroke(KeyStroke.getKeyStroke("UP"))
+            val caretDown = input.getActionForKeyStroke(KeyStroke.getKeyStroke("DOWN"))
+
+            input.actionMap.put("cem.submit", object : AbstractAction() {
                 override fun actionPerformed(e: ActionEvent) {
-                    val prompt = input.text.trim()
-                    if (prompt.isEmpty()) return
+                    val typed = input.text.trim()
+                    if (typed.isEmpty()) return
+                    val mode = modeBox.selectedItem as? CemAction.Mode ?: CemAction.Mode.PAIR
+                    val context = tab.takePendingContext()
+                    val prompt = if (context != null) "$typed\n\n$context" else typed
                     input.text = ""
                     // Duplikatları arka arkaya eklemeyiz (bash HIST_IGNORE_DUPS).
-                    if (history.isEmpty() || history.last() != prompt) history.add(prompt)
+                    if (history.isEmpty() || history.last() != typed) history.add(typed)
                     historyIndex = history.size
                     draft = ""
-                    tab.appendDim("→ yeni tab: $prompt")
-                    CemAction.launchCem(project, CemAction.Mode.PAIR, prompt)
+                    tab.appendDim("→ ${mode.name.lowercase()}: ${promptSnippet(typed, 80)}")
+                    CemAction.launchCem(project, mode, prompt)
                 }
             })
-            input.inputMap.put(KeyStroke.getKeyStroke("ENTER"), "submit")
+            input.inputMap.put(KeyStroke.getKeyStroke("ENTER"), "cem.submit")
 
-            input.actionMap.put("history.prev", object : AbstractAction() {
+            input.actionMap.put("cem.newline", object : AbstractAction() {
                 override fun actionPerformed(e: ActionEvent) {
+                    input.insert("\n", input.caretPosition)
+                }
+            })
+            input.inputMap.put(KeyStroke.getKeyStroke("shift ENTER"), "cem.newline")
+
+            input.actionMap.put("cem.history.prev", object : AbstractAction() {
+                override fun actionPerformed(e: ActionEvent) {
+                    if (input.text.contains('\n')) { caretUp?.actionPerformed(e); return }
                     if (history.isEmpty()) return
                     // İlk ↑ basışında mevcut taslağı kaydet
                     if (historyIndex == history.size) draft = input.text
@@ -261,19 +344,51 @@ class CemTab {
                     }
                 }
             })
-            input.inputMap.put(KeyStroke.getKeyStroke("UP"), "history.prev")
+            input.inputMap.put(KeyStroke.getKeyStroke("UP"), "cem.history.prev")
 
-            input.actionMap.put("history.next", object : AbstractAction() {
+            input.actionMap.put("cem.history.next", object : AbstractAction() {
                 override fun actionPerformed(e: ActionEvent) {
+                    if (input.text.contains('\n')) { caretDown?.actionPerformed(e); return }
                     if (historyIndex >= history.size) return
                     historyIndex++
                     input.text = if (historyIndex == history.size) draft else history[historyIndex]
                     input.caretPosition = input.text.length
                 }
             })
-            input.inputMap.put(KeyStroke.getKeyStroke("DOWN"), "history.next")
+            input.inputMap.put(KeyStroke.getKeyStroke("DOWN"), "cem.history.next")
 
+            interactiveTabs[project] = tab
             return tab
+        }
+
+        /** Proje başına Interactive sekmesi — aksiyonlar girdi kutusunu buradan bulur. */
+        private val interactiveTabs = WeakHashMap<Project, CemTab>()
+
+        /**
+         * Prompt'u modal dialog yerine araç penceresinin ALTINDAKİ kutuda ister.
+         *
+         * Dialog her seferinde ekranın ortasını kapatıyor, fare gerektiriyor ve
+         * kapanınca yazılan metin kayboluyordu; ayrıca aynı iş için iki ayrı
+         * girdi yeri (dialog + Interactive sekmesi) vardı. Artık tek yer var:
+         * kısayol kutuyu hazırlar, kullanıcı yazıp Enter'a basar.
+         *
+         * false dönerse araç penceresi yok — çağıran dialog'a düşer.
+         */
+        fun askInInput(
+            project: Project,
+            mode: CemAction.Mode,
+            context: String? = null,
+            hint: String? = null,
+        ): Boolean {
+            val tw = ToolWindowManager.getInstance(project).getToolWindow("cem") ?: return false
+            tw.activate({
+                val tab = interactiveTabs[project] ?: return@activate
+                tw.contentManager.contents
+                    .firstOrNull { it.component === tab.component }
+                    ?.let { tw.contentManager.setSelectedContent(it) }
+                tab.prepareInput(mode, context, hint)
+            }, true, true)
+            return true
         }
 
         /**

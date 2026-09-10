@@ -142,3 +142,8 @@
       düşünenin cevabında kod bloğu olduğu için yazan çalışıyor ve çalışma
       dizinine istenmeyen `hello.lua` bırakıyordu. Sorularda yazan atlanıyor;
       rica kipi ("siler misin?") iş sayılmaya devam ediyor.
+- [x] IntelliJ eklentisi: prompt artık modal dialog'da istenmiyor. Seçim
+      yokken kısayol, araç penceresinin altındaki çok satırlı kutuya odaklanıp
+      modu seçiyor (solda `pair`/`think`/`write` seçici); Enter gönderiyor,
+      Shift+Enter satır atlıyor, ↑/↓ tarihçede geziyor. "dosya hakkında sor…"
+      dosyayı bağlam olarak iliştirip talimatı aynı kutuda bekliyor.
