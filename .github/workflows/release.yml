@@ -71,8 +71,8 @@ jobs:
           java-version: '21'
 
       - uses: gradle/actions/setup-gradle@v4
-        # Default Gradle (9.x). IntelliJ Platform Gradle Plugin 2.16+ Gradle 9.0+
-        # gerektiriyor. Deprecation uyarıları olabilir, build başarısız olmaz.
+        # Gradle sürümü wrapper'dan (9.3.1) geliyor — runner'ın varsayılan
+        # Gradle'ı güncellendiğinde build sessizce değişmesin.
 
       - name: Sync pluginVersion to tag
         working-directory: plugin/intellij
@@ -83,7 +83,7 @@ jobs:
 
       - name: Build plugin
         working-directory: plugin/intellij
-        run: gradle buildPlugin --no-daemon --warning-mode all
+        run: ./gradlew buildPlugin --no-daemon --warning-mode all
 
       - name: Rename + version-less alias
         working-directory: plugin/intellij/build/distributions
@@ -166,7 +166,7 @@ jobs:
       # hatası publish'i durdursun, kullanıcıya kırık eklenti gitmesin.
       - name: Verify plugin
         working-directory: plugin/intellij
-        run: gradle verifyPlugin --no-daemon
+        run: ./gradlew verifyPlugin --no-daemon
 
       # publishPlugin, signPlugin'i kendisi çalıştırır.
       - name: Publish plugin
@@ -176,7 +176,7 @@ jobs:
           CERTIFICATE_CHAIN:    ${{ secrets.CERTIFICATE_CHAIN }}
           PRIVATE_KEY:          ${{ secrets.PRIVATE_KEY }}
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
-        run: gradle publishPlugin --no-daemon
+        run: ./gradlew publishPlugin --no-daemon
 
   build-vscode-extension:
     name: VS Code extension

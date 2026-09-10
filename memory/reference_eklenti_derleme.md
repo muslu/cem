@@ -1,6 +1,6 @@
 ---
 name: reference-eklenti-derleme
-description: IntelliJ eklentisini yerelde derlemenin iki tuzağı — JDK 21 yok, tr_TR locale derlemeyi kırıyor
+description: IntelliJ eklentisini yerelde derleme — wrapper + JDK 21 ayarı yapıldı, tr_TR locale tuzağı sürüyor
 metadata:
   type: reference
 ---
@@ -10,10 +10,12 @@ metadata:
 `plugin/intellij` derlemesi (`gradle compileKotlin` / `buildPlugin`) bu makinede
 iki nedenle düz çalışmıyor; ikisi de ölçüldü (2026-09-09):
 
-1. **JDK 21 gerekiyor** (`/usr/lib/jvm` yalnız 8/11). Gradle'ın kendisi JVM 17+
-   istiyor (JAVA_HOME=temurin-17), toolchain ise 21. 2026-09-10'da Temurin 21
-   kalıcı olarak `~/.jdks/jdk-21.0.12.1+1` altına açıldı; derlerken
-   `-Porg.gradle.java.installations.paths=$HOME/.jdks/jdk-21.0.12.1+1` ver.
+1. **JDK 21 gerekiyor** (`/usr/lib/jvm` yalnız 8/11, PATH'teki java 11 — Gradle 9
+   en az 17 istiyor). Temurin 21 `~/.jdks/jdk-21.0.12.1+1` altında.
+   **2026-09-10'da çözüldü:** `~/.gradle/gradle.properties` içine
+   `org.gradle.java.home=/home/muslu/.jdks/jdk-21.0.12.1+1` yazıldı (makineye
+   özgü olduğu için repoya değil, kullanıcı düzeyine). Artık komut başına
+   JAVA_HOME/`-P` vermek gerekmiyor; başka makinede aynı satırı eklemek gerekir.
 2. **Türkçe locale derlemeyi kırıyor.** tr_TR'de büyük harfe çevirme
    `APPLICATION` yerine `APPLİCATİON` üretiyor ve plugin-structure IDE
    descriptor'ını okuyamıyor:
@@ -21,10 +23,10 @@ iki nedenle düz çalışmıyor; ikisi de ölçüldü (2026-09-09):
    `LC_ALL=en_US.UTF-8` + `-Dorg.gradle.jvmargs=-Duser.language=en -Duser.country=US`
    ile çalıştır.
 
-Gradle wrapper binary'si depoda yok; `~/.gradle/wrapper/dists/gradle-9.3.1-bin/*/gradle-9.3.1/bin/gradle`
-kullanılıyor. `buildPlugin` **`--offline` ile çalışmıyor**:
-`java-compiler-ant-tasks` (instrumentCode) cache'te yok, ağ gerekiyor —
-`compileKotlin` offline yeterli. Ölçmeden göndermeme kuralı için [[feedback-olcerek-gonder]].
+**2026-09-10:** Gradle wrapper depoya eklendi (`plugin/intellij/gradlew`,
+Gradle 9.3.1) — `gradle` PATH'te yok, artık `./gradlew` kullan; CI de wrapper'a
+çevrildi. `buildPlugin --offline` artık ÇALIŞIYOR (`java-compiler-ant-tasks`
+cache'e girdi); ilk kez indirmek gerekirse ağ şart. Ölçmeden göndermeme kuralı için [[feedback-olcerek-gonder]].
 
 **Yerelde kurma + "hâlâ eski davranıyor" tuzağı.** Eklenti hatası bildirildiğinde
 önce KURULU jar'ın sürümünü doğrula, kaynağı değil:
