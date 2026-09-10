@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
@@ -104,10 +105,10 @@ class CemTab {
         modeBox?.selectedItem = mode
         pendingContext = context
         hint?.let { appendDim(it) }
-        IdeFocusManager.getGlobalInstance().doWhenFocusSettlesDown {
+        IdeFocusManager.getGlobalInstance().doWhenFocusSettlesDown({
             area.requestFocusInWindow()
             area.caretPosition = area.document.length
-        }
+        }, ModalityState.defaultModalityState())
     }
 
     /** Bekleyen bağlamı alıp temizler (tek kullanımlık). */
@@ -266,7 +267,9 @@ class CemTab {
             // (Ctrl+Alt+W = write). Girdi kutuya taşınınca modun da burada
             // görünür ve değiştirilebilir olması gerekiyor.
             val modeBox = ComboBox(arrayOf(CemAction.Mode.PAIR, CemAction.Mode.THINK, CemAction.Mode.WRITE)).apply {
-                renderer = SimpleListCellRenderer.create("") { it.name.lowercase() }
+                renderer = SimpleListCellRenderer.create<CemAction.Mode> { label, value, _ ->
+                    label.text = value.name.lowercase()
+                }
                 toolTipText = "pair: düşünen → yazan · think: sadece düşünen · write: sadece yazan"
             }
             tab.inputArea = input

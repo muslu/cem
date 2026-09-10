@@ -68,3 +68,23 @@ ss -s
 curl -s https://cem.pw/health
 # Nginx durum (stub_status modülü gerekir):
 # curl http://localhost/nginx_status
+
+## MARKETPLACE WIDGET (cem.pw — GitHub'da ÇALIŞMAZ)
+# GitHub, README markdown'ından <iframe> ve <script> etiketlerini temizliyor;
+# JetBrains gömülebilir widget'ları yalnız cem.pw sayfalarında çalışır. README
+# bunun yerine shields.io rozetleri kullanıyor (plugin id 34196).
+#
+# Eklenti kartı (384×319) ve tek tık kurulum butonu (245×48):
+#   <iframe width="384px" height="319px"
+#           src="https://plugins.jetbrains.com/embeddable/card/34196"></iframe>
+#   <iframe width="245px" height="48px"
+#           src="https://plugins.jetbrains.com/embeddable/install/34196"></iframe>
+#
+# Script sürümü — sayfada hedef bir element gerekiyor:
+#   <div id="cem-install"></div>
+#   <script src="https://plugins.jetbrains.com/assets/scripts/mp-widget.js"></script>
+#   <script>MarketplaceWidget.setupMarketplaceWidget('install', 34196, '#cem-install');</script>
+#
+# CSP: iki sürüm de plugins.jetbrains.com'dan yükleniyor; bu host frame-src
+# (iframe) veya script-src (script sürümü) içinde izinli olmalı. CSP'ye
+# dokunmadan script sürümünü eklersen sessizce çalışmaz — buton hiç görünmez.

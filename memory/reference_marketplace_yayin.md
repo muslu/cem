@@ -8,10 +8,25 @@ metadata:
 > Not: Eklenti derleme tuzakları (JDK 21, tr_TR locale) [[reference-eklenti-derleme]]'de;
 > imza/jvmTarget gerekçeleri `plugin/intellij/build.gradle.kts` yorumlarında tutuluyor — burada tekrar yok.
 
-**Durum (2026-09-10):** Eklenti henüz Marketplace'te DEĞİL; dağıtım
-`updatePlugins.xml` custom repository ile GitHub releases üzerinden yapılıyor.
-Repo tarafı yayına hazır (imza yapılandırması, `verifyPlugin`, `CHANGELOG.md`,
-ad `cem`, CalVer sürüm, uyuyan `publish-intellij-plugin` CI job'ı).
+**Durum (2026-09-10):** Eklenti Marketplace'te — **sayfa 34196**
+(`plugins.jetbrains.com/plugin/34196`), ilk yükleme kullanıcı tarafından elle
+yapıldı. `updatePlugins.xml` custom repository akışı yedek olarak duruyor.
+
+**Tek komutla yayın:** `./surum-yayinla.sh` (kullanıcı "yayınla" dediğinde
+çalıştırılacak — ayrıntı CLAUDE.tr.md "Git & Release"). Marketplace adımı
+`~/.cem-signing/parola` + `~/.cem-signing/token` dosyalarına bakıyor (chmod
+600); yoksa GitHub'da kalıyor.
+
+**Uyumluluk raporu (verifier 1.410, 2026-09-10):** iki uyarı geldi ve
+düzeltildi — `SimpleListCellRenderer.create(String, Function)` kaldırılmak
+üzereydi (3 argümanlı customizer'a geçildi), `doWhenFocusSettlesDown(Runnable)`
+deprecated'di (ModalityState'li imza). 2024.3.7.1 zaten Success'ti; uyarılar
+2025.1+ sürümlerde çıkıyordu.
+
+**Marketplace görselleri:** `docs/img/market-{pair,input,menu}[.tr].png`,
+tam 1200x760 (Marketplace minimumu). `docs/img/market-gorseller.py` ile
+yeniden üretiliyor (headless Chrome 2x → convert ile küçültme). Bunlar IDE
+mock-up'ı; gerçek ekran görüntüsü değil.
 
 **Yayın kimliği:** plugin id `dev.cempw.cem` (DEĞİŞMEZ; `dev.cempw.intellij` Marketplace tarafından reddedildi — ID 'intellij' içeremiyor), vendor maili
 `musluyuksektepe@gmail.com` (kullanıcının seçimi — `hi@cem.pw` yerine, çünkü

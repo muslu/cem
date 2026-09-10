@@ -97,16 +97,24 @@ sunucusu için.
 
 ## Git & Release
 
-- **Canonical repo:** `https://github.com/muslu/cem.git`
-- **Mirror:** `.gitlab-ci.yml` ileride self-hosted GitLab mirror için
-  tutuluyor; sadece oraya push edilirse çalışır.
-- **Binary indirme:** `install.sh` / `install.ps1` doğrudan
-  `github.com/muslu/cem/releases/latest/download/...` kullanır.
-  `cem.pw/r/*` nginx route eski script'ler için aynı URL'i proxy eder.
-- **Tag:** `vMAJOR.MINOR.PATCH` (semver).
-  `LDFLAGS -X main.version=...` Makefile ve CI tarafından set edilir.
+**Kullanıcı "yayınla" dediğinde `./surum-yayinla.sh` çalıştır** — yayının
+tamamı bu. Kirli çalışma dizinini reddeder, `go test -race ./...` ve eklenti
+derlemesini koşar, sıradaki `YYYYMMDD.NN` tag'ini seçer, dalı ve tag'i push
+eder (CI 7 platform × 3 binary, eklenti zip'i, `updatePlugins.xml` ve GitHub
+Release'i kendisi yayınlar), sonra eklentiyi imzalayıp JetBrains Marketplace'e
+gönderir. `--kuru` ne yapacağını gösterir, `--sadece-github` Marketplace'i
+atlar, `--surum X` sürümü elle verir. Tag/push adımlarını elle tekrarlama —
+gereken düzeltmeyi script'e yap.
 
----
+Marketplace adımı iki dosya istiyor, ikisi de `chmod 600` ve repo dışında:
+`~/.cem-signing/parola` (imza anahtarı parolası) ve `~/.cem-signing/token`
+(plugins.jetbrains.com token'ı). Biri yoksa script GitHub'da kalır ve hangisini
+istediğini söyler — etrafından dolaşılacak bir hata değil.
+
+- **JetBrains Marketplace:** plugin id `dev.cempw.cem`, sayfa 34196
+  (`https://plugins.jetbrains.com/plugin/34196`). ID `intellij` kelimesini
+  içeremiyor — ilk yükleme bu yüzden reddedildi — ve eklenti yayınlandığı için
+  artık değiştirilemez.
 
 ## Doğrulama Akışı
 

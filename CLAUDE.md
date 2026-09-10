@@ -265,13 +265,32 @@ cem/
 
 ## Git & Release
 
+**When the user says "yayınla" / "publish", run `./surum-yayinla.sh`** — that is
+the whole release. It refuses a dirty tree, runs `go test -race ./...` and the
+plugin compile, picks the next `YYYYMMDD.NN` tag, pushes branch + tag (CI then
+builds 7 platforms × 3 binaries, the plugin zip, `updatePlugins.xml` and
+publishes the GitHub Release), then signs the plugin and sends it to the
+JetBrains Marketplace. `--kuru` shows what it would do, `--sadece-github` skips
+the Marketplace, `--surum X` forces a version. Do not hand-roll the tag/push
+steps; fix the script instead.
+
+The Marketplace step needs two files, both `chmod 600`, both outside the repo:
+`~/.cem-signing/parola` (signing key passphrase) and `~/.cem-signing/token`
+(plugins.jetbrains.com token). If either is missing the script stays on GitHub
+and says which one it wants — that is not an error to work around.
+
+- **JetBrains Marketplace:** plugin id `dev.cempw.cem`, listing 34196
+  (`https://plugins.jetbrains.com/plugin/34196`). The ID cannot contain the word
+  `intellij` — the first upload was rejected for it — and it is immutable now
+  that the plugin is published.
 - **Canonical repo:** `https://github.com/muslu/cem.git` (only remote)
 - **Binary downloads:**
   `install.sh` / `install.ps1` pull directly from
   `github.com/muslu/cem/releases/latest/download/...`. The `cem.pw/r/*`
   Apache rewrite proxies the same URL for older scripts.
-- **Tags:** `vMAJOR.MINOR.PATCH` (semver). `LDFLAGS -X main.version=...`
-  is set by both Makefile and CI.
+- **Tags:** `YYYYMMDD.NN` (calendar; `surum-yayinla.sh` picks the next one).
+  The CI workflow also still accepts the older `vMAJOR.MINOR.PATCH` tags.
+  `LDFLAGS -X main.version=...` is set by both Makefile and CI.
 
 ---
 

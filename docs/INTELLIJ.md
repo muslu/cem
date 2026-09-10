@@ -9,19 +9,29 @@ Turkish: [INTELLIJ.tr.md](INTELLIJ.tr.md)
 ## Install
 
 1. Make sure `cem` is on your PATH (`curl -fsSL cem.pw/install | sh` or PowerShell equivalent — see [README](../README.md)).
-2. Download the plugin zip from the latest release:
-   ```
-   https://github.com/muslu/cem/releases/latest/download/cem-intellij-<version>.zip
-   ```
-3. IDE → **Settings → Plugins → ⚙ (gear icon) → Install Plugin from Disk** → pick the zip.
-4. Restart the IDE.
+2. IDE → **Settings → Plugins → Marketplace** → search **cem** → *Install*
+   ([listing](https://plugins.jetbrains.com/plugin/34196)).
+3. Restart the IDE.
+
+**From disk instead** (a build that is not on the Marketplace yet, or an
+air-gapped machine):
+
+```
+https://github.com/muslu/cem/releases/latest/download/cem-intellij-<version>.zip
+```
+
+IDE → **Settings → Plugins → ⚙ (gear icon) → Install Plugin from Disk** → pick
+the zip. Note that a plugin installed from disk is never updated on its own.
 
 You'll now see **Tools → cem** with three actions, and a `cem` submenu in the editor right-click menu.
 
 ## Automatic updates
 
-The plugin is not on the JetBrains Marketplace, and a plugin installed from
-disk is **never updated**. To let the IDE find updates itself, add this once:
+Installed from the Marketplace, the IDE updates the plugin itself — nothing to
+configure.
+
+For a **disk install**, updates never arrive on their own. Either reinstall
+from the Marketplace, or point the IDE at the release feed once:
 
 **Settings → Plugins → ⚙ → Manage Plugin Repositories → `+`**
 
@@ -41,7 +51,10 @@ is stable — its contents are refreshed on every cem release.
 | `cem: write on selection` | `Ctrl+Alt+W` (`⌥⌘W`) | Runs `cem -w "<selection>"` (writer only) |
 | `cem: pair on selection`  | `Ctrl+Alt+P` (`⌥⌘P`) | Runs `cem -p "<selection>"` (thinker → writer) |
 
-If no text is selected, the **entire active file** is sent. Output streams to a dedicated **cem** tool window at the bottom of the IDE.
+If nothing is selected, the cursor lands in the input box at the bottom of the
+**cem** tool window with the mode preselected — no modal dialog, and the open
+file is not sent by mistake. Output streams to that same tool window, one tab
+per run.
 
 Working directory = project root, so `.cem.yaml` (project-local config) and API keys from `~/.cem/config.yaml` work as expected.
 

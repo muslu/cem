@@ -14,7 +14,12 @@
 Düşünmeyi güçlü modele, yazmayı ucuz modele bırakırsın — kararlar iyileşir,
 her satır kod için pahalı model çalıştırmazsın.
 
+[![JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Marketplace-cem-000?logo=jetbrains)](https://plugins.jetbrains.com/plugin/34196)
+[![Marketplace downloads](https://img.shields.io/jetbrains/plugin/d/34196?label=plugin%20downloads)](https://plugins.jetbrains.com/plugin/34196)
+[![Release](https://img.shields.io/github/v/release/muslu/cem?sort=date&label=release)](https://github.com/muslu/cem/releases/latest)
+
 ![cem pair modu: düşünen planlar, yazan kodlar](docs/img/cem-pair.tr.svg)
+
 
 ---
 
@@ -26,6 +31,10 @@ curl -fsSL cem.pw/install | sh        # macOS / Linux / WSL
 ```powershell
 irm cem.pw/install | iex              # Windows (PowerShell)
 ```
+
+JetBrains IDE eklentisi: **Settings → Plugins → Marketplace → `cem` ara**
+([sayfa](https://plugins.jetbrains.com/plugin/34196)). VS Code ve diğer
+editörler: [README_DETAILS.tr.md](README_DETAILS.tr.md).
 
 ## Kullan
 

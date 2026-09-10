@@ -65,3 +65,23 @@ gh release delete v1.0.0 --yes
 ./build/cem --version                       # confirms LDFLAGS injection
 curl -fsSL https://cem.pw/r/cem-linux-amd64 -o /tmp/cem-smoke && \
   file /tmp/cem-smoke && /tmp/cem-smoke --version
+
+## MARKETPLACE WIDGET (cem.pw — NOT GitHub)
+# GitHub sanitises <iframe> and <script> out of README markdown, so the
+# JetBrains embeddable widgets only work on the cem.pw pages. The README uses
+# shields.io badges instead (plugin id 34196).
+#
+# Plugin card (384×319) and one-click install button (245×48):
+#   <iframe width="384px" height="319px"
+#           src="https://plugins.jetbrains.com/embeddable/card/34196"></iframe>
+#   <iframe width="245px" height="48px"
+#           src="https://plugins.jetbrains.com/embeddable/install/34196"></iframe>
+#
+# Script variant — needs a target element on the page:
+#   <div id="cem-install"></div>
+#   <script src="https://plugins.jetbrains.com/assets/scripts/mp-widget.js"></script>
+#   <script>MarketplaceWidget.setupMarketplaceWidget('install', 34196, '#cem-install');</script>
+#
+# CSP: both variants load from plugins.jetbrains.com, so that host must be
+# allowed in frame-src (iframe) or script-src (script variant). Adding the
+# script variant without touching CSP fails silently — the button never renders.

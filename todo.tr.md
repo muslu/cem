@@ -196,3 +196,17 @@ Yeni ID'ye kendiliğinden güncellenmez — eskisini bir kez kaldırıp yenisini
 kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarını
 üretir, sonra derler → imzalar → imzayı doğrular.
 `--surum <tag>`, `--dogrula`, `--yayinla`, `--anahtar-yenile`.
+
+- [x] doc:CLAUDE güncellemesi — `Git & Release` artık tek komutlu
+      `surum-yayinla.sh` akışını, Marketplace sayfasını (34196) ve fiilen
+      kullanılan CalVer tag şemasını (dokümanda semver yazıyordu) anlatıyor.
+- [x] Marketplace sayfası yayında: id `dev.cempw.cem`, sayfa 34196. Uyumluluk
+      doğrulayıcısının iki uyarısı düzeltildi
+      (`SimpleListCellRenderer.create(String, Function)` kaldırılmak üzereydi,
+      `doWhenFocusSettlesDown(Runnable)` deprecated'di).
+- [x] 1200×760 tanıtım görselleri: `docs/img/market-{pair,input,menu}[.tr].png`,
+      `docs/img/market-gorseller.py` ile üretiliyor. Gerçek UI'dan yapılmış IDE
+      mock-up'ı; IDE'yi sahneleyip gerçek ekran görüntüsü alırsak o daha iyi.
+- [x] README rozetleri Marketplace sayfasına bakıyor. GitHub `<iframe>` ve
+      `<script>` etiketlerini siliyor; JetBrains gömülebilir kart/kurulum
+      widget'ları yalnız cem.pw'de çalışır — snippet'ler `OPERATIONS.tr.md`'de.

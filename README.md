@@ -14,6 +14,10 @@
 Use a strong model for the thinking and a cheap one for the typing — you get
 better decisions without paying premium rates for every line of code.
 
+[![JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Marketplace-cem-000?logo=jetbrains)](https://plugins.jetbrains.com/plugin/34196)
+[![Marketplace downloads](https://img.shields.io/jetbrains/plugin/d/34196?label=plugin%20downloads)](https://plugins.jetbrains.com/plugin/34196)
+[![Release](https://img.shields.io/github/v/release/muslu/cem?sort=date&label=release)](https://github.com/muslu/cem/releases/latest)
+
 ![cem pair mode: the thinker plans, the writer codes](docs/img/cem-pair.svg)
 
 ---
@@ -26,6 +30,10 @@ curl -fsSL cem.pw/install | sh        # macOS / Linux / WSL
 ```powershell
 irm cem.pw/install | iex              # Windows (PowerShell)
 ```
+
+JetBrains IDE plugin: **Settings → Plugins → Marketplace → search `cem`**
+([listing](https://plugins.jetbrains.com/plugin/34196)). VS Code and the other
+editors: [README_DETAILS.md](README_DETAILS.md).
 
 ## Use
 

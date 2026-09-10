@@ -9,20 +9,28 @@ English: [INTELLIJ.md](INTELLIJ.md)
 ## Kurulum
 
 1. `cem` PATH'de olmalı (`curl -fsSL cem.pw/install | sh` veya PowerShell karşılığı — [README](../README.tr.md)).
-2. Son sürümün plugin zip'ini indir:
-   ```
-   https://github.com/muslu/cem/releases/latest/download/cem-intellij-<sürüm>.zip
-   ```
-3. IDE → **Settings → Plugins → ⚙ → Install Plugin from Disk** → zip'i seç.
-4. IDE'yi yeniden başlat.
+2. IDE → **Settings → Plugins → Marketplace** → **cem** ara → *Install*
+   ([sayfa](https://plugins.jetbrains.com/plugin/34196)).
+3. IDE'yi yeniden başlat.
+
+**Diskten kurmak istersen** (Marketplace'e henüz çıkmamış bir derleme veya
+internetsiz makine):
+
+```
+https://github.com/muslu/cem/releases/latest/download/cem-intellij-<sürüm>.zip
+```
+
+IDE → **Settings → Plugins → ⚙ → Install Plugin from Disk** → zip'i seç.
+Diskten kurulan eklenti kendiliğinden güncellenmez.
 
 Artık **Tools → cem** menüsünde 3 aksiyon ve editör sağ-tık menüsünde `cem` alt menüsü var.
 
 ## Otomatik güncelleme
 
-Eklenti JetBrains Marketplace'te değil; diskten kurulan eklentiler **hiç
-güncellenmez**. Güncellemeleri IDE'nin kendisinin bulması için tek seferlik
-şunu ekle:
+Marketplace'ten kurulduysa IDE eklentiyi kendisi güncelliyor — ayar gerekmez.
+
+**Diskten** kurulduysa güncelleme hiç gelmez. Ya Marketplace'ten yeniden kur,
+ya da IDE'yi tek seferlik sürüm akışına yönlendir:
 
 **Settings → Plugins → ⚙ → Manage Plugin Repositories → `+`**
 
@@ -42,7 +50,9 @@ sabittir, her cem sürümünde içeriği yenilenir.
 | `cem: write on selection` | `Ctrl+Alt+W` (`⌥⌘W`) | `cem -w "<seçim>"` — writer |
 | `cem: pair on selection`  | `Ctrl+Alt+P` (`⌥⌘P`) | `cem -p "<seçim>"` — thinker → writer |
 
-Seçim yoksa **tüm aktif dosya** gönderilir. Çıktı IDE altındaki **cem** tool window'una stream olur.
+Seçim yoksa imleç, **cem** tool window'unun altındaki giriş kutusuna gelir ve
+mod önceden seçilidir — modal pencere yok, açık dosya yanlışlıkla gönderilmez.
+Çıktı aynı tool window'a akar, her çalıştırma kendi tab'ında.
 
 Working directory = proje kökü, yani `.cem.yaml` (proje config'i) ve `~/.cem/config.yaml`'daki API key'ler beklenen şekilde çalışır.
 
