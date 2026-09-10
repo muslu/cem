@@ -193,7 +193,7 @@ Neovim'de floating window için: `:help nvim_open_term()`.
 
 Yukarıdaki tarifler sıfır eforlu ama sınırlı (streaming yok, inline diff yok, diagnostics entegrasyonu yok). Native plugin'ler:
 
-- [docs/PYCHARM-PLUGIN.md](PYCHARM-PLUGIN.md) — Kotlin/IntelliJ Platform plugin iskeleti (B)
+- [docs/PYCHARM-PLUGIN.md](PYCHARM-PLUGIN.md) — IntelliJ Platform eklentisi: iç işleyiş ve geliştirme notları
 - [docs/ANTIGRAVITY.md](ANTIGRAVITY.md) — Antigravity plugin modeli araştırması (C)
 
 Streaming çıktı, inline kod önerisi veya özel tool window istiyorsan bu dosyalara bak.

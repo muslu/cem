@@ -346,7 +346,11 @@ Yeniden kurmak: `curl -fsSL cem.pw/install | sh` (PowerShell:
 
 ### JetBrains eklentisi otomatik güncelleme
 
-Eklenti Marketplace'te değil; diskten kurulan eklenti hiç güncellenmez. Şu
+Eklenti JetBrains Marketplace'te [**cem**](https://plugins.jetbrains.com/plugin/34196)
+olarak listeli (id `dev.cempw.cem`): **Settings → Plugins → Marketplace → `cem`
+ara**. Böyle kurulduğunda güncellemeyi IDE kendisi yapıyor.
+
+**Diskten** kurulan eklenti hiç güncellenmez. Release'ten zip kurduysan şu
 depoyu bir kez eklersen güncellemeleri IDE kendisi bulur:
 
 **Settings → Plugins → ⚙ → Manage Plugin Repositories → `+`**

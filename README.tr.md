@@ -36,29 +36,20 @@ JetBrains IDE eklentisi: **Settings → Plugins → Marketplace → `cem` ara**
 ([sayfa](https://plugins.jetbrains.com/plugin/34196)). VS Code ve diğer
 editörler: [README_DETAILS.tr.md](README_DETAILS.tr.md).
 
-### Lua HTTP Sunucusu (İsteğe Bağlı)
-
-Dahil edilen Lua HTTP sunucusunu (`server.lua`) çalıştırmak istiyorsan:
-
-```sh
-# LuaSocket kur
-luarocks install luasocket        # veya
-apt-get install lua-socket        # Debian/Ubuntu
-brew install lua-socket           # macOS
-dnf install lua-socket            # Fedora
-
-# Sunucuyu başlat
-lua5.4 server.lua
-```
-
-**Not:** LuaSocket, çalıştırdığın Lua sürümü için kurulu olmalı.
-
 ## Kullan
 
 ```sh
 cem "B-tree nedir?"                  # düşünene sor
 cem -w "Go'da quicksort yaz"         # yazana yaptır
 cem -p "client.go'ya retry ekle"     # pair: düşünen planlar, yazan kodlar
+```
+
+Yerel ya da kendi sunucundaki modeller de aynı şekilde çalışıyor — ollama,
+LM Studio ve unsloth da birer araç, cem'e sadece adresi veriyorsun:
+
+```sh
+cem endpoint ollama 192.168.1.10:11434 --model qwen3-coder
+cem roles ollama claude            # ollama düşünür, claude yazar
 ```
 
 İlk çalıştırmada kısa bir sihirbaz açılır: dilini seç, hangi AI düşünsün,

@@ -86,6 +86,12 @@ cem/
 ├── cmd_update.go       — `cem update`: cem.pw/r/'den son sürümü indir + yerine yaz
 ├── cmd_cemir.go        — `cemir`: remove tools (single + all)
 ├── cmd_uninstall.go    — `cem uninstall`: remove the binaries themselves
+├── surum-yayinla.sh    — release in one command: tests → tag → push → Marketplace
+├── plugin/intellij/    — JetBrains plugin (see docs/PYCHARM-PLUGIN.md)
+│   ├── yayinla.sh      — local build + sign + publish of the plugin
+│   ├── updateplugins_uret.py — updatePlugins.xml feed (description from plugin.xml)
+│   └── src/main/kotlin/dev/cempw/intellij/CemCli.kt — cem status --json / cem setup bridge
+├── docs/img/market-gorseller.py — 1200x760 Marketplace screenshots
 ├── install.sh / .ps1   — User-facing installer via cem.pw/install
 ├── uninstall.sh / .ps1 — User-facing uninstaller via cem.pw/uninstall
 ├── Makefile            — build / dev / install / clean / tidy / test

@@ -35,29 +35,20 @@ JetBrains IDE plugin: **Settings → Plugins → Marketplace → search `cem`**
 ([listing](https://plugins.jetbrains.com/plugin/34196)). VS Code and the other
 editors: [README_DETAILS.md](README_DETAILS.md).
 
-### Lua HTTP Server (Optional)
-
-If you want to run the included Lua HTTP server (`server.lua`):
-
-```sh
-# Install LuaSocket
-luarocks install luasocket        # or
-apt-get install lua-socket        # Debian/Ubuntu
-brew install lua-socket           # macOS
-dnf install lua-socket            # Fedora
-
-# Run server
-lua5.4 server.lua
-```
-
-**Note:** LuaSocket must be installed for the same Lua version you're running.
-
 ## Use
 
 ```sh
 cem "what is a B-tree?"           # ask the thinker
 cem -w "write a quicksort in Go"  # ask the writer
 cem -p "add retries to client.go" # pair: thinker plans, writer codes
+```
+
+Local or self-hosted models work the same way — ollama, LM Studio and unsloth
+are tools too, you just give cem the address:
+
+```sh
+cem endpoint ollama 192.168.1.10:11434 --model qwen3-coder
+cem roles ollama claude            # ollama thinks, claude writes
 ```
 
 The first run opens a short wizard: pick your language, pick which AI thinks

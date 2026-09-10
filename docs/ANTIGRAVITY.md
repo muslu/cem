@@ -2,7 +2,7 @@
 
 Research notes on integrating cem with Google Antigravity IDE. This document tracks findings, since Antigravity's plugin/extensibility story is still evolving and not yet documented like JetBrains' IntelliJ Platform.
 
-Türkçe: [ANTIGRAVITY.tr.md](ANTIGRAVITY.tr.md)
+Turkish: [IDE.tr.md](IDE.tr.md) covers the IDE integrations, this page has no Turkish version yet.
 
 Last updated: 2026-05-25.
 

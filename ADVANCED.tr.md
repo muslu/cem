@@ -108,6 +108,73 @@ Kod-niyet algılaması: `yaz|kod|script|fonksiyon|class|method|implement|kodla|o
 
 ---
 
+## HTTP model sunucuları (ollama · LM Studio · unsloth)
+
+Kayıttaki üç araç subprocess değil. Karar `ToolMeta.HTTPAPI` ile veriliyor:
+
+| Değer | İstek |
+|---|---|
+| `"openai"` | `POST {base}/v1/chat/completions` — LM Studio, unsloth/vLLM |
+| `"ollama"` | `POST {base}/api/chat` |
+| `""` | HTTP aracı değil; cem bir binary çalıştırır |
+
+`isHTTPTool(key)` binary varsayan her yolu kapatıyor:
+`installableToolKeys()` bunları `cemi` / `cemir` / auto-update dışında
+tutuyor, effort ve hızlı mod atlanıyor, `cem doctor` PATH yerine
+erişilebilirliği yokluyor.
+
+Adres çözümü: proje `.cem.yaml` → global `endpoints.<araç>` →
+`ToolMeta.DefaultBaseURL`. Şema yoksa `http://` ekleniyor — LAN'daki sunucu
+nadiren TLS konuşuyor — ve adres `/v1` ile bitiyorsa yol iki kez eklenmiyor.
+Anahtar tanımlıysa `Authorization: Bearer` olarak gidiyor; ollama ve LM Studio
+yerelde anahtar istemediği için boşken başlık hiç gönderilmiyor.
+
+Cevap akıtılıyor: OpenAI'nin SSE'si (`data: {...}`, `data: [DONE]`) ve
+ollama'nın satır-başına-JSON'u satır tabanlı olduğu için tek tarayıcı yetiyor.
+Çözülemeyen satır hata değil, atlanıyor — sunucular arada ısıtma ve istatistik
+nesnesi yolluyor. Boş cevap ise hata: modeli yüklenmemiş sunucu içeriksiz akış
+döndürüyor ve buna "başarılı" demek kullanıcıyı hem çıktısız hem gerekçesiz
+bırakırdı.
+
+Zaman aşımları ayrı: istek için 30 dakika (yerel 70B model uzun cevapta
+dakikalar harcayabiliyor), bağlanmak için 5 saniye — kapalı port yarım saat
+bekletmesin.
+
+Model adı asla tahmin edilmiyor. `endpointModel` hata dönüp
+`cem endpoint <araç> --model`'i gösteriyor: yerel sunucuda yanlış ad ya 404
+veriyor ya da sessizce başka bir modeli çalıştırıyor.
+
+---
+
+## Terminalsiz kurulum
+
+`loadAndCheckSetup` yapılandırılmadan çalışmayı reddediyor — yarım
+yapılandırma, kullanıcının seçmediği araca istek göndermek demek. TTY varsa
+sihirbaz teklif ediliyor ve sonrasında kayıt yeniden doğrulanıyor (Ctrl+C ile
+kesilen sihirbaz aynı yarım durumu bırakıyordu). TTY yoksa `cem setup` deyip
+çıkıyor, çünkü sorular cevaplayacak kimse olmadan akıp geçerdi.
+
+Geriye GUI'ler ve betikler kalıyor; bayraklar bunun için:
+
+```sh
+cem setup --thinker gpt --writer claude
+cem setup --thinker ollama --endpoint-thinker 1.2.3.4:11434 \
+          --model-thinker qwen3-coder --writer claude
+cem status --json
+```
+
+`ApplySetup` kaydetmeden doğruluyor: bilinmeyen araç (yakın ad önerisiyle),
+model adı olmayan HTTP aracı, aracın desteklemediği effort. Verilmeyen değer
+korunuyor; yani `cem setup --lang en` rolleri silmiyor.
+
+`cem status --json` config'i ve araç başına kurulu mu, yolu, modeli, effort'u,
+endpoint'i ve bilinen model/effort listelerini basıyor. stdout'a başka hiçbir
+şey çıkamaz: `machineReadableOutput()` cobra ayrıştırmadan önce `os.Args`'ta
+`--json` arıyor ve güncelleme bildirimi ile auto-update satırını atlıyor —
+ikisi de JSON'un başına eklenip çağıranın ayrıştırmasını kırıyordu.
+
+---
+
 ## API key rotasyonu
 
 Depolama (`~/.cem/config.yaml`):
@@ -139,7 +206,23 @@ cem rotasyon yapmaz (farklı key bozuk auth'u düzeltmez); `cem keys list/remove
 
 ---
 
-## OAuth kod yapıştırma yardımcısı
+## Interaktif oturum açma ve OAuth kodu
+
+Prompt'u argümanla alan araçlarda (agy, claude, cursor) stdin serbest ve
+şimdiye kadar boş bırakılıyordu — yani `/dev/null`. Böyle bir araç OAuth kodu
+istediğinde ("Or, paste the authorization code here and press Enter")
+okuyacak bir şey bulamıyordu: 60 saniye bekleyip düşüyor, kullanıcının
+yapıştırdığı kod ise kabuğa gidiyordu. Windows'ta PowerShell `4/0ATs…`'yi
+komut sanıp üç denemede de *"You must provide a value expression following the
+'/' operator"* verdi.
+
+`attachStdin`, cem'in kendi stdin'i TTY ise terminali araca devrediyor. Pipe
+ise devretmiyor — o veri `ReadStdin` ile okundu, araç EOF beklerken
+kilitlenirdi — quiet modda da devretmiyor, çünkü ham akış gizli ve kullanıcı
+körlemesine yazardı. İstem akışta görüldüğünde tek satır ipucu basılıyor:
+kod kabuğa değil buraya yazılacak.
+
+### PSReadline yapıştırma yardımcısı
 
 PowerShell PSReadline uzun yapıştırmaları sessizce kırpıyor (Google OAuth kodları sıklıkla bozuluyor). Çözüm:
 
@@ -169,6 +252,9 @@ models:
 Model çözümleme sırası: proje `models.<key>` → global `tools.<key>.model` → boş (CLI default).
 
 `cem init` bu dosyayı interaktif oluşturur. Her install sonrası cem mevcut git repo'da `.gitignore`'a `.cem.yaml` ekler (yoksa uyarı) — proje-bazlı config repo'ya sızmasın.
+
+`endpoints` de aynı şekilde çalışıyor: aynı projeyi iki makinede açan biri
+farklı model sunucularına bakabilir.
 
 ---
 
@@ -282,6 +368,17 @@ Build flag'leri `git describe --tags --always --dirty` çıktısını `main.vers
 
 `cemir all` ayrıca `cfg.Tools`'taki artık `KnownTools`'da olmayan orphan girdileri siler (v0.1.13 kadro daraltması bazı kullanıcıların config'inde `gemini` bıraktı).
 
+Bayraklar: `--yes` (soru sormaz), `--config` (`~/.cem` ve yereldeki
+`.cem.yaml`), `--plugin` (IDE eklentileri), `--all` (hepsi, soru sormadan).
+Terminal yoksa onaysız silmek yerine reddediyor.
+
+`ideEklentiDizinleri()` JetBrains config kökünü tarayıp her ürün dizininde
+(`GoLand2026.2`, `PyCharm2026.1` …) `cem-intellij` arıyor, ayrıca
+`~/.vscode/extensions/*cem-*`. Bunları binary'yle birlikte silmek önemli:
+geride kalan eklenti her IDE açılışında yüklenip cem'in bulunmadığını
+bildiriyor ve ürün başına ayrı yolları elle bulmak zahmetli. AI CLI'larına
+dokunulmuyor — onlar `cemir`'in işi.
+
 ---
 
 ## Fuzzy komut eşleştirme
@@ -340,5 +437,10 @@ cem/
 ├── cmd_history.go         — cem history
 ├── cmd_keys.go            — cem keys add/list/remove
 ├── cmd_auth.go            — cem auth <tool> [--code]
+├── cmd_endpoint.go        — cem endpoint (HTTP sunucuların adresi / anahtarı / modeli)
+├── http_tool.go           — HTTP model sunucuları: akışlı sohbet, yoklama, model listesi
+├── setup_apply.go         — bayraklı kurulum + cem status --json
+├── surum-yayinla.sh       — tek komut: testler → tag → push → Marketplace
+├── plugin/intellij/       — JetBrains eklentisi (docs/PYCHARM-PLUGIN.md)
 └── .github/workflows/     — release.yml (7 platform × 3 binary + SHA256SUMS)
 ```

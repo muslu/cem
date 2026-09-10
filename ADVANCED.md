@@ -108,6 +108,73 @@ Code-intent detection: regex on `yaz|kod|script|fonksiyon|class|method|implement
 
 ---
 
+## HTTP model servers (ollama · LM Studio · unsloth)
+
+Three tools in the registry are not subprocesses. `ToolMeta.HTTPAPI` decides:
+
+| Value | Request |
+|---|---|
+| `"openai"` | `POST {base}/v1/chat/completions` — LM Studio, unsloth/vLLM |
+| `"ollama"` | `POST {base}/api/chat` |
+| `""` | not an HTTP tool; cem execs a binary |
+
+`isHTTPTool(key)` gates every path that assumes a binary:
+`installableToolKeys()` keeps them out of `cemi` / `cemir` / auto-update, effort
+and fast mode are skipped, and `cem doctor` probes reachability instead of PATH.
+
+Address resolution: project `.cem.yaml` → global `endpoints.<tool>` →
+`ToolMeta.DefaultBaseURL`. A missing scheme becomes `http://` — a LAN server
+rarely speaks TLS — and `/v1` is not appended twice if the address already ends
+in it. A key, when set, travels as `Authorization: Bearer`; ollama and LM Studio
+need none locally, so no header is sent when it is empty.
+
+The answer is streamed: OpenAI's SSE (`data: {...}`, `data: [DONE]`) and
+ollama's newline-delimited JSON are both line-based, so one scanner handles
+them. Lines that don't parse are skipped rather than raised — servers interleave
+warm-up and statistics objects. An empty answer *is* an error: a server with no
+model loaded returns a contentless stream, and reporting success there would
+leave the user with nothing and no reason.
+
+Timeouts are split: 30 minutes for the request (a local 70B model can spend
+minutes on a long reply) but 5 seconds to connect, so a closed port fails
+immediately instead of hanging for half an hour.
+
+The model name is never guessed. `endpointModel` returns an error pointing at
+`cem endpoint <tool> --model`, because a wrong name on a local server either
+404s or silently runs a different model than the user intended.
+
+---
+
+## Setup without a terminal
+
+`loadAndCheckSetup` refuses to run unconfigured — a half configuration means
+sending the request to a tool the user never chose. With a TTY it offers the
+wizard and re-checks the saved config afterwards (a wizard interrupted with
+Ctrl+C used to leave the same half state). Without a TTY it prints `cem setup`
+and exits, because the questions would scroll past with nobody to answer them.
+
+That leaves GUIs and scripts, which is what the flags are for:
+
+```sh
+cem setup --thinker gpt --writer claude
+cem setup --thinker ollama --endpoint-thinker 1.2.3.4:11434 \
+          --model-thinker qwen3-coder --writer claude
+cem status --json
+```
+
+`ApplySetup` validates before saving: unknown tool (with a fuzzy suggestion), an
+HTTP tool with no model name, an effort level the tool does not have. A value
+that is not passed is preserved, so `cem setup --lang en` does not clear the
+roles.
+
+`cem status --json` prints the config plus, per tool, whether it is installed,
+its path, model, effort, endpoint and the known model/effort lists. Nothing else
+may reach stdout: `machineReadableOutput()` scans `os.Args` for `--json` before
+cobra parses and skips the update notice and the auto-update line, either of
+which used to land on top of the JSON and break the caller's parser.
+
+---
+
 ## API key rotation
 
 Storage (`~/.cem/config.yaml`):
@@ -139,7 +206,23 @@ cem does not rotate (different keys won't fix bad auth); it prints a helpful hin
 
 ---
 
-## OAuth code paste helper
+## Interactive login and the OAuth code
+
+For tools that take the prompt as an argument (agy, claude, cursor) stdin is
+free, and it used to be left unset — that is, `/dev/null`. When such a tool
+asked for an OAuth code ("Or, paste the authorization code here and press
+Enter") it had nothing to read: it waited 60 seconds and died, while the code
+the user pasted went to the shell instead. On Windows PowerShell read
+`4/0ATs…` as a command and answered *"You must provide a value expression
+following the '/' operator"* three times in a row.
+
+`attachStdin` hands the terminal to the tool when cem's own stdin is a TTY. Not
+when it is a pipe — that data was already consumed by `ReadStdin`, and the tool
+would block waiting for EOF — and not in quiet mode, where the raw stream is
+hidden and the user would be typing blind. When the interactive prompt appears
+in the stream, one dim line says the code goes *here*, not into the shell.
+
+### PSReadline paste helper
 
 PowerShell's PSReadline silently truncates long pastes (Google OAuth codes routinely break). Workaround:
 
@@ -169,6 +252,9 @@ models:
 Resolution order for model: project `models.<key>` → global `tools.<key>.model` → empty (CLI default).
 
 `cem init` creates this file interactively. After every install cem appends `.cem.yaml` to `.gitignore` in the current git repo (or warns if no `.gitignore` exists) — your project-local config doesn't leak into the repo.
+
+`endpoints` works the same way: the same project opened on two machines can
+point at different model servers.
 
 ---
 
@@ -282,6 +368,17 @@ Build flags inject `git describe --tags --always --dirty` into `main.version` vi
 
 `cemir all` also wipes orphan entries from `cfg.Tools` that are no longer in the current `KnownTools` map (e.g., the v0.1.13 lineup trim left `gemini` behind in some users' configs).
 
+Flags: `--yes` (no questions), `--config` (`~/.cem` and the local `.cem.yaml`),
+`--plugin` (the IDE plugins), `--all` (everything, no questions). Without a
+terminal it refuses rather than deleting unconfirmed.
+
+`ideEklentiDizinleri()` walks the JetBrains config root and looks for
+`cem-intellij` under every product directory (`GoLand2026.2`,
+`PyCharm2026.1`, …) plus `~/.vscode/extensions/*cem-*`. Removing them with the
+binary matters: a plugin left behind loads on every IDE start only to report
+that cem is missing, and the per-product paths are tedious to find by hand.
+The AI CLIs are never touched — `cemir` is for those.
+
 ---
 
 ## Fuzzy command matching
@@ -340,5 +437,10 @@ cem/
 ├── cmd_history.go         — cem history
 ├── cmd_keys.go            — cem keys add/list/remove
 ├── cmd_auth.go            — cem auth <tool> [--code]
+├── cmd_endpoint.go        — cem endpoint (address / key / model of HTTP servers)
+├── http_tool.go           — HTTP model servers: streaming chat, probe, model list
+├── setup_apply.go         — flag-driven setup + cem status --json
+├── surum-yayinla.sh       — one command: tests → tag → push → Marketplace
+├── plugin/intellij/       — JetBrains plugin (docs/PYCHARM-PLUGIN.md)
 └── .github/workflows/     — release.yml (7 platforms × 3 binaries + SHA256SUMS)
 ```

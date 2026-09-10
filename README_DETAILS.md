@@ -346,10 +346,15 @@ your command never waits. The log is `~/.cem/auto-update.log`. Turn it off with
 
 ![cem in a JetBrains IDE](docs/img/cem-intellij.svg)
 
-### JetBrains plugin auto-update
+### JetBrains plugin: install and updates
 
-The plugin is not on the Marketplace, and a plugin installed from disk is never
-updated. Add this repository once and the IDE finds updates itself:
+The plugin is listed on the JetBrains Marketplace as
+[**cem**](https://plugins.jetbrains.com/plugin/34196) (id `dev.cempw.cem`):
+**Settings → Plugins → Marketplace → search `cem`**. Installed that way, the IDE
+updates it by itself.
+
+A plugin installed **from disk** is never updated. If you install the zip from a
+release, add this repository once and the IDE finds updates itself:
 
 **Settings → Plugins → ⚙ → Manage Plugin Repositories → `+`**
 

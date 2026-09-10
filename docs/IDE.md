@@ -195,7 +195,7 @@ For Neovim with floating windows, see `:help nvim_open_term()` to run cem inside
 
 The recipes above are zero-effort but limited (no streaming, no inline diff, no diagnostics integration). Native plugins are tracked in:
 
-- [docs/PYCHARM-PLUGIN.md](PYCHARM-PLUGIN.md) — Kotlin/IntelliJ Platform plugin scaffold (B)
+- [docs/PYCHARM-PLUGIN.md](PYCHARM-PLUGIN.md) — IntelliJ Platform plugin: internals and development notes
 - [docs/ANTIGRAVITY.md](ANTIGRAVITY.md) — research into Antigravity's plugin model (C)
 
 If you'd rather see streaming output, inline edit suggestions, or a dedicated tool window, see those documents.
