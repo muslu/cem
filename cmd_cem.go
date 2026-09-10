@@ -26,6 +26,13 @@ var rootCmd = &cobra.Command{
 	Version: version,
 	Args:    cobra.ArbitraryArgs,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Makine-okur çıktı isteniyorsa HİÇBİR ŞEY basılmaz: "yeni sürüm var"
+		// bildirimi ya da "araç güncellemesi arka planda" satırı JSON'un
+		// başına eklendiğinde çağıran taraf (eklenti GUI'si, betik) çıktıyı
+		// ayrıştıramıyor.
+		if machineReadableOutput() {
+			return
+		}
 		// OpenSourceNotice sadece banner ekranında (aşağıda) — her komutun
 		// başına basılınca asıl çıktıyı bastırıyordu.
 		checkUpdateNotice()
@@ -168,16 +175,40 @@ var rolesCmd = &cobra.Command{
 
 // ─── cem setup ───────────────────────────────────────────────────────────────
 
+// setupOpts — bayraklı (etkileşimsiz) kurulum. Sihirbaz TTY istiyor; eklenti,
+// kurulum betiği ve CI'da TTY yok. Bayraklar verildiğinde soru sorulmaz.
+var setupOpts SetupOptions
+
 var setupCmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Re-run the setup wizard",
+	Short: "Re-run the setup wizard (or configure it with flags)",
+	Long: `  cem setup                                     → interactive wizard
+  cem setup --thinker gpt --writer claude       → no questions asked
+  cem setup --thinker ollama --endpoint-thinker 192.168.1.10:11434             --model-thinker qwen3-coder --writer claude
+  cem setup --lang en                           → only change the language
+
+Flags let a GUI or a script configure cem where no terminal is available
+(the IDE plugin, an installer, CI). cem stays the only writer of the config.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		PrintBanner(BannerCem)
 		cfg, err := loadGlobalConfig()
 		if err != nil {
 			fmt.Println(styleError.Render("✗ " + err.Error()))
 			os.Exit(1)
 		}
+
+		if setupOpts.Given() {
+			if err := ApplySetup(cfg, setupOpts); err != nil {
+				fmt.Println(styleError.Render("✗ " + err.Error()))
+				os.Exit(1)
+			}
+			fmt.Println(styleSuccess.Render(fmt.Sprintf(
+				L("  ✓ kurulum kaydedildi: düşünen %s · yazan %s",
+					"  ✓ setup saved: thinker %s · writer %s"),
+				cfg.Roles.Thinker, cfg.Roles.Writer)))
+			return
+		}
+
+		PrintBanner(BannerCem)
 		if err := RunSetupWizard(cfg); err != nil {
 			fmt.Println(styleError.Render("✗ " + err.Error()))
 			os.Exit(1)
@@ -393,16 +424,31 @@ func pickProjectModel(toolKey, label string, global *GlobalConfig) string {
 
 // ─── cem status ──────────────────────────────────────────────────────────────
 
+var statusJSONFlag bool
+
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show installation status",
+	Short: "Show installation status (--json for machines)",
 	Run: func(cmd *cobra.Command, args []string) {
-		PrintBanner(BannerCem)
 		rc, err := LoadConfig()
 		if err != nil {
+			// JSON isteyen çağıran (GUI) için hata da JSON olmalı; yoksa
+			// ayrıştırma tarafında "beklenmeyen çıktı" olarak görünür.
+			if statusJSONFlag {
+				fmt.Printf("{\"error\":%q}\n", err.Error())
+				os.Exit(1)
+			}
 			fmt.Println(styleError.Render("✗ " + err.Error()))
 			os.Exit(1)
 		}
+		if statusJSONFlag {
+			// Banner/ANSI YOK: çıktı ayrıştırılacak.
+			if err := printStatusJSON(rc); err != nil {
+				os.Exit(1)
+			}
+			return
+		}
+		PrintBanner(BannerCem)
 		ShowRoles(rc)
 	},
 }
@@ -421,6 +467,16 @@ func init() {
 	rolesCmd.Flags().BoolVar(&rolesCmdHere, "here", false, "this project only (.cem.yaml)")
 
 	rootCmd.AddCommand(rolesCmd)
+	setupCmd.Flags().StringVar(&setupOpts.Thinker, "thinker", "", "tool that thinks")
+	setupCmd.Flags().StringVar(&setupOpts.Writer, "writer", "", "tool that writes the code")
+	setupCmd.Flags().StringVar(&setupOpts.ModelThinker, "model-thinker", "", "model for the thinker")
+	setupCmd.Flags().StringVar(&setupOpts.ModelWriter, "model-writer", "", "model for the writer")
+	setupCmd.Flags().StringVar(&setupOpts.EffortThinker, "effort-thinker", "", "reasoning effort for the thinker")
+	setupCmd.Flags().StringVar(&setupOpts.EffortWriter, "effort-writer", "", "reasoning effort for the writer")
+	setupCmd.Flags().StringVar(&setupOpts.EndpointThinker, "endpoint-thinker", "", "server address if the thinker is an HTTP tool")
+	setupCmd.Flags().StringVar(&setupOpts.EndpointWriter, "endpoint-writer", "", "server address if the writer is an HTTP tool")
+	setupCmd.Flags().StringVar(&setupOpts.Lang, "lang", "", "interface language: tr | en")
+	statusCmd.Flags().BoolVar(&statusJSONFlag, "json", false, "machine-readable output (no banner, no colours)")
 	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(statusCmd)

@@ -85,6 +85,10 @@
         <notificationGroup id="cem.auth"
                            displayType="BALLOON"
                            isLogByDefault="true"/>
+        <!-- Kurulum yapılmadığında ayar sayfasına yönlendiren bildirim -->
+        <notificationGroup id="cem.setup"
+                           displayType="BALLOON"
+                           isLogByDefault="true"/>
         <!-- Tool window for cem output. canCloseContents="true" ile her tab'ın
              X butonu görünür hale gelir (kodda ContentManager.canCloseContents
              property'sini set etmek yeterli değil 2024.x sürümlerinde). -->

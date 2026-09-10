@@ -3,6 +3,7 @@ package dev.cempw.intellij
 import com.intellij.ide.BrowserUtil
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
+import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -135,6 +136,29 @@ sealed class CemAction(val mode: Mode) : AnAction() {
         }
 
         /** OAuth URL'i bulunca IDE balloon notification göster + tarayıcı/kopyala butonu. */
+        /**
+         * Kurulum yapılmamış: eklentiden sihirbaz çalıştırılamaz (TTY yok),
+         * o yüzden kullanıcıyı GUI'ye yönlendiriyoruz.
+         *
+         * cem kurulum olmadan çalışmayı reddediyor — yarım yapılandırmayla
+         * çalıştırmak, kullanıcının seçmediği araca istek göndermek demek.
+         * Eklentide bunun karşılığı bu bildirim: tek tıkla ayar sayfası.
+         */
+        fun notifySetupNeeded(project: Project) {
+            val group = NotificationGroupManager.getInstance()
+                .getNotificationGroup("cem.setup") ?: return
+            group.createNotification(
+                "cem: kurulum gerekli",
+                "Düşünen ve yazan rolü seçilmeden cem çalışmıyor.",
+                NotificationType.WARNING,
+            ).addAction(NotificationAction.createSimple("Ayarları aç") {
+                ShowSettingsUtil.getInstance()
+                    .showSettingsDialog(project, CemSettingsConfigurable::class.java)
+            }).addAction(NotificationAction.createSimple("Terminalde: cem setup") {
+                CopyPasteManager.getInstance().setContents(StringSelection("cem setup"))
+            }).notify(project)
+        }
+
         fun notifyAuthUrl(project: Project, url: String) {
             val group = NotificationGroupManager.getInstance()
                 .getNotificationGroup("cem.auth") ?: return
@@ -300,9 +324,19 @@ sealed class CemAction(val mode: Mode) : AnAction() {
             // sıfırdan farklı bir kodla çıkar. Başarılı bir cevabın içinde
             // geçen bağlantı login uyarısı değildir.
             if (exit != 0) {
-                extractAuthUrl(fullOutput.toString())?.let { url ->
+                val çıktı = fullOutput.toString()
+                // Kurulum uyarısı auth'tan ÖNCE bakılıyor: kurulum yoksa araç
+                // hiç çalıştırılmadı, dolayısıyla auth mesajı da olmaz.
+                if (çıktı.contains("cem setup")) {
                     ApplicationManager.getApplication().invokeLater {
-                        notifyAuthUrl(project, url)
+                        tab.appendDim("Kurulum için: Settings → Tools → cem (ya da terminalde: cem setup)")
+                        notifySetupNeeded(project)
+                    }
+                } else {
+                    extractAuthUrl(çıktı)?.let { url ->
+                        ApplicationManager.getApplication().invokeLater {
+                            notifyAuthUrl(project, url)
+                        }
                     }
                 }
             }

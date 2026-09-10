@@ -25,6 +25,17 @@ Diskten kurulan eklenti kendiliğinden güncellenmez.
 
 Artık **Tools → cem** menüsünde 3 aksiyon ve editör sağ-tık menüsünde `cem` alt menüsü var.
 
+## IDE içinden kurulum
+
+**Settings → Tools → cem** kurulumun tamamı: düşünen ve yazan rolü, modelleri,
+düşünme seviyesi ve model sunucusu (ollama / LM Studio / unsloth) kullanıyorsan
+adresi — `192.168.1.10:11434`. Apply kaydediyor.
+
+Panel `cem status --json` okuyor, Apply `cem setup` çalıştırıyor; yani seçimleri
+cem doğruluyor ve `~/.cem/config.yaml`'i yazan tek yer cem kalıyor. En üstteki
+satır kurulumun tamam olup olmadığını söylüyor; tamamlanmadan cem çalışmayı
+reddediyor ve bir bildirim bu sayfayı açmayı öneriyor.
+
 ## Otomatik güncelleme
 
 Marketplace'ten kurulduysa IDE eklentiyi kendisi güncelliyor — ayar gerekmez.

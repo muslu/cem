@@ -98,6 +98,11 @@ intellijPlatform {
 }
 
 tasks {
+    // Testler: ./gradlew test --no-configuration-cache
+    // Configuration cache + KotlinCompile'ın classpath snapshot'ı birlikte
+    // çalışmıyor ("error writing value of type DefaultProvider") ve test
+    // görevi hiç başlamıyor. Ayrıca test-framework + junit ilk kez ağdan
+    // iniyor, --offline ile çözülmez.
     withType<JavaCompile>().configureEach {
         options.release = 17
     }

@@ -175,6 +175,28 @@ efforts:
 
 Create one with `cem init` (wizard) or `cem init gpt claude` (direct).
 
+### Setup without a terminal (GUI, scripts, CI)
+
+cem refuses to run before setup, and the wizard needs a terminal. Where there
+isn't one — the IDE plugin, an installer, CI — configure it with flags instead:
+
+```sh
+cem setup --thinker gpt --writer claude
+cem setup --thinker ollama --endpoint-thinker 192.168.1.10:11434 \
+          --model-thinker qwen3-coder --writer claude
+cem setup --lang en                      # only the language, roles untouched
+cem status --json                        # machine-readable state
+```
+
+`cem setup` validates before it saves: an unknown tool is rejected (with a
+suggestion), an HTTP server without a model name is rejected, an effort level
+the tool doesn't have is rejected. `cem status --json` prints no banner and no
+update notice — that one stray line used to break the parser on the other side.
+
+The JetBrains plugin uses exactly these two commands: **Settings → Tools → cem**
+reads `cem status --json` and Apply runs `cem setup`. cem stays the only writer
+of `~/.cem/config.yaml`.
+
 ### Local and self-hosted models (ollama · LM Studio · unsloth)
 
 These three are not CLIs — cem talks to them over HTTP, so there is nothing to

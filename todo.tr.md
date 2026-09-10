@@ -235,3 +235,14 @@ kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarı
       sonrakiler kapanabilir ve kapatılınca komutu öldürüyor; numara mevcut en
       büyükten türetiliyor (sekme sayısından türetmek kapatma sonrası aynı adı
       iki kez üretiyordu).
+- [x] Terminalsiz kurulum: `cem setup --thinker X --writer Y [--model-*]
+      [--effort-*] [--endpoint-*] [--lang]` ve `cem status --json`. Kurulumu
+      zorunlu yapınca eklentiden/CI'dan yapılandırma yolu kalmamıştı.
+      `--json` çıktısı banner ve güncelleme bildirimi basmıyor — o satır
+      ayrıştırmayı kırıyordu.
+- [x] Eklentide GUI kurulum: Settings → Tools → cem paneli artık `cem status
+      --json` okuyor ve Apply `cem setup` çalıştırıyor. Panel eskiden YAML'ı
+      kendi yazıyordu; kurulum zorunlu olunca bu yetmiyordu (YAML'a rol yazmak
+      setup_done demek değil). Araç listesi/model/effort da cem'den geliyor,
+      ikinci sabit liste yok; HTTP araçlarda sunucu adresi alanı açılıyor.
+      Kurulum yapılmamışsa çalıştırma sonrası bildirim ayar sayfasını açıyor.

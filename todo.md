@@ -283,3 +283,13 @@ on first run, then builds → signs → verifies the signature.
       the extras close, and closing one kills its command. Numbering comes from
       the highest existing number, not the tab count, which would have produced
       a second "Terminal 3" after closing "Terminal 2".
+- [x] Setup without a terminal: `cem setup --thinker X --writer Y [--model-*]
+      [--effort-*] [--endpoint-*] [--lang]` plus `cem status --json`. Making
+      setup mandatory had left the plugin and CI with no way to configure cem.
+      `--json` prints no banner and no update notice — that line broke parsing.
+- [x] Plugin GUI setup: Settings → Tools → cem now reads `cem status --json`
+      and Apply runs `cem setup`. The panel used to write the YAML itself,
+      which stopped being enough once setup became mandatory (roles in the YAML
+      are not `setup_done`). Tool list, models and effort levels come from cem
+      instead of a second hardcoded copy, and HTTP tools get an address field.
+      A failed run with setup missing now offers to open that page.

@@ -68,6 +68,8 @@ cem/
 ├── http_tool.go        — HTTP model servers (ollama/LM Studio/unsloth): streaming chat, probe, model list
 ├── http_tool_test.go   — endpoint precedence, both stream formats, HTTP errors
 ├── cmd_endpoint.go     — `cem endpoint`: address / key / model of HTTP servers
+├── setup_apply.go      — flag-driven (non-interactive) setup + `status --json`
+├── setup_apply_test.go — setup validation: unknown tool, missing model, effort
 ├── trust.go            — per-directory confirmation before tools may write there
 ├── cmd_fast.go         — `cem fast`: skip the tool's user settings for speed
 ├── tool_update.go      — AI CLI updates: native `<tool> update` + daily background auto-update
@@ -250,6 +252,21 @@ cem/
 - **The writer's cache key is the user's request, not the prompt it received.**
   The plan is regenerated slightly differently each time; keying on it would
   miss every repeat of the same task.
+- **`--json` output must stay clean.** `PersistentPreRun` prints the
+  update notice and the auto-update line before every command; either one lands
+  on top of the JSON and the caller cannot parse it. `machineReadableOutput()`
+  checks `os.Args` for `--json` *before* cobra parses, and skips both.
+- **The plugin must not write `~/.cem/config.yaml` itself.** It used to, through
+  snakeyaml, and that became wrong the moment setup turned mandatory: writing
+  roles into the YAML is not the same as `setup_done`, so a user who configured
+  cem from the GUI still could not run it. The plugin now reads
+  `cem status --json` and writes through `cem setup` / `cem fast` /
+  `cem endpoint` (`CemCli.kt`) — cem does the validating, and the tool list,
+  models and effort levels come from cem rather than a second hardcoded copy.
+- **Plugin tests need `--no-configuration-cache` and the network.**
+  `./gradlew test` alone fails while writing the configuration cache
+  (KotlinCompile's classpath snapshot), and `--offline` fails because
+  `test-framework` and junit are not in the cache.
 - **Setup is mandatory, and the wizard needs a terminal.** Running with a half
   configuration means sending the request to a tool the user never chose — and
   paying for it. `loadAndCheckSetup` refuses to continue: with a TTY it offers

@@ -25,6 +25,17 @@ the zip. Note that a plugin installed from disk is never updated on its own.
 
 You'll now see **Tools → cem** with three actions, and a `cem` submenu in the editor right-click menu.
 
+## Setup from the IDE
+
+**Settings → Tools → cem** is the whole setup: pick the thinker and the writer,
+their models and reasoning effort, and for a model server (ollama / LM Studio /
+unsloth) the address — `192.168.1.10:11434`. Apply saves it.
+
+The panel reads `cem status --json` and Apply runs `cem setup`, so cem itself
+validates the choices and remains the only writer of `~/.cem/config.yaml`. The
+top line tells you whether setup is complete; until it is, cem refuses to run
+and a notification offers to open this page.
+
 ## Automatic updates
 
 Installed from the Marketplace, the IDE updates the plugin itself — nothing to

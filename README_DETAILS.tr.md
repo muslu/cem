@@ -173,6 +173,29 @@ efforts:
 
 Oluşturmak için `cem init` (sihirbaz) veya `cem init gpt claude` (doğrudan).
 
+### Terminalsiz kurulum (GUI, betik, CI)
+
+cem kurulum yapılmadan çalışmıyor ve sihirbaz terminal istiyor. Terminal
+olmayan yerlerde — IDE eklentisi, kurulum betiği, CI — bayraklarla yapılandır:
+
+```sh
+cem setup --thinker gpt --writer claude
+cem setup --thinker ollama --endpoint-thinker 192.168.1.10:11434 \
+          --model-thinker qwen3-coder --writer claude
+cem setup --lang en                      # sadece dil, roller değişmez
+cem status --json                        # makine-okur durum
+```
+
+`cem setup` kaydetmeden önce doğruluyor: bilinmeyen araç reddediliyor (yakın ad
+önerilerek), model adı olmayan HTTP sunucusu reddediliyor, aracın
+desteklemediği effort seviyesi reddediliyor. `cem status --json` banner ve
+güncelleme bildirimi basmıyor — o tek satır karşı taraftaki ayrıştırmayı
+kırıyordu.
+
+JetBrains eklentisi tam olarak bu iki komutu kullanıyor: **Settings → Tools →
+cem** `cem status --json` okuyor, Apply `cem setup` çalıştırıyor. Böylece
+`~/.cem/config.yaml`'i yazan tek yer cem.
+
 ### Yerel ve kendi sunucundaki modeller (ollama · LM Studio · unsloth)
 
 Bu üçü CLI değil — cem onlarla HTTP üzerinden konuşur, dolayısıyla kurulacak
