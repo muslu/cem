@@ -11,19 +11,57 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	uninstallYes    bool
+	uninstallConfig bool
+	uninstallPlugin bool
+	uninstallAll    bool
+)
+
 var uninstallCmd = &cobra.Command{
 	Use:   "uninstall",
 	Short: "Remove CEM from the system",
-	Long: `  cem uninstall   → delete cem, cemi, cemir binaries
-                    asks whether to delete the config directory`,
+	Long: `  cem uninstall              → delete cem, cemi, cemir binaries
+                               (asks about the config directory)
+  cem uninstall --yes        → no questions
+  cem uninstall --config     → also delete ~/.cem
+  cem uninstall --plugin     → also delete the IDE plugins (JetBrains, VS Code)
+  cem uninstall --all        → all of the above, no questions
+
+The AI CLIs themselves (claude, agy, gpt, cursor) are NOT touched: cemir
+removes those. Binaries under /usr/local/bin need sudo — cem retries the
+delete with sudo and prints the manual command if that fails too.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if uninstallAll {
+			uninstallYes, uninstallConfig, uninstallPlugin = true, true, true
+		}
+		// Terminal yoksa soru sorulamaz: onaysız silmek yerine ne yapılacağını
+		// söylemek gerekiyor (setup kapısıyla aynı gerekçe).
+		if !uninstallYes && !isInteractiveStdin() {
+			fmt.Println(styleError.Render(L("✗ Terminal yok — onay sorulamaz.",
+				"✗ No terminal — cannot ask for confirmation.")))
+			fmt.Println(styleDim.Render("    cem uninstall --yes"))
+			os.Exit(1)
+		}
 		PrintBanner(BannerCem)
 		runUninstall()
 	},
 }
 
 func init_uninstall() {
+	uninstallCmd.Flags().BoolVar(&uninstallYes, "yes", false, "do not ask")
+	uninstallCmd.Flags().BoolVar(&uninstallConfig, "config", false, "also delete ~/.cem")
+	uninstallCmd.Flags().BoolVar(&uninstallPlugin, "plugin", false, "also delete the IDE plugins")
+	uninstallCmd.Flags().BoolVar(&uninstallAll, "all", false, "binaries + config + IDE plugins, no questions")
 	rootCmd.AddCommand(uninstallCmd)
+}
+
+// onay — --yes verilmişse sormaz.
+func onay(soru string) bool {
+	if uninstallYes {
+		return true
+	}
+	return askYN(soru)
 }
 
 func runUninstall() {
@@ -31,7 +69,7 @@ func runUninstall() {
 	fmt.Println(styleDim.Render(L("  Bu işlem cem, cemi ve cemir komutlarını siler.", "  This removes the cem, cemi and cemir commands.")))
 	fmt.Println()
 
-	if !askYN("  Devam edilsin mi?") {
+	if !onay("  Devam edilsin mi?") {
 		fmt.Println(styleDim.Render(L("  İptal.", "  Cancelled.")))
 		return
 	}
@@ -88,6 +126,29 @@ func runUninstall() {
 	}
 	_ = scheduledSelfDelete
 
+	// ── IDE eklentileri ───────────────────────────────────────────────────────
+	// Binary silinince eklenti işlevsiz kalıyor ama diskte duruyor ve IDE
+	// açılışta yüklemeye devam ediyor: her çalıştırmada "cem bulunamadı".
+	// Kullanıcının bunları elle bulması zor (JetBrains dizinleri ürün+sürüm
+	// başına ayrı), o yüzden burada listeleniyor.
+	if dizinler := ideEklentiDizinleri(); len(dizinler) > 0 {
+		fmt.Println()
+		fmt.Println(styleBold.Render(L("  IDE eklentileri:", "  IDE plugins:")))
+		for _, d := range dizinler {
+			fmt.Println(styleDim.Render("  " + d))
+		}
+		if uninstallPlugin || (!uninstallYes && askYN(L("  Bunlar da silinsin mi?", "  Delete these too?"))) {
+			for _, d := range dizinler {
+				if err := os.RemoveAll(d); err != nil {
+					fmt.Printf("  %s %s: %v\n", styleError.Render("✗"), d, err)
+					continue
+				}
+				fmt.Printf("  %s %s\n", styleSuccess.Render("✓"), styleDim.Render(d))
+			}
+			fmt.Println(styleDim.Render(L("    IDE'yi yeniden başlat.", "    Restart the IDE.")))
+		}
+	}
+
 	// ── Config klasörü ────────────────────────────────────────────────────────
 	fmt.Println()
 	home, _ := os.UserHomeDir()
@@ -95,7 +156,7 @@ func runUninstall() {
 
 	if _, err := os.Stat(cemDir); err == nil {
 		fmt.Printf(L("  Config klasörü: %s\n", "  Config directory: %s\n"), styleDim.Render(cemDir))
-		if askYN("  Config ve ayarlar da silinsin mi?") {
+		if uninstallConfig || (!uninstallYes && askYN("  Config ve ayarlar da silinsin mi?")) {
 			if err := os.RemoveAll(cemDir); err != nil {
 				fmt.Printf("  %s Config silinemedi: %v\n", styleError.Render("✗"), err)
 			} else {
@@ -110,7 +171,7 @@ func runUninstall() {
 	// ── Proje .cem.yaml ────────────────────────────────────────────────────────
 	if _, err := os.Stat(".cem.yaml"); err == nil {
 		fmt.Println()
-		if askYN("  Bu dizindeki .cem.yaml da silinsin mi?") {
+		if uninstallConfig || (!uninstallYes && askYN("  Bu dizindeki .cem.yaml da silinsin mi?")) {
 			os.Remove(".cem.yaml")
 			fmt.Printf("  %s .cem.yaml silindi\n", styleSuccess.Render("✓"))
 		}
@@ -206,4 +267,57 @@ func findAllBinaries() []string {
 		}
 	}
 	return unique
+}
+
+// ideEklentiDizinleri — kurulu cem eklentilerinin dizinleri.
+//
+// JetBrains eklentileri ürün ve sürüm başına ayrı dizinde duruyor
+// (GoLand2026.2, PyCharm2026.1 …), bu yüzden tek tek aramak yerine JetBrains
+// kökünün altındaki her ürün dizininde 'cem-intellij' aranıyor. VS Code
+// eklentisi tek bir extensions dizininde ve sürüm adıyla bitiyor.
+func ideEklentiDizinleri() []string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+
+	var kökler []string
+	switch runtime.GOOS {
+	case "darwin":
+		kökler = []string{filepath.Join(home, "Library", "Application Support", "JetBrains")}
+	case "windows":
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			kökler = []string{filepath.Join(appData, "JetBrains")}
+		}
+	default:
+		kökler = []string{filepath.Join(home, ".local", "share", "JetBrains")}
+	}
+
+	var bulunan []string
+	for _, kök := range kökler {
+		ürünler, err := os.ReadDir(kök)
+		if err != nil {
+			continue
+		}
+		for _, ü := range ürünler {
+			if !ü.IsDir() {
+				continue
+			}
+			d := filepath.Join(kök, ü.Name(), "cem-intellij")
+			if st, err := os.Stat(d); err == nil && st.IsDir() {
+				bulunan = append(bulunan, d)
+			}
+		}
+	}
+
+	// VS Code: ~/.vscode/extensions/<yayıncı>.cem-<sürüm>
+	vsc := filepath.Join(home, ".vscode", "extensions")
+	if girdiler, err := os.ReadDir(vsc); err == nil {
+		for _, g := range girdiler {
+			if g.IsDir() && strings.Contains(strings.ToLower(g.Name()), "cem-") {
+				bulunan = append(bulunan, filepath.Join(vsc, g.Name()))
+			}
+		}
+	}
+	return bulunan
 }

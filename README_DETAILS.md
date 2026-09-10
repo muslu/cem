@@ -301,9 +301,26 @@ cem history --clear
 cem update         # fetch the latest cem release
 cemi update        # update the installed AI CLIs (claude, codex, agy, cursor)
 cemi update gpt    # just one
-cem uninstall      # remove cem itself
+cem uninstall      # remove cem itself (asks about the config)
+cem uninstall --all # binaries + ~/.cem + IDE plugins, no questions
 cemir all          # remove the AI tools
 ```
+
+`cem uninstall` deletes the `cem`, `cemi` and `cemir` binaries; under
+`/usr/local/bin` that needs root, so it retries with sudo and prints the manual
+`sudo rm` if that fails too. Flags: `--yes` (no questions), `--config` (delete
+`~/.cem` and the local `.cem.yaml`), `--plugin` (delete the IDE plugins),
+`--all` (all of it). Without a terminal it refuses rather than deleting
+unconfirmed — pass `--yes`.
+
+The IDE plugins are worth removing along with the binaries: JetBrains keeps one
+copy per product and version (`~/.local/share/JetBrains/GoLand2026.2/cem-intellij`,
+…), and a plugin left behind loads on every IDE start only to report that cem is
+missing. The AI CLIs themselves are never touched — `cemir` is for those.
+
+Reinstall: `curl -fsSL cem.pw/install | sh` (PowerShell: `irm cem.pw/install | iex`).
+It installs into `/usr/local/bin`, falling back to `~/.local/bin` when that is
+not writable.
 
 cem also updates the installed AI CLIs **by itself**, once a day, in the
 background — it runs each tool's own `update` command detached from cem, so

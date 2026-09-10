@@ -299,6 +299,7 @@ cem update         # cem'in son sürümünü indir
 cemi update        # kurulu AI CLI'larını güncelle (claude, codex, agy, cursor)
 cemi update gpt    # sadece biri
 cem uninstall      # cem'i kaldır
+cem uninstall --all # binary + ~/.cem + IDE eklentileri, soru sormadan
 cemir all          # AI araçlarını kaldır
 ```
 
@@ -311,6 +312,22 @@ senin komutun beklemez. Log: `~/.cem/auto-update.log`. Kapatmak için
 > (örn. `20260909.06`). Eski `v0.1.x` semver etiketleri çalışmaya devam eder;
 > `cem update` iki formatı da anlar ve yalnızca uzaktaki etiket gerçekten
 > yeniyse güncelleme önerir.
+
+`cem uninstall` `cem`, `cemi` ve `cemir` binary'lerini siler; `/usr/local/bin`
+altında root gerektiği için sudo ile yeniden dener, o da olmazsa elle
+çalıştırılacak `sudo rm` komutunu yazar. Bayraklar: `--yes` (soru sormaz),
+`--config` (`~/.cem` ve yereldeki `.cem.yaml` de silinir), `--plugin` (IDE
+eklentileri de silinir), `--all` (hepsi). Terminal yoksa onaysız silmek yerine
+reddediyor — `--yes` ver.
+
+IDE eklentilerini binary'yle birlikte silmek önemli: JetBrains her ürün ve
+sürüm için ayrı kopya tutuyor (`~/.local/share/JetBrains/GoLand2026.2/cem-intellij`
+…) ve geride kalan eklenti her IDE açılışında yüklenip cem'in bulunmadığını
+bildiriyor. AI CLI'larına dokunulmuyor — onlar için `cemir` var.
+
+Yeniden kurmak: `curl -fsSL cem.pw/install | sh` (PowerShell:
+`irm cem.pw/install | iex`). `/usr/local/bin`'e kurar, yazılamıyorsa
+`~/.local/bin`'e düşer.
 
 ## 9. IDE entegrasyonları
 

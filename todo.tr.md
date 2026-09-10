@@ -246,3 +246,8 @@ kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarı
       setup_done demek değil). Araç listesi/model/effort da cem'den geliyor,
       ikinci sabit liste yok; HTTP araçlarda sunucu adresi alanı açılıyor.
       Kurulum yapılmamışsa çalıştırma sonrası bildirim ayar sayfasını açıyor.
+- [x] `cem uninstall` tamamlandı: `--yes` (soru sormaz), `--config`
+      (`~/.cem` + `.cem.yaml`), `--plugin` (IDE eklentileri), `--all`.
+      Terminal yoksa onaysız silmiyor. IDE eklentileri artık listelenip
+      siliniyor — JetBrains her ürün+sürüm için ayrı kopya tutuyor ve geride
+      kalan eklenti her açılışta cem'i bulamadığını bildiriyordu.

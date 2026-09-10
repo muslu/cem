@@ -293,3 +293,8 @@ on first run, then builds → signs → verifies the signature.
       are not `setup_done`). Tool list, models and effort levels come from cem
       instead of a second hardcoded copy, and HTTP tools get an address field.
       A failed run with setup missing now offers to open that page.
+- [x] `cem uninstall` finished: `--yes` (no questions), `--config` (`~/.cem`
+      and `.cem.yaml`), `--plugin` (IDE plugins), `--all`. It refuses to delete
+      unconfirmed without a terminal. IDE plugins are now listed and removed —
+      JetBrains keeps one copy per product and version, and a leftover plugin
+      reported cem missing on every IDE start.
