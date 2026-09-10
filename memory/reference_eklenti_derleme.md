@@ -25,3 +25,12 @@ Gradle wrapper binary'si depoda yok; `~/.gradle/wrapper/dists/gradle-9.3.1-bin/*
 kullanılıyor. `buildPlugin` **`--offline` ile çalışmıyor**:
 `java-compiler-ant-tasks` (instrumentCode) cache'te yok, ağ gerekiyor —
 `compileKotlin` offline yeterli. Ölçmeden göndermeme kuralı için [[feedback-olcerek-gonder]].
+
+**Yerelde kurma + "hâlâ eski davranıyor" tuzağı.** Eklenti hatası bildirildiğinde
+önce KURULU jar'ın sürümünü doğrula, kaynağı değil:
+`ls ~/.local/share/JetBrains/<IDE>/cem-intellij/lib`. 2026-09-10'da modal dialog
+"hâlâ açılıyor" denen durumun sebebi buydu — kurulu `20260910.01` tag'i, inline-kutu
+commit'inden 12 dakika önce atılmıştı. Sembol kontrolü kesin sonuç verir:
+`unzip -p <jar> 'dev/cempw/intellij/CemTab$Companion.class' | strings | grep askInInput`.
+Kurulum: `gradle buildPlugin -PpluginVersion=<tag>` → eski dizini yedeğe taşı →
+zip'i `~/.local/share/JetBrains/<IDE>/` altına aç → IDE yeniden başlat.
