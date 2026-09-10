@@ -27,3 +27,11 @@
 *.log
 .cem.yaml
 .antigravitycli/
+
+# JetBrains Marketplace imza anahtarları (asla commit edilmez)
+*.pem
+*.crt
+chain.crt
+private.pem
+private_encrypted.pem
+.cem-signing/

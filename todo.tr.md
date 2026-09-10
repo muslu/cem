@@ -147,3 +147,37 @@
       modu seçiyor (solda `pair`/`think`/`write` seçici); Enter gönderiyor,
       Shift+Enter satır atlıyor, ↑/↓ tarihçede geziyor. "dosya hakkında sor…"
       dosyayı bağlam olarak iliştirip talimatı aynı kutuda bekliyor.
+
+## JetBrains Marketplace (açık)
+
+Repo tarafı tamam: imza + `verifyPlugin` `build.gradle.kts`'e bağlandı,
+`CHANGELOG.md` eklendi (`changeNotes` var olmayan dosyaya link veriyordu),
+eklenti adı `cem`'e kısaltıldı (Marketplace ayırıcı noktalamayı reddediyor,
+≤20 karakter istiyor), `pluginVersion` release tag'leriyle aynı CalVer'e çekildi
+ve repo değişkeni `PUBLISH_MARKETPLACE=true` yapılınca çalışan uyuyan bir
+`publish-intellij-plugin` CI job'ı eklendi.
+
+Doğrulama sırasında iki gizli hata çıktı:
+- Bytecode hedefi Java 21'di, ama `sinceBuild=233` IDE'leri JBR 17 ile
+  çalışıyor — eklenti 2023.3–2024.1'de hiç yüklenmiyordu
+  (`UnsupportedClassVersionError`). Artık JDK 21 toolchain'i üzerinde
+  `--release 17` / `jvmTarget = 17` ile derleniyor.
+- `buildSearchableOptions { enabled = false }`, `prepareJarSearchableOptions`
+  görevini temiz bir checkout'ta hiç oluşmayan bir dizini girdi beklemeye
+  bırakıyordu; `clean buildPlugin` her zaman patlıyordu. Yerelde eski build
+  çıktısı dizini hayatta tuttuğu için görünmüyordu. Zincir tamamen kapatıldı.
+
+Kullanıcıya kalanlar (otomatikleştirilemez):
+- [ ] JetBrains hesabı + Marketplace satıcı profili.
+- [ ] İmza anahtarını üret (`openssl genpkey` → `private.pem`, `chain.crt`),
+      repoya sokma (`.gitignore` `*.pem` / `*.crt`'yi kapsıyor), sonra
+      `./gradlew signPlugin -Pcem.signDir=$HOME/.cem-signing`.
+- [ ] **ZIP**'i elle yükle (JAR değil — `snakeyaml-engine` zip'in içinde);
+      plugins.jetbrains.com/plugin/add. İlk yayın elle yapılmak zorunda ve yeni
+      eklentiler moderasyondan geçiyor.
+- [ ] ≥1200×760 gerçek IDE ekran görüntüleri — `docs/img/cem-intellij.png`
+      900×410 ve ekran görüntüsü değil, çizim.
+- [ ] Etiket/kategori seç, listeleme formunda MIT lisansını onayla.
+- [ ] Onay sonrası: `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`, `PRIVATE_KEY`,
+      `PRIVATE_KEY_PASSWORD` secret'larını oluştur ve
+      `PUBLISH_MARKETPLACE=true` yap.

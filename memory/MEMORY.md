@@ -3,3 +3,4 @@
 - [Ölçerek gönder](feedback_olcerek_gonder.md) — performans bayrağını gerçek çağrıyla doğrulamadan yayınlama (--bare olayı)
 - [Kullanıcı ortamı](reference_kullanici_ortami.md) — ChatGPT free plan, claude-mem hook'ları, JetBrains, ASCII Türkçe
 - [IntelliJ eklentisi derleme](reference_eklenti_derleme.md) — JDK 21 yok + tr_TR locale plugin-structure'ı kırıyor; LC_ALL=en_US ile derle
+- [Marketplace yayın durumu](reference_marketplace_yayin.md) — eklenti henüz Marketplace'te değil; repo hazır, ilk yükleme elle + moderasyon bekliyor

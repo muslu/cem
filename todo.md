@@ -193,3 +193,36 @@
       selector on its left); Enter sends, Shift+Enter adds a line, ↑/↓ still
       walk the history. "ask about file…" attaches the file as context and
       waits for the instruction in the same box.
+
+## JetBrains Marketplace (open)
+
+Repo side is done: signing + `verifyPlugin` wired into `build.gradle.kts`,
+`CHANGELOG.md` added (the `changeNotes` link pointed at a missing file),
+plugin name shortened to `cem` (Marketplace rejects punctuation used as a
+separator and wants ≤20 characters), `pluginVersion` moved to CalVer so it
+matches the release tags, and a dormant `publish-intellij-plugin` CI job that
+turns on when the repo variable `PUBLISH_MARKETPLACE=true` is set.
+
+Two latent build bugs surfaced while validating this:
+- Bytecode target was Java 21 while `sinceBuild=233` IDEs run JBR 17 — the
+  plugin could not load at all on 2023.3–2024.1 (`UnsupportedClassVersionError`).
+  Now compiled with `--release 17` / `jvmTarget = 17` on a JDK 21 toolchain.
+- `buildSearchableOptions { enabled = false }` left `prepareJarSearchableOptions`
+  expecting a directory that a clean checkout never creates, so `clean
+  buildPlugin` always failed; it only passed locally because an old build
+  output kept the directory alive. The whole chain is disabled now.
+
+Left for the user (cannot be automated):
+- [ ] JetBrains account + Marketplace vendor profile.
+- [ ] Generate the signing key (`openssl genpkey` → `private.pem`,
+      `chain.crt`), keep it out of the repo (`.gitignore` covers `*.pem` /
+      `*.crt`), then `./gradlew signPlugin -Pcem.signDir=$HOME/.cem-signing`.
+- [ ] Upload the **ZIP** (not the JAR — `snakeyaml-engine` ships inside it)
+      manually at plugins.jetbrains.com/plugin/add; the first publication must
+      always be manual, and new plugins go through moderation.
+- [ ] Real IDE screenshots at ≥1200×760 — `docs/img/cem-intellij.png` is
+      900×410 and is a drawing, not a screenshot.
+- [ ] Pick tags/categories and confirm the MIT license in the listing form.
+- [ ] After approval: create the `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`,
+      `PRIVATE_KEY`, `PRIVATE_KEY_PASSWORD` secrets and set
+      `PUBLISH_MARKETPLACE=true`.

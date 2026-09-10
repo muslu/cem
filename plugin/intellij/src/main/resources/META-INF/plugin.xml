@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>dev.cempw.intellij</id>
-    <name>cem — multi-AI orchestrator</name>
-    <vendor email="hi@cem.pw" url="https://cem.pw">cem.pw</vendor>
+    <name>cem</name>
+    <vendor email="musluyuksektepe@gmail.com" url="https://cem.pw">cem.pw</vendor>
 
     <description><![CDATA[
         <p>Run the <a href="https://github.com/muslu/cem">cem</a> CLI from inside
