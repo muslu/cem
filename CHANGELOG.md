@@ -5,7 +5,7 @@ Versions follow `YYYYMMDD.MINOR` (calendar versioning); tags on
 [github.com/muslu/cem](https://github.com/muslu/cem/releases) are the source of
 truth. Turkish version: [CHANGELOG.tr.md](CHANGELOG.tr.md).
 
-## 20260911.00
+## 20260911.01
 
 - **Plugin:** the input box's ↑/↓ history is now persistent and shared. Every
   chat box (Interactive and each run tab's follow-up) walks one list and every

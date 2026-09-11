@@ -5,7 +5,7 @@ Sürümler `YYYYMMDD.MINOR` (takvim sürümlemesi) biçimindedir; doğruluk kayn
 [github.com/muslu/cem](https://github.com/muslu/cem/releases) üzerindeki tag'lerdir.
 İngilizce sürüm: [CHANGELOG.md](CHANGELOG.md).
 
-## 20260911.00
+## 20260911.01
 
 - **Eklenti:** girdi kutusundaki ↑/↓ geçmişi artık kalıcı ve ortak. Tüm sohbet
   kutuları (Interactive ve her çalıştırma sekmesinin devam kutusu) tek listeyi,
