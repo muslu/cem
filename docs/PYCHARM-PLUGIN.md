@@ -96,8 +96,20 @@ plugin/intellij/
 ## Tool window
 
 Three kinds of tab, all sharing one input widget (`attachInput`: Enter sends,
-Shift+Enter adds a line, ↑/↓ walk the history, and in a multi-line draft the
-arrows move the caret instead):
+Shift+Enter adds a line, ↑/↓ walk the history — ↑ on the first line and ↓ on
+the last line of a multi-line draft, the caret moves on the lines in between;
+an entry recalled from the history and not yet edited always walks on):
+
+The history is **persistent and shared** (`CemHistory`): every chat box draws on
+the same list, every Terminal box on another, and both survive an IDE restart —
+a per-box list started empty in each newly opened tab, so yesterday's prompt (or
+the one sent two tabs ago) could not be recalled. Chat and shell entries stay
+apart: `go test ./...` between the prompts would make ↑ useless. Storage is
+`<IDE config>/cem/history-{chat,command}.txt`, one escaped line per entry, the
+last 200 entries; cem's own `~/.cem/history.log` is *not* read back, because it
+truncates the input at 80 characters and a restored prompt would silently be
+half a prompt. An entry longer than 8000 characters is not stored at all for the
+same reason.
 
 | Tab | Behaviour |
 |---|---|

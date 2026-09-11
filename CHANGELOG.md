@@ -5,6 +5,22 @@ Versions follow `YYYYMMDD.MINOR` (calendar versioning); tags on
 [github.com/muslu/cem](https://github.com/muslu/cem/releases) are the source of
 truth. Turkish version: [CHANGELOG.tr.md](CHANGELOG.tr.md).
 
+## 20260911.00
+
+- **Plugin:** the input box's ↑/↓ history is now persistent and shared. Every
+  chat box (Interactive and each run tab's follow-up) walks one list and every
+  Terminal box another, both surviving an IDE restart. The list used to live in
+  the box itself, so a newly opened tab started empty and yesterday's prompt was
+  gone. cem's own `~/.cem/history.log` is deliberately not reused: it truncates
+  the input at 80 characters, and a restored prompt would silently be half a
+  prompt.
+- **Plugin:** ↑/↓ no longer get stuck on a multi-line entry. The old rule was
+  "text contains a newline → move the caret": a three-line prompt recalled with
+  ↑ contained one, so the next ↑/↓ moved the caret and the user could not leave
+  that entry. Now ↑ walks the history from the first line and ↓ from the last
+  (the caret moves on the lines in between), and a recalled entry that has not
+  been edited always walks on.
+
 ## 20260910.06
 
 - `cem uninstall` gained `--yes`, `--config`, `--plugin` and `--all`, and it now

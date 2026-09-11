@@ -5,6 +5,22 @@ Sürümler `YYYYMMDD.MINOR` (takvim sürümlemesi) biçimindedir; doğruluk kayn
 [github.com/muslu/cem](https://github.com/muslu/cem/releases) üzerindeki tag'lerdir.
 İngilizce sürüm: [CHANGELOG.md](CHANGELOG.md).
 
+## 20260911.00
+
+- **Eklenti:** girdi kutusundaki ↑/↓ geçmişi artık kalıcı ve ortak. Tüm sohbet
+  kutuları (Interactive ve her çalıştırma sekmesinin devam kutusu) tek listeyi,
+  tüm Terminal kutuları başka bir listeyi gezer; ikisi de IDE kapanınca durur.
+  Geçmiş eskiden kutunun kendi içindeydi: yeni açılan her sekme boş başlıyor,
+  dünkü prompt geri çağrılamıyordu. cem'in kendi `~/.cem/history.log` dosyası
+  bilerek kullanılmıyor — girdiyi 80 karakterde kırpar ve geri yüklenen prompt
+  sessizce yarım gider.
+- **Eklenti:** ↑/↓ çok satırlı bir girdide artık takılı kalmıyor. Eski kural
+  "metinde satır sonu varsa imleci oynat" idi: ↑ ile çağrılan üç satırlık
+  prompt satır sonu içerdiğinden sonraki ↑/↓ imlece gidiyor, kullanıcı o
+  girdiden çıkamıyordu. Şimdi ↑ ilk satırdan, ↓ son satırdan geçmişi gezer
+  (aradaki satırlarda imleç hareket eder); geçmişten gelen ve henüz
+  düzenlenmemiş girdide her zaman geçmiş gezilir.
+
 ## 20260910.06
 
 - `cem uninstall`'a `--yes`, `--config`, `--plugin` ve `--all` eklendi; IDE

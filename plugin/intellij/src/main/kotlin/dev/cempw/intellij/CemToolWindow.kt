@@ -198,7 +198,8 @@ class CemTab {
         followUp = attachInput(
             this,
             west = null,
-            tooltip = "Enter ↵ devam et · Shift+Enter satır atla · ↑/↓ önceki istekler",
+            tooltip = "Enter ↵ devam et · Shift+Enter satır atla · ↑/↓ önceki istekler (kalıcı geçmiş)",
+            kind = CemHistory.Kind.CHAT,
         ) { typed ->
             appendDim("→ ${mode.name.lowercase()}: ${promptSnippet(typed, 80)}")
             setInputEnabled(false)
@@ -252,11 +253,16 @@ class CemTab {
          * Alt girdi kutusu + shell tarzı geçmiş. Üç yerde kullanılıyor:
          * Interactive sekmesi, çalıştırma sekmesinde "sohbete devam" ve komut
          * sekmesi. Enter gönderir, Shift+Enter satır atlar, ↑/↓ geçmişi gezer.
+         *
+         * Geçmiş `CemHistory`'de: IDE oturumları arasında kalıcı ve aynı türden
+         * (`kind`) tüm kutular arasında ortak. Sekme-yerel bir liste, yeni
+         * açılan her sekmede geçmişi boş gösteriyordu.
          */
         private fun attachInput(
             tab: CemTab,
             west: JComponent?,
             tooltip: String,
+            kind: CemHistory.Kind,
             onSubmit: (String) -> Unit,
         ): JTextArea {
             val input = JTextArea(2, 20).apply {
@@ -293,23 +299,54 @@ class CemTab {
             )
 
             // Shell tarzı geçmiş. historyIndex = history.size → taslak düzenleniyor.
-            val history = mutableListOf<String>()
+            //
+            // `history` gezinme sırasında DONDURULUR (anlık kopya): depo
+            // paylaşımlı, başka bir sekmede o sırada gönderilen bir istek
+            // listeyi büyütürse indeks kayar ve ↑ bambaşka bir satıra atlar.
+            // Kopya, gezinme bitince (submit ya da taslağa dönüş) tazelenir.
+            var history: List<String> = emptyList()
             var historyIndex = 0
             var draft = ""
 
-            // JTextArea'da ↑/↓ imleci satır atlatır. Çok satırlı taslakta
-            // geçmişe atlamak yazılanı çöpe atardı: metin tek satırsa geçmiş,
-            // değilse aracın kendi imleç hareketi çalışır.
+            fun gezinmeyeBasla() {
+                if (historyIndex == history.size) {
+                    history = CemHistory.entries(kind)
+                    historyIndex = history.size
+                }
+            }
+
+            // JTextArea'da ↑/↓ imleci satır atlatır. Çok satırlı metinde
+            // eski kural "satır sonu varsa imleç, yoksa geçmiş" idi; bu,
+            // geçmişten çağrılan çok satırlı bir prompt'ta gezinmeyi KİLİTLİYORDU:
+            // ↑ ile gelen üç satırlık istek artık '\n' içerdiğinden bir
+            // sonraki ↑/↓ geçmişe değil imlece gidiyor, kullanıcı o girdide
+            // takılı kalıyordu. Şimdi kural kabuk/sohbet kutularındaki gibi:
+            // imleç İLK satırdaysa ↑, SON satırdaysa ↓ geçmişi gezer; aradaki
+            // satırlarda imleç hareketi çalışır. Geçmişten gelen ve henüz
+            // dokunulmamış metinde ise her zaman geçmiş gezilir — çağrılan
+            // girdiyi satır satır tırmanmak gerekmesin.
             val caretUp = input.getActionForKeyStroke(KeyStroke.getKeyStroke("UP"))
             val caretDown = input.getActionForKeyStroke(KeyStroke.getKeyStroke("DOWN"))
+
+            fun caretOnFirstLine(): Boolean =
+                runCatching { input.getLineOfOffset(input.caretPosition) == 0 }.getOrDefault(true)
+
+            fun caretOnLastLine(): Boolean =
+                runCatching { input.getLineOfOffset(input.caretPosition) == input.lineCount - 1 }
+                    .getOrDefault(true)
+
+            /** Kutudaki metin geçmişten çağrılmış ve değiştirilmemiş mi? */
+            fun untouchedRecall(): Boolean =
+                historyIndex < history.size && input.text == history[historyIndex]
 
             input.actionMap.put("cem.submit", object : AbstractAction() {
                 override fun actionPerformed(e: ActionEvent) {
                     val typed = input.text.trim()
                     if (typed.isEmpty()) return
                     input.text = ""
-                    if (history.isEmpty() || history.last() != typed) history.add(typed)
-                    historyIndex = history.size
+                    CemHistory.add(kind, typed)
+                    history = emptyList()
+                    historyIndex = 0
                     draft = ""
                     onSubmit(typed)
                 }
@@ -325,9 +362,10 @@ class CemTab {
 
             input.actionMap.put("cem.history.prev", object : AbstractAction() {
                 override fun actionPerformed(e: ActionEvent) {
-                    if (input.text.contains('\n')) { caretUp?.actionPerformed(e); return }
-                    if (history.isEmpty()) return
+                    if (!untouchedRecall() && !caretOnFirstLine()) { caretUp?.actionPerformed(e); return }
                     if (historyIndex == history.size) draft = input.text
+                    gezinmeyeBasla()
+                    if (history.isEmpty()) return
                     if (historyIndex > 0) historyIndex--
                     input.text = history[historyIndex]
                     input.caretPosition = input.document.length
@@ -337,7 +375,7 @@ class CemTab {
 
             input.actionMap.put("cem.history.next", object : AbstractAction() {
                 override fun actionPerformed(e: ActionEvent) {
-                    if (input.text.contains('\n')) { caretDown?.actionPerformed(e); return }
+                    if (!untouchedRecall() && !caretOnLastLine()) { caretDown?.actionPerformed(e); return }
                     if (history.isEmpty() || historyIndex >= history.size) return
                     historyIndex++
                     input.text = if (historyIndex == history.size) draft else history[historyIndex]
@@ -398,7 +436,8 @@ class CemTab {
 
             Aşağıdaki kutuya sorunu yaz, Enter'a bas. Soldaki seçici modu
             belirler: pair (düşünen → yazan) · think · write.
-            Enter gönderir, Shift+Enter satır atlar, ↑/↓ önceki promptlar.
+            Enter gönderir, Shift+Enter satır atlar, ↑/↓ önceki promptlar
+            (geçmiş kalıcı: tüm sekmeler ortak, IDE kapansa da durur).
             Soru kod istemiyorsa yazan otomatik atlanır.
 
             Editör shortcut'ları:
@@ -453,7 +492,8 @@ class CemTab {
             val input = attachInput(
                 tab,
                 west = modeBox,
-                tooltip = "Enter ↵ gönder · Shift+Enter satır atla · ↑/↓ önceki prompt",
+                tooltip = "Enter ↵ gönder · Shift+Enter satır atla · ↑/↓ önceki prompt (kalıcı geçmiş)",
+                kind = CemHistory.Kind.CHAT,
             ) { typed ->
                 val mode = modeBox.selectedItem as? CemAction.Mode ?: CemAction.Mode.PAIR
                 val context = tab.takePendingContext()
@@ -502,7 +542,8 @@ class CemTab {
             val input = attachInput(
                 tab,
                 west = butonlar,
-                tooltip = "Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar",
+                tooltip = "Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar (kalıcı geçmiş)",
+                kind = CemHistory.Kind.COMMAND,
             ) { line ->
                 if (tab.process?.isAlive == true) {
                     tab.appendError("önceki komut hâlâ çalışıyor — ⏹ ile durdur")
