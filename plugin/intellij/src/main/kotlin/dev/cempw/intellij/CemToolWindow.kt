@@ -1,6 +1,11 @@
 package dev.cempw.intellij
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CustomShortcutSet
+import com.intellij.openapi.project.DumbAwareAction
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -11,11 +16,13 @@ import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.JBColor
+import com.intellij.ui.awt.RelativePoint
 import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentFactory
 import java.awt.BorderLayout
+import java.awt.Point
 import java.awt.event.ActionEvent
 import java.util.WeakHashMap
 import javax.swing.AbstractAction
@@ -263,6 +270,7 @@ class CemTab {
             west: JComponent?,
             tooltip: String,
             kind: CemHistory.Kind,
+            completionRoot: java.io.File? = null,
             onSubmit: (String) -> Unit,
         ): JTextArea {
             val input = JTextArea(2, 20).apply {
@@ -384,7 +392,73 @@ class CemTab {
             })
             input.inputMap.put(KeyStroke.getKeyStroke("DOWN"), "cem.history.next")
 
+            // Tab tamamlama (yalnız komut kutusu): kabuk gibi dosya/komut adı
+            // bitirir. JTextArea'da Tab varsayılan olarak sekme karakteri
+            // ekler — komut satırında sekme karakterinin işi yok.
+            //
+            // Swing InputMap'ine bağlamak YETMEDİ: IDE'de tuş olayı bileşene
+            // varmadan önce IdeKeyEventDispatcher'dan geçer ve Tab orada odak
+            // gezinmesi olarak yutulur; kutuya hiç gelmiyordu (kullanıcı
+            // "tab çalışmadı" dedi, kurulu jar'da sınıf vardı). Çözüm IDE'nin
+            // kendi yolu: Tab'ı bu bileşene AnAction + CustomShortcutSet ile
+            // kaydet — dispatcher, odaktaki bileşenin kayıtlı kısayollarına
+            // keymap'ten ve odak gezinmesinden ÖNCE bakar. Odak-gezinme
+            // tuşları da kapatılır ki Swing katmanı Tab'ı çalmasın; InputMap
+            // bağı yedek olarak kalır (IDE dışı test / farklı odak yolu).
+            if (completionRoot != null) {
+                fun complete() {
+                    val r = CemCompletion.complete(
+                        input.text, input.caretPosition, completionRoot, CemCompletion.pathDirs(),
+                    )
+                    if (r.text != input.text) {
+                        input.text = r.text
+                        input.caretPosition = r.caret
+                    }
+                    if (r.options.isNotEmpty()) showCompletionPopup(input, r)
+                }
+                input.focusTraversalKeysEnabled = false
+                input.actionMap.put("cem.complete", object : AbstractAction() {
+                    override fun actionPerformed(e: ActionEvent) = complete()
+                })
+                input.inputMap.put(KeyStroke.getKeyStroke("TAB"), "cem.complete")
+                object : DumbAwareAction() {
+                    override fun getActionUpdateThread() = ActionUpdateThread.EDT
+                    override fun update(e: AnActionEvent) { e.presentation.isEnabled = input.isFocusOwner }
+                    override fun actionPerformed(e: AnActionEvent) = complete()
+                }.registerCustomShortcutSet(CustomShortcutSet(KeyStroke.getKeyStroke("TAB")), input)
+            }
+
             return input
+        }
+
+        /**
+         * Belirsiz tamamlama: adayları kutunun ÜSTÜNDE seçilebilir bir açılır
+         * listede gösterir; ↑/↓ + Enter (ya da tıklama) seçileni kutuya yazar,
+         * Esc kapatır, yazmaya devam edince liste daralır (speed search).
+         * Çıktı alanına basmak yerine bu: liste orada kalıcı çöp oluyor, kutu
+         * ise değişmiyordu.
+         */
+        private fun showCompletionPopup(input: JTextArea, r: CemCompletion.Result) {
+            val shown = r.options.take(CemCompletion.MAX_LISTED)
+            val title = if (r.options.size > shown.size) "${r.options.size} aday (ilk ${shown.size})" else null
+            val builder = JBPopupFactory.getInstance().createPopupChooserBuilder(shown)
+                .setRenderer(SimpleListCellRenderer.create("") { it.display })
+                .setNamerForFiltering { it.display }
+                .setVisibleRowCount(shown.size.coerceIn(3, 12))
+                .setRequestFocus(true)
+                .setItemChosenCallback { opt ->
+                    val picked = r.pick(opt)
+                    input.text = picked.text
+                    input.caretPosition = picked.caret
+                    input.requestFocusInWindow()
+                }
+            if (title != null) builder.setTitle(title)
+            // Kutunun üstüne aç: 2023.3 API'sinde `showAbove` yok; sol-üst
+            // köşeden liste yüksekliği kadar yukarısı veriliyor, ekrana
+            // sığmazsa platform kendisi kaydırır.
+            val popup = builder.createPopup()
+            val h = popup.content.preferredSize.height
+            popup.show(RelativePoint(input, Point(0, -h)))
         }
 
         /**
@@ -542,8 +616,9 @@ class CemTab {
             val input = attachInput(
                 tab,
                 west = butonlar,
-                tooltip = "Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar (kalıcı geçmiş)",
+                tooltip = "Enter ↵ çalıştır · Tab ⇥ dosya/komut tamamla · Shift+Enter satır atla · ↑/↓ önceki komutlar (kalıcı geçmiş)",
                 kind = CemHistory.Kind.COMMAND,
+                completionRoot = project.basePath?.let { java.io.File(it) } ?: java.io.File("."),
             ) { line ->
                 if (tab.process?.isAlive == true) {
                     tab.appendError("önceki komut hâlâ çalışıyor — ⏹ ile durdur")
@@ -602,8 +677,8 @@ class CemTab {
             Terminal — komutlar proje kökünde ve kabuk üzerinden çalışır.
             Dizin: ${project.basePath ?: "?"}
 
-            Enter ↵ çalıştır · Shift+Enter satır atla · ↑/↓ önceki komutlar
-            ⏹ çalışan komutu durdurur · ＋ yeni terminal sekmesi açar
+            Enter ↵ çalıştır · Tab ⇥ dosya/komut tamamla · Shift+Enter satır atla
+            ↑/↓ önceki komutlar · ⏹ çalışan komutu durdurur · ＋ yeni terminal sekmesi açar
             (uzun süren komut — go run, npm start — sekmeyi meşgul eder)
             Not: tam bir pty değil — vim/top gibi interaktif programlar için IDE'nin
             kendi Terminal penceresini kullan.

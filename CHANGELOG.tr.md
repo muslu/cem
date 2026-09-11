@@ -5,6 +5,51 @@ Sürümler `YYYYMMDD.MINOR` (takvim sürümlemesi) biçimindedir; doğruluk kayn
 [github.com/muslu/cem](https://github.com/muslu/cem/releases) üzerindeki tag'lerdir.
 İngilizce sürüm: [CHANGELOG.md](CHANGELOG.md).
 
+## 20260911.02
+
+- **Eklenti: Terminal sekmesinde Tab tamamlama.** `python3 fe⇥` yazınca kutuya
+  sekme karakteri giriyordu — sekme her komutu yeni bir `sh -c` ile
+  çalıştırdığından kabuğun kendi tamamlaması hiç devreye girmiyordu. Tab artık
+  kabuk gibi tamamlıyor: komut sözcüğü `PATH`'teki çalıştırılabilirlere, diğer
+  sözcükler proje kökündeki dosya ve dizinlere göre; tek aday bitirilir (dizine
+  `/`, dosyaya boşluk), çok aday ortak öneke ilerler; eklenecek bir şey
+  kalmayınca adaylar kutunun üstünde seçilebilir bir listede açılır — ↑/↓ +
+  Enter ya da tıklama seçileni kutuya yazar, yazmaya devam edince liste
+  daralır, Esc kapatır. (İlk sürüm adayları çıktı alanına basıyordu:
+  `python⇥` her basışta 30 adı bir daha döküyor, kutu ise değişmiyordu. İkinci
+  sürüm Tab'ı yalnız Swing `InputMap`'ine bağlıyordu ve IDE'de oraya hiç
+  ulaşmıyordu: tuş olayı önce `IdeKeyEventDispatcher`'dan geçer, Tab orada odak
+  gezinmesi olarak yutuluyordu — Tab artık kutuya `CustomShortcutSet` ile IDE
+  action'ı olarak kayıtlı; dispatcher keymap'ten önce ona bakar.)
+
+- **agy headless modda artık kör çalışmıyor.** Antigravity `-p` altında araç
+  izni soramıyor: ihtiyaç duyduğu ilk dosya okuma ya da komut otomatik
+  reddediliyor ve exit 0 + boş stdout ile dönüyor. cem bu boş cevabı plan
+  sanıp yazana veriyor, yazan da arkasında plan olmadan kendi başına dosya
+  üretiyordu (sahada görüldü 2026-09-11 — düşünenin tek çıktısı "no output
+  produced … auto-denied" idi). agy'nin hızlı modu (varsayılan açık) artık
+  `--dangerously-skip-permissions` geçiyor — print modunda araç kullanımını
+  açan tek bayrak bu (`--mode accept-edits` ölçüldü, açmıyor) — ve `cem fast`
+  bunu söylüyor. Red yine olursa (hızlı mod kapalı ya da eski agy) cem bunu
+  adıyla bildiriyor, `cem fast agy on`'u gösteriyor ve ikinci çağrıyı
+  ödemek yerine yazanı atlıyor.
+- Boş cevap döndüren her düşünen artık pair koşusunu uyarıyla durduruyor,
+  yazan başlatılmıyor.
+- **Geçen süre her adımda, adımın rengiyle gösteriliyor.** `cem -w` hiç süre
+  basmıyordu; pair'de düşünme/yazma/toplam satırları uzun cevabın altında tek
+  gri blok hâlindeydi. Her adım artık rolün rengiyle (düşünen mavi, yazan
+  yeşil) kendi satırıyla bitiyor; pair toplamı kalın, parçalar renkli.
+- **Saklı cevap koşudan ÖNCE teklif ediliyor, sonra açıklanmıyor.**
+  Önbellekte cevap varken cem onu basıp altına "önbellekten · --no-cache"
+  notu düşüyordu — kullanıcı geç fark edip komutu yeniden yazıyordu.
+  Terminalde artık önce soruyor (`Kullanılsın mı? [E/h]`; Enter bedava cevabı
+  kullanır, `h` taze üretir ve onu saklar). Terminal yoksa (eklenti, pipe, CI)
+  soru sorulmaz, saklı cevap eskisi gibi kullanılır.
+- `cem … </dev/null` artık terminal sayılmıyor: `/dev/null` karakter aygıtı
+  olduğu için TTY kontrolü "etkileşimli" diyor, soru soruyor ve EOF'u Enter
+  okuyordu. Tüm sorular artık tek stdin okuyucusunu paylaşıyor — her biri
+  kendi tamponlu okuyucusunu açıyor, ilki sonrakine ait satırları yutuyordu.
+
 ## 20260911.01
 
 - **Eklenti:** girdi kutusundaki ↑/↓ geçmişi artık kalıcı ve ortak. Tüm sohbet

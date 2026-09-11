@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"os"
 	"strings"
 )
@@ -65,3 +66,10 @@ func L(tr, en string) string {
 	}
 	return tr
 }
+
+// stdinReader — tüm soruların ortak stdin okuyucusu. Her soru kendi
+// bufio.Reader'ını açınca ilk okuyucu, arkadan gelen satırları da tamponuna
+// alıyor ve sonraki soru hiç cevap görmüyordu (ölçüldü: güven sorusuna "e",
+// önbellek sorusuna "h" yazan pipe'ta "h" kayboldu). Terminalde satır satır
+// gelen girişte belirti yok, ama beslenmiş stdin'de sessizce yanlış karar.
+var stdinReader = bufio.NewReader(os.Stdin)

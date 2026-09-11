@@ -147,6 +147,22 @@
       modu seçiyor (solda `pair`/`think`/`write` seçici); Enter gönderiyor,
       Shift+Enter satır atlıyor, ↑/↓ tarihçede geziyor. "dosya hakkında sor…"
       dosyayı bağlam olarak iliştirip talimatı aynı kutuda bekliyor.
+- [x] agy headless izin reddi ele alındı: hızlı mod
+      `--dangerously-skip-permissions` geçiyor (okumayı açan tek bayrak;
+      ölçüldü), `hintPermission` "exit 0 + boş stdout + auto-denied"
+      durumunu yakalayıp yazanı atlıyor, boş düşünen çıktısı pair koşusunu
+      durduruyor. agy'ye `ModelBeforeRun` verildi, bayraklar `-p`'den önce.
+- [x] doc:CLAUDE güncellemesi — Runtime Gotchas: agy headless izin maddesi.
+- [x] Her adımda rol rengiyle geçen süre; `cem -w` hiç basmıyordu.
+- [x] Saklı cevap koşudan önce teklif ediliyor (`askUseCache`, yalnız TTY);
+      `/dev/null` artık TTY sayılmıyor; tek ortak `stdinReader`.
+- [x] doc:CLAUDE güncellemesi — Runtime Gotchas: önbellek sorusu + TTY kontrolü.
+- [ ] `loadProjectConfig`, `roles:` olmayan `.cem.yaml`'ı atıyor — elle
+      yazılmış, yalnız `fast:`/`effort:` içeren dosya sessizce yok sayılıyor.
+      Karar: kısmi proje config'i uygula ya da uyar.
+- [ ] agy 1.2.1'de artık `--model` ve `--effort low|medium|high` var;
+      `KnownTools["agy"]` yorumu hâlâ ikisi de yok diyor. Gerçek çağrıyla
+      doğrulandıktan sonra `ModelFlag` + `EffortArgs` set edilsin.
 
 ## JetBrains Marketplace (açık)
 
@@ -251,3 +267,10 @@ kuruyor (`nala`), JDK 21'i bulur veya kurar, ilk çalıştırmada imza anahtarı
       Terminal yoksa onaysız silmiyor. IDE eklentileri artık listelenip
       siliniyor — JetBrains her ürün+sürüm için ayrı kopya tutuyor ve geride
       kalan eklenti her açılışta cem'i bulamadığını bildiriyordu.
+- [x] Eklenti: Terminal kutusunda Tab tamamlama (`CemCompletion.kt`) — komut
+      konumunda PATH komutları, diğer konumlarda proje dosyaları; belirsiz
+      eşleşmeler kutunun üstünde seçim listesi açar. İki yanlış başlangıç:
+      adaylar çıktı alanına basıldı, sonra Tab yalnız Swing `InputMap`'ine
+      bağlandı ve `IdeKeyEventDispatcher` onu kutuya varmadan odak gezinmesi
+      olarak yuttu — artık `CustomShortcutSet` ile IDE action'ı olarak kayıtlı.
+- [ ] doc:CLAUDE update — Runtime Gotchas: eklenti kısayolları IDE action olmalı.

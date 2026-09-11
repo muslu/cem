@@ -240,11 +240,33 @@ cem/
   and the stored credentials with them: every call fails with "Not logged in ·
   Please run /login" (measured 2026-09-09, claude 2.1.266). A flag added for
   speed must be verified with a real call before it ships.
+- **agy cannot ask for a tool permission in headless mode.** The first
+  `read_file`/`command` it needs is auto-denied and it returns **exit 0 with an
+  empty stdout** — the error is only on stderr (measured 2026-09-11, agy 1.2.1;
+  even "read README's first line" produced nothing). Two consequences: agy's
+  fast mode carries `--dangerously-skip-permissions` (`--mode accept-edits` was
+  measured and does not unlock reads; the only alternative is writing to the
+  user's own `settings.json`), and the thinker path treats "exit 0 + empty
+  stdout + `permissionDeniedRe` on stderr" as a failure (`hintPermission`).
+  Before that check the empty plan went straight to the writer, which wrote a
+  file with no plan behind it — the second call billed for nothing. Which tool
+  the model picks is not deterministic, so the denial cannot be forced through
+  cem; the end-to-end check uses a fake `agy` script that replays the message.
+  Any tool flag for agy must go before `-p` (`ModelBeforeRun: true`) — `-p`
+  takes the next argument as the prompt.
 - **The cache key includes the working directory** and the answer is not stored
   when the thinker asked for information ("client.go is not in the repo, please
   share it"). Both are correctness, not tuning: the first stops one project's
   answer from surfacing in another, the second stops a "file not found" reply
   from being replayed for days after the user created the file.
+- **Cached answers are offered before the run** (`askUseCache`): in a
+  terminal cem asks `Use it? [Y/n]` before printing a stored answer; `n` is the
+  same as `--no-cache` for that run. Only when stdin is a real terminal —
+  `isInteractiveStdin` uses `term.IsTerminal`, because `/dev/null` is a
+  character device and the old `ModeCharDevice` check took `</dev/null` for a
+  TTY (it then read EOF as Enter). Every prompt reads from the shared
+  `stdinReader`: a second `bufio.NewReader(os.Stdin)` never sees the lines the
+  first one buffered.
 - **`--no-cache` skips the *read*, not the *write*.** It means "don't reuse the
   stored answer, get a fresh one and store that". Disabling the write too left
   the stale entry in place: the user saw a fresh answer, then the next normal
@@ -269,6 +291,13 @@ cem/
   `cem status --json` and writes through `cem setup` / `cem fast` /
   `cem endpoint` (`CemCli.kt`) — cem does the validating, and the tool list,
   models and effort levels come from cem rather than a second hardcoded copy.
+- **A key shortcut for a plugin Swing component must be registered as an IDE
+  action** (`AnAction.registerCustomShortcutSet(CustomShortcutSet(...), component)`),
+  not only in the Swing `InputMap`. Key events pass through
+  `IdeKeyEventDispatcher` before they reach the component; Tab bound only in
+  the `InputMap` never arrived at the Terminal box (field report 2026-09-11).
+  The dispatcher consults the focused component's registered shortcuts before
+  the keymap, so that path works; the `InputMap` binding stays as a fallback.
 - **Plugin tests need `--no-configuration-cache` and the network.**
   `./gradlew test` alone fails while writing the configuration cache
   (KotlinCompile's classpath snapshot), and `--offline` fails because

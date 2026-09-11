@@ -1,6 +1,7 @@
 - [No Co-Authored-By in commits](feedback_no_coauthored_by.md) — never add Claude trailers; user stripped 34 commits with filter-branch on 2026-05-25
 - [cem'in hedefi](project_cem_hedef.md) — her karar token israfını önleme ölçütüyle verilir; pahalı düşünür, ucuz yazar
 - [Ölçerek gönder](feedback_olcerek_gonder.md) — performans bayrağını gerçek çağrıyla doğrulamadan yayınlama (--bare olayı)
-- [Kullanıcı ortamı](reference_kullanici_ortami.md) — ChatGPT free plan, claude-mem hook'ları, JetBrains, ASCII Türkçe
+- [Kullanıcı ortamı](reference_kullanici_ortami.md) — ChatGPT free plan, claude-mem hook'ları, eklenti PTY'siz, agy headless izin reddi, ASCII Türkçe
 - [IntelliJ eklentisi derleme](reference_eklenti_derleme.md) — JDK 21 yok + tr_TR locale plugin-structure'ı kırıyor; LC_ALL=en_US ile derle
-- [Marketplace yayın durumu](reference_marketplace_yayin.md) — eklenti henüz Marketplace'te değil; repo hazır, ilk yükleme elle + moderasyon bekliyor
+- [Marketplace yayın durumu](reference_marketplace_yayin.md) — sayfa 34196, son sürüm 20260911.01, `./surum-yayinla.sh` akışı
+- [Önce sor, sonra üret](feedback_once_sor_sonra_uret.md) — kararı değiştirecek bilgi (önbellek, süre) koşudan önce soru olarak; TTY yoksa sorma

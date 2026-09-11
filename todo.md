@@ -193,6 +193,22 @@
       selector on its left); Enter sends, Shift+Enter adds a line, ↑/↓ still
       walk the history. "ask about file…" attaches the file as context and
       waits for the instruction in the same box.
+- [x] agy headless permission denial handled: fast mode passes
+      `--dangerously-skip-permissions` (only flag that unlocks reads; measured),
+      `hintPermission` catches "exit 0 + empty stdout + auto-denied" and skips
+      the writer, empty thinker output stops the pair run. `ModelBeforeRun`
+      set for agy so flags land before `-p`.
+- [x] doc:CLAUDE update — Runtime Gotchas: agy headless permission item.
+- [x] Elapsed time on every step in the role's colour; `cem -w` had none.
+- [x] Cached answer is offered before the run (`askUseCache`, TTY only);
+      `/dev/null` no longer counts as a TTY; one shared `stdinReader`.
+- [x] doc:CLAUDE update — Runtime Gotchas: cache question + TTY check.
+- [ ] `loadProjectConfig` drops a `.cem.yaml` that has no `roles:` — a
+      hand-written file with only `fast:`/`effort:` is silently ignored.
+      Decide: apply partial project configs, or warn.
+- [ ] agy 1.2.1 now has `--model` and `--effort low|medium|high`; the
+      `KnownTools["agy"]` comment still says it has neither. Set `ModelFlag`
+      and `EffortArgs` after a real call confirms they are honoured.
 
 ## JetBrains Marketplace (open)
 
@@ -298,3 +314,10 @@ on first run, then builds → signs → verifies the signature.
       unconfirmed without a terminal. IDE plugins are now listed and removed —
       JetBrains keeps one copy per product and version, and a leftover plugin
       reported cem missing on every IDE start.
+- [x] Plugin: Tab completion in the Terminal box (`CemCompletion.kt`) — PATH
+      commands in command position, project files elsewhere; ambiguous matches
+      open a chooser popup above the box. Two false starts: candidates printed
+      into the output pane, then Tab bound only in the Swing `InputMap`, which
+      `IdeKeyEventDispatcher` swallowed as focus traversal before the box saw
+      it — now registered as an IDE action with `CustomShortcutSet`.
+- [ ] doc:CLAUDE update — Runtime Gotchas: plugin shortcuts must be IDE actions.

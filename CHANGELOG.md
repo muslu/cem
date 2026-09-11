@@ -5,6 +5,55 @@ Versions follow `YYYYMMDD.MINOR` (calendar versioning); tags on
 [github.com/muslu/cem](https://github.com/muslu/cem/releases) are the source of
 truth. Turkish version: [CHANGELOG.tr.md](CHANGELOG.tr.md).
 
+## 20260911.02
+
+- **Plugin: Tab completion in the Terminal tab.** Typing `python3 fe⇥` used to
+  insert a tab character — the tab runs each command through a fresh `sh -c`,
+  so the shell's own completion was never there. Tab now completes like a
+  shell: the command word against the executables on `PATH`, other words
+  against files and directories under the project root; a single match is
+  finished (`/` for a directory, space for a file), several advance to the
+  common prefix, and when there is nothing more to add they open in a chooser
+  popup above the input — ↑/↓ + Enter or a click writes the pick into the box,
+  typing narrows the list, Esc closes it. (The first cut printed the
+  candidates into the output pane: `python⇥` dumped 30 names on every press
+  and the box never changed. The second bound Tab only in the Swing `InputMap`,
+  which the IDE never reached: key events pass through `IdeKeyEventDispatcher`
+  first and Tab was swallowed there as focus traversal — Tab is now registered
+  on the box as an IDE action with a `CustomShortcutSet`, which the dispatcher
+  consults before the keymap.)
+
+- **agy in headless mode no longer runs blind.** Antigravity cannot prompt for
+  a tool permission under `-p`: the first file read or command it needs is
+  auto-denied and it exits 0 with an empty stdout. cem took that empty answer
+  for a plan and handed it to the writer, which then produced a file on its own
+  with no plan behind it (seen in the field on 2026-09-11 — the thinker's only
+  output was "no output produced … auto-denied"). agy's fast mode (on by
+  default) now passes `--dangerously-skip-permissions`, the only flag that
+  unlocks tool use in print mode (`--mode accept-edits` was measured and does
+  not), and `cem fast` says so. When the denial still happens — fast mode
+  off, or an older agy — cem names it, points at `cem fast agy on`, and skips
+  the writer instead of paying for a second call.
+- Any thinker that returns an empty answer now stops the pair run with a
+  warning instead of starting the writer.
+- **Elapsed time is shown for every step, in the step's colour.** `cem -w`
+  printed no duration at all; in pair mode the thinking/writing/total lines
+  were one grey block under a long answer. Each step now ends with its own
+  line in the role's colour (thinker blue, writer green), and the pair total is
+  bold with the two parts coloured.
+- **A cached answer is offered before the run, not revealed after it.** When
+  the cache holds an answer, cem used to print it and add "from cache · re-run
+  with --no-cache" underneath — the user found out too late and typed the
+  command again. In a terminal it now asks first (`Use it? [Y/n]`, Enter keeps
+  the free answer, `n` generates a fresh one and stores it). Without a
+  terminal (plugin, pipe, CI) nothing is asked and the cached answer is used
+  as before.
+- `cem … </dev/null` no longer counts as a terminal: `/dev/null` is a
+  character device, so the TTY check said "interactive", asked questions and
+  read EOF as Enter. All prompts also share one stdin reader now — each used to
+  open its own buffered reader, and the first one swallowed the lines meant
+  for the next.
+
 ## 20260911.01
 
 - **Plugin:** the input box's ↑/↓ history is now persistent and shared. Every

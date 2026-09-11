@@ -87,6 +87,8 @@ plugin/intellij/
     ├── kotlin/dev/cempw/intellij/
     │   ├── CemAction.kt            — Think / Write / Pair / Ask actions, run + stream, notifications
     │   ├── CemToolWindow.kt        — tool window: Interactive, Terminal and run tabs
+    │   ├── CemCompletion.kt        — Tab completion for the Terminal box (PATH commands + project files)
+    │   ├── CemHistory.kt           — persistent, shared ↑/↓ history (chat and command kept apart)
     │   ├── CemCli.kt               — cem status --json / cem setup / cem fast + a small JSON reader
     │   ├── CemConfig.kt            — legacy YAML reader (fallback when cem cannot be run)
     │   └── CemSettings.kt          — binary path + the setup page (Settings → Tools → cem)
@@ -114,7 +116,7 @@ same reason.
 | Tab | Behaviour |
 |---|---|
 | `Interactive` | Fixed tab. Mode selector on the left, one run per Enter. |
-| `Terminal` | Commands in the project root through the shell. `⏹` stops one, `＋` opens another tab (a `go run` serving on :8080 blocks its own tab). Not a pty. |
+| `Terminal` | Commands in the project root through the shell. `⏹` stops one, `＋` opens another tab (a `go run` serving on :8080 blocks its own tab). Not a pty. **Tab completes** like a shell (`CemCompletion`): the first word against the executables on `PATH`, every other word against files and directories under the project root (`~/` and absolute paths work too). One match is completed — a directory gets `/`, a file gets a space; several matches advance to the common prefix, and when that is no progress the candidates open in a chooser popup above the input (200 at most; ↑/↓ + Enter or a click inserts the pick, typing filters, Esc closes). Hidden files only when a `.` is typed; names with spaces are backslash-escaped. No shell is asked — the tab runs `sh -c` per command, so bash's own completion is never available. |
 | run tabs | One per invocation, closeable — closing kills the process. The input box underneath continues the conversation. |
 
 **Continuing a conversation** re-sends the earlier turns as text: cem has no

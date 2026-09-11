@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -362,7 +361,7 @@ func askModel(toolKey, label string, cfg *GlobalConfig) {
 	fmt.Printf(L("      [%d] custom (kendi adını gir)\n", "      [%d] custom (type your own)\n"), len(meta.Models)+1)
 	fmt.Print(L("      [0] default (CLI kendi seçer)\n", "      [0] default (the CLI decides)\n"))
 	fmt.Print(L("  Seçim: ", "  Choice: "))
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	resp, _ := reader.ReadString('\n')
 	resp = strings.TrimSpace(resp)
 
@@ -411,7 +410,7 @@ func askLanguage(cfg *GlobalConfig) {
 		fmt.Printf("    %s [%d] %s\n", marker, i+1, opt.name)
 	}
 	fmt.Print("  Seçim / Choice: ")
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	resp, _ := reader.ReadString('\n')
 
 	switch strings.TrimSpace(resp) {
@@ -450,7 +449,7 @@ func askEffort(toolKey, label string, cfg *GlobalConfig) {
 	}
 	fmt.Print(L("      [0] default (CLI kendi seçer)\n", "      [0] default (the CLI decides)\n"))
 	fmt.Print(L("  Seçim: ", "  Choice: "))
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	resp, _ := reader.ReadString('\n')
 	resp = strings.TrimSpace(resp)
 
@@ -737,7 +736,7 @@ func postInstallAuthSetup(toolKey string, meta ToolMeta, binPath string, cfg *Gl
 	fmt.Println(styleDim.Render(L("    [2] Subscription / OAuth login (sonra: '", "    [2] Subscription / OAuth login (then run: '") + filepath.Base(binPath) + L("' çalıştır)", "')")))
 	fmt.Println(styleDim.Render(L("    [3] Şimdilik atla", "    [3] Skip for now")))
 	fmt.Print(L("  Seçim [1-3]: ", "  Choice [1-3]: "))
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
 	switch choice {
@@ -989,7 +988,7 @@ func printToolsTable(tools map[string]InstalledTool) {
 // pickTool — wizard için araç seçtir
 func pickTool(prompt string, toolOrder []string, cfg *GlobalConfig) string {
 	fmt.Printf("%s [1-%d]: ", styleBold.Render(prompt), len(toolOrder))
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	for {
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
@@ -1024,7 +1023,7 @@ func askYN(prompt string) bool {
 		return true
 	}
 	fmt.Printf("%s (y/N): ", prompt)
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	resp, _ := reader.ReadString('\n')
 	resp = strings.ToLower(strings.TrimSpace(resp))
 	return resp == "y" || resp == "yes" || resp == "e" || resp == "evet"

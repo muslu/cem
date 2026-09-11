@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -76,7 +75,7 @@ func ensureWorkdirTrusted(cfg *GlobalConfig) bool {
 	fmt.Println()
 	fmt.Print(L("  Bu dizine güveniyor musun? [e/H] ", "  Do you trust this directory? [y/N] "))
 
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	resp, _ := reader.ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(resp)) {
 	case "e", "evet", "y", "yes":

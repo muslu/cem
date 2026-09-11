@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strconv"
@@ -31,7 +30,7 @@ var keysAddCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		fmt.Printf(L("  %s için API key girin: ", "  Enter the API key for %s: "), styleBold.Render(provider))
-		reader := bufio.NewReader(os.Stdin)
+		reader := stdinReader
 		val, _ := reader.ReadString('\n')
 		val = strings.TrimSpace(val)
 		if val == "" {

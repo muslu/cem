@@ -156,6 +156,12 @@ func showFast(rc *ResolvedConfig) {
 	fmt.Println(styleDim.Render(L(
 		"  Açıkken: hook / izin kuralı / MCP yüklenmez, dosya düzenlemeleri otomatik onaylanır.",
 		"  When on: hooks / permission rules / MCP are not loaded, file edits are auto-approved.")))
+	// agy'nin headless modu izin SORAMIYOR: kapalıyken ilk dosya okumada
+	// "auto-denied" deyip boş dönüyor. Kullanıcı kapatırsa neyi kapattığını
+	// bilsin.
+	fmt.Println(styleDim.Render(L(
+		"  agy: headless modda izin soramadığı için tüm araç izinleri otomatik onaylanır — kapalıyken hiç çıktı üretmez.",
+		"  agy: cannot prompt for permissions in headless mode, so all tool permissions are auto-approved — off, it produces no output.")))
 	fmt.Println(styleDim.Render(L("  cem fast claude on", "  cem fast claude on")))
 	fmt.Println()
 }

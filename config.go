@@ -260,6 +260,7 @@ var KnownTools = map[string]ToolMeta{
 		VersionFlag:      "--version",
 		RunFlags:         []string{"-p"},
 		PromptAsArg:      true, // agy -p "prompt" (— -p bir argüman bekliyor)
+		ModelBeforeRun:   true, // -p prompt'u argüman alır: bayraklar -p'den ÖNCE gelmeli (FastArgs)
 		// NOT: Antigravity CLI'nın --model flag'i henüz yok (agy --help: -p, -c,
 		// --sandbox, --print-timeout). Model Google tarafında seçiliyor. Yine de
 		// Models listesi gösterilir ki wizard'da tercih kaydedilebilsin —
@@ -267,6 +268,14 @@ var KnownTools = map[string]ToolMeta{
 		Models:    []string{"gemini-3-pro", "gemini-3-flash"},
 		UpdateCmd: []string{"update"},
 		AuthCmd:   []string{"login"},
+		// Headless (-p) modda agy hiçbir araç iznini SORAMIYOR: ilk read_file /
+		// command isteğinde "auto-denied" deyip exit 0 ve BOŞ stdout ile dönüyor
+		// (ölçüldü 2026-09-11, agy 1.2.1 — "README'nin ilk satırını oku" bile
+		// üretilemedi). --mode accept-edits yetmiyor (yalnız düzenlemeleri
+		// kapsıyor); izinleri açan tek bayrak bu. Ayar dosyasındaki
+		// permissions.allow alternatifi kullanıcının settings.json'ına yazmayı
+		// gerektirir — cem başka aracın ayarına dokunmaz.
+		FastArgs: []string{"--dangerously-skip-permissions"},
 	},
 	"gpt": {
 		Name:        "Codex",

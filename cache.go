@@ -312,6 +312,34 @@ func cacheDelete(key string) {
 
 // printCacheHit — önbellekten geldiğini gizlemeyelim: kullanıcı cevabın taze
 // olmadığını bilmeli ve nasıl atlayacağını görmeli.
+// askUseCache — önbellekte cevap varken, üretime BAŞLAMADAN kullanıcıya
+// sorar: saklı cevap mı, taze mi? Eskiden cevap basıldıktan sonra "♻
+// önbellekten · --no-cache" notu düşülüyordu; kullanıcı taze cevap
+// istediğini ancak o zaman fark edip komutu tekrar yazıyordu (sahada,
+// 2026-09-11). Enter = saklı cevap (bedava); h = taze üret ve onu sakla.
+//
+// Yalnız stdin terminalken sorulur: pipe / eklenti (ProcessBuilder, PTY yok)
+// / CI'da soruyu yanıtlayacak kimse yok, orada saklı cevap eskisi gibi
+// kullanılır ve notu basılır. --no-cache verilmişse buraya hiç gelinmez.
+func askUseCache(age time.Duration) bool {
+	if !isInteractiveStdin() {
+		return true
+	}
+	fmt.Print(styleDim.Render(fmt.Sprintf(
+		L("  ♻ önbellekte cevap var (%s önce). ", "  ♻ a cached answer exists (%s old). "),
+		formatDuration(age))))
+	fmt.Print(L("Kullanılsın mı? [E/h] ", "Use it? [Y/n] "))
+	reader := stdinReader
+	resp, _ := reader.ReadString('\n')
+	switch strings.ToLower(strings.TrimSpace(resp)) {
+	case "h", "hayır", "hayir", "n", "no":
+		fmt.Println(styleDim.Render(L("  taze cevap üretiliyor, saklı olan güncellenecek",
+			"  generating a fresh answer; the stored one will be replaced")))
+		return false
+	}
+	return true
+}
+
 func printCacheHit(age time.Duration) {
 	fmt.Println(styleDim.Render(fmt.Sprintf(
 		L("  ♻ önbellekten (%s önce) · yeniden çalıştırmak için: --no-cache",

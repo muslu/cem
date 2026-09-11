@@ -689,3 +689,54 @@ func TestAuthPromptNoticeBirKezUyarir(t *testing.T) {
 		t.Fatalf("ipucu tam bir kez basılmalı, %d kez basıldı", n)
 	}
 }
+
+// agyHeadlessDenied — agy 1.2.1'in headless modda izin soramayınca stderr'e
+// yazdığı mesaj (exit 0, stdout boş). Sahada görüldü 2026-09-11.
+const agyHeadlessDenied = `jetski: no output produced — a tool required the "read_file" permission that headless mode cannot prompt for, so it was auto-denied. Add an allow-rule under permissions.allow in settings.json (e.g. read_file(<target>)). Alternatively, re-run with --dangerously-skip-permissions to auto-approve all tools.`
+
+// TestIzinReddiImzasi — headless izin reddi yakalanmalı; auth/rate-limit
+// imzasıyla karışmamalı (mesajda "permission" geçiyor, "unauthorized" değil).
+func TestIzinReddiImzasi(t *testing.T) {
+	if !looksLikePermissionDenied(agyHeadlessDenied) {
+		t.Fatal("headless izin reddi yakalanmadı")
+	}
+	if looksLikeAuthFailure(agyHeadlessDenied) {
+		t.Error("izin reddi auth hatası sanıldı")
+	}
+	if looksLikeRateLimit(agyHeadlessDenied) {
+		t.Error("izin reddi rate limit sanıldı")
+	}
+	for _, s := range []string{
+		"Ben Antigravity yapay zekâ asistanıyım. Size nasıl yardımcı olabilirim?",
+		"Plan:\n- README'yi oku\n- AMAC.md oluştur",
+		"", // boş stderr
+	} {
+		if looksLikePermissionDenied(s) {
+			t.Errorf("sıradan çıktı izin reddi sanıldı: %q", s)
+		}
+	}
+}
+
+// TestAgyHizliModIzinleriAcar — agy'nin hızlı modu izin bayrağını taşımalı ve
+// -p'den ÖNCE gelmeli (PromptAsArg: -p prompt'u argüman olarak alıyor).
+func TestAgyHizliModIzinleriAcar(t *testing.T) {
+	rc := rcWith(map[string]InstalledTool{"agy": {}}, nil)
+	got := buildArgs(KnownTools["agy"], "agy", rc, "görev")
+	fi := indexOf(got, KnownTools["agy"].FastArgs[0])
+	pi := indexOf(got, "-p")
+	if fi < 0 {
+		t.Fatalf("hızlı mod argümanı yok: %q", got)
+	}
+	if pi < 0 || fi > pi {
+		t.Errorf("hızlı mod argümanı -p'den sonra: %q", got)
+	}
+	if got[len(got)-1] != "görev" {
+		t.Errorf("prompt son argüman değil: %q", got)
+	}
+
+	off := false
+	rcOff := rcWith(map[string]InstalledTool{"agy": {Fast: &off}}, nil)
+	if indexOf(buildArgs(KnownTools["agy"], "agy", rcOff, "x"), KnownTools["agy"].FastArgs[0]) >= 0 {
+		t.Error("kapalıyken hızlı mod argümanı sızdı")
+	}
+}

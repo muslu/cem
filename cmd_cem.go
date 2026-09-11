@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strconv"
@@ -319,7 +318,7 @@ var initCmd = &cobra.Command{
 func pickToolWithDefault(label string, toolOrder []string, cfg *GlobalConfig, fallback string) string {
 	fmt.Printf("%s [1-%d, Enter=%s]: ",
 		styleBold.Render(label), len(toolOrder), styleBold.Render(fallback))
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	for {
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
@@ -367,7 +366,7 @@ func pickProjectEffort(toolKey, label string, global *GlobalConfig) string {
 	}
 	fmt.Printf("      [0] global (no override)\n")
 	fmt.Print(L("  Seçim: ", "  Choice: "))
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	resp, _ := reader.ReadString('\n')
 	resp = strings.TrimSpace(resp)
 	if resp == "" || resp == "0" {
@@ -402,7 +401,7 @@ func pickProjectModel(toolKey, label string, global *GlobalConfig) string {
 	fmt.Printf("      [%d] custom\n", len(meta.Models)+1)
 	fmt.Printf("      [0] global (no override)\n")
 	fmt.Print(L("  Seçim: ", "  Choice: "))
-	reader := bufio.NewReader(os.Stdin)
+	reader := stdinReader
 	resp, _ := reader.ReadString('\n')
 	resp = strings.TrimSpace(resp)
 	switch resp {

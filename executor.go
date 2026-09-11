@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/term"
 	"io"
 	"os"
 	"os/exec"
@@ -50,7 +52,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		printAIHeader("thinker", roles.Thinker, rc)
 		key := cacheKey("thinker", roles.Thinker, input, rc)
 		if cacheEnabled("thinker", rc.Global) {
-			if out, age, ok := cacheGet(key, rc.Global); ok {
+			if out, age, ok := cacheGet(key, rc.Global); ok && askUseCache(age) {
 				fmt.Println(out)
 				printCacheHit(age)
 				return nil
@@ -62,7 +64,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		if err != nil {
 			return err
 		}
-		printElapsed(start, L("düşünme", "thinking"))
+		printElapsed(start, "thinker")
 		if cacheWriteEnabled("thinker", rc.Global) && !looksLikeClarification(out) {
 			cachePut(key, "thinker", roles.Thinker, input, out, rc)
 		}
@@ -73,7 +75,12 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			return errMissingRole("writer")
 		}
 		printAIHeader("writer", roles.Writer, rc)
-		return runWriter(roles.Writer, rc, input, input)
+		start := time.Now()
+		if err := runWriter(roles.Writer, rc, input, input); err != nil {
+			return err
+		}
+		printElapsed(start, "writer")
+		return nil
 
 	case ModePair:
 		if roles.Thinker == "" {
@@ -111,7 +118,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 				// kullanma: kullanıcı bu arada eksiği tamamlamış olabilir.
 				if looksLikeClarification(out) {
 					cacheDelete(thinkKey)
-				} else {
+				} else if askUseCache(age) {
 					thought, cached = out, true
 					fmt.Println(out)
 					printCacheHit(age)
@@ -125,6 +132,17 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			if err != nil {
 				return err
 			}
+			// Boş cevap ne plan ne kod: yazana verilirse görevi plansız
+			// üstlenir ve ikinci çağrı boşa faturalanır (sahada görüldü
+			// 2026-09-11 — izin reddi yakalanmadan önce tam da bu oldu).
+			// Saklamak da anlamsız: sonraki koşu boş planı tekrar oynatırdı.
+			if strings.TrimSpace(thought) == "" {
+				fmt.Println()
+				fmt.Println(styleWarn.Render(L(
+					"  ⚠ düşünen boş cevap döndü — writer atlandı",
+					"  ⚠ the thinker returned nothing — writer skipped")))
+				return errors.New("thinker returned empty output")
+			}
 			// "Dosya bulunamadı, şunu paylaşın" türü cevaplar SAKLANMAZ:
 			// eksiklik giderildiğinde (dosya oluşturulunca) cevabın değişmesi
 			// gerekiyor. Saklansaydı kullanıcı dosyayı ekledikten sonra bile
@@ -134,7 +152,7 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 			}
 		}
 		thinkDur := time.Since(pairStart)
-		printElapsed(pairStart, L("düşünme", "thinking"))
+		printElapsed(pairStart, "thinker")
 		// thought zaten captureTool tarafından stream edildi; tekrar basmıyoruz.
 
 		// Writer kararı:
@@ -195,17 +213,19 @@ func Run(input string, mode Mode, rc *ResolvedConfig) error {
 		if err := runWriter(roles.Writer, rc, writerInput, input); err != nil {
 			return err
 		}
-		printElapsed(writeStart, L("yazma", "writing"))
+		printElapsed(writeStart, "writer")
 		// Toplam satırı yazma süresinin dibinde duruyordu; iki satır boşluk
 		// koşunun özetini göz atınca bulunur hale getiriyor.
 		fmt.Print("\n\n")
-		fmt.Println(styleDim.Render(fmt.Sprintf(
-			L("  ⏱ toplam %s   (düşünme %s + yazma %s)   ·  %s",
-				"  ⏱ total %s   (thinking %s + writing %s)   ·  %s"),
-			formatDuration(time.Since(pairStart)),
-			formatDuration(thinkDur),
-			formatDuration(time.Since(writeStart)),
-			pairStart.Format("2006-01-02 15:04:05"))))
+		// Toplam kalın, parçalar kendi rol renginde: üç sayı tek gri satırda
+		// birbirine karışıyordu.
+		fmt.Println(styleDim.Render("  ⏱ ") +
+			styleBold.Render(L("toplam ", "total ")+formatDuration(time.Since(pairStart))) +
+			styleDim.Render("   (") +
+			styleThinker.Render(L("düşünme ", "thinking ")+formatDuration(thinkDur)) +
+			styleDim.Render(" + ") +
+			styleWriter.Render(L("yazma ", "writing ")+formatDuration(time.Since(writeStart))) +
+			styleDim.Render(")   ·  "+pairStart.Format("2006-01-02 15:04:05")))
 		return nil
 	}
 	return fmt.Errorf("bilinmeyen mod")
@@ -499,9 +519,25 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%dm %02ds", m, sec)
 }
 
-// printElapsed — bir rolün ne kadar sürdüğünü çıktının altına yazar.
-func printElapsed(start time.Time, label string) {
-	fmt.Println(styleDim.Render(fmt.Sprintf("  ⏱ %s %s", label, formatDuration(time.Since(start)))))
+// roleStyle — rolün başlıkta kullanılan rengi; süre satırları da aynı rengi
+// taşısın ki hangi adımın ne kadar sürdüğü bir bakışta ayrılsın.
+func roleStyle(kind string) lipgloss.Style {
+	if kind == "writer" {
+		return styleWriter
+	}
+	return styleThinker
+}
+
+// printElapsed — bir rolün ne kadar sürdüğünü çıktının altına yazar. Soluk
+// griyken uzun çıktının altında kayboluyordu (sahada: "yazan kısmında süre
+// gözükmüyor"); etiket ve süre rolün rengiyle kalın basılır.
+func printElapsed(start time.Time, kind string) {
+	label := L("düşünme", "thinking")
+	if kind == "writer" {
+		label = L("yazma", "writing")
+	}
+	fmt.Println(styleDim.Render("  ⏱ ") +
+		roleStyle(kind).Render(fmt.Sprintf("%s %s", label, formatDuration(time.Since(start)))))
 }
 
 // printSeparator — düşünen ile yazan arasındaki görsel sınır.
@@ -583,6 +619,16 @@ var rateLimitRe = regexp.MustCompile(`(?i)(rate.?limit|quota|429|too many reques
 // çözülmez, kullanıcı login/key müdahalesi gerekir.
 var authFailRe = regexp.MustCompile(`(?i)(401|unauthorized|missing bearer|invalid api key|not.?logged.?in|please run /login|please log in|authentication failed|authentication required|please visit the url|paste the authorization code|authentication interrupted|waiting for authentication)`)
 
+// permissionDeniedRe — aracın headless modda bir araç iznini SORAMAYIP
+// isteği kendiliğinden reddettiği imza (agy 1.2.1: "a tool required the
+// "read_file" permission that headless mode cannot prompt for, so it was
+// auto-denied"). Araç bunu exit 0 + boş stdout ile bildiriyor; koddan
+// anlaşılmıyor, stderr'den yakalanmalı.
+var permissionDeniedRe = regexp.MustCompile(`(?i)(headless mode cannot prompt|auto-denied|permissions\.allow)`)
+
+// errPermissionDenied — araç izin alamadığı için hiç çıktı üretmedi.
+var errPermissionDenied = errors.New("tool permission denied in headless mode")
+
 // errRateLimit — withKeyRotation iç sinyali. Dışarı sızmaz; tüm key'ler bittiğinde
 // gerçek alt-process hatasına dönüşür.
 var errRateLimit = errors.New("rate limit / quota")
@@ -616,12 +662,13 @@ const noiseLineMax = 400
 var bodyDumpRe = regexp.MustCompile(`(?i)\bbody:\s*[\[{].*$`)
 
 // isInteractiveStdin — cem'in kendi stdin'i terminal mi (pipe/dosya değil).
+//
+// ModeCharDevice kontrolü yetmiyor: /dev/null da karakter aygıtı, `cem ...
+// </dev/null` (CI, cron, bazı IDE koşucuları) TTY sayılıp soru soruyordu ve
+// EOF'u "Enter" diye okuyordu (ölçüldü 2026-09-11). Gerçek ölçüt ioctl'in
+// terminal demesi.
 func isInteractiveStdin() bool {
-	info, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return info.Mode()&os.ModeCharDevice != 0
+	return term.IsTerminal(os.Stdin.Fd())
 }
 
 // attachStdin — alt sürecin stdin'ini bağlar.
@@ -675,6 +722,10 @@ func looksLikeAuthFailure(stderr string) bool {
 	return authFailRe.MatchString(sanitizeStderr(stderr))
 }
 
+func looksLikePermissionDenied(out string) bool {
+	return permissionDeniedRe.MatchString(sanitizeStderr(out))
+}
+
 func looksLikeModelUnsupported(out string) bool {
 	return modelUnsupportedRe.MatchString(sanitizeStderr(out))
 }
@@ -723,6 +774,32 @@ func hintAuth(bin, toolKey string, meta ToolMeta, cfg *GlobalConfig) {
 			fmt.Println(styleDim.Render(fmt.Sprintf(L("    Veya yeni API key: cem keys add %s",
 				"    Or add a new API key: cem keys add %s"), meta.Provider)))
 		}
+	}
+}
+
+// hintPermission — araç headless modda izin soramadığı için isteği reddetti
+// ve hiç çıktı üretmedi. Sahada görüldü (2026-09-11, agy 1.2.1, pair modu):
+// düşünen "read_file auto-denied" deyip exit 0 döndü, cem boş planı yazana
+// verdi ve yazan yine de dosya üretti — ikinci çağrının faturası plan
+// olmadan ödendi. Çözüm aracın hızlı modu (FastArgs izinleri açar).
+func hintPermission(bin, toolKey string, meta ToolMeta, rc *ResolvedConfig) {
+	fmt.Println()
+	fmt.Println(styleWarn.Render("  ⚠ " + bin + L(
+		" headless modda araç izni soramadı — istek reddedildi, çıktı yok",
+		" could not ask for a tool permission in headless mode — request denied, no output")))
+	switch {
+	case len(meta.FastArgs) == 0:
+		fmt.Println(styleDim.Render(L(
+			"    Aracın kendi ayarlarında (permissions.allow) izin tanımla.",
+			"    Grant the permission in the tool's own settings (permissions.allow).")))
+	case !resolveFast(toolKey, rc):
+		fmt.Println(styleDim.Render(fmt.Sprintf(L(
+			"    Hızlı mod kapalı; izinleri açmak için: cem fast %s on",
+			"    Fast mode is off; to grant permissions: cem fast %s on"), toolKey)))
+	default:
+		fmt.Println(styleDim.Render(L(
+			"    Hızlı mod açık olduğu halde reddedildi — aracı güncelle: cemi update",
+			"    Denied even with fast mode on — update the tool: cemi update")))
 	}
 }
 
@@ -1157,7 +1234,7 @@ func runWriter(toolKey string, rc *ResolvedConfig, toolInput, cacheInput string)
 	wd, _ := os.Getwd()
 
 	if cacheEnabled("writer", rc.Global) {
-		if e, age, ok := cacheGetEntry(key, rc.Global); ok {
+		if e, age, ok := cacheGetEntry(key, rc.Global); ok && askUseCache(age) {
 			fmt.Println(e.Output)
 			printCacheHit(age)
 			written, same, conflict := restoreFiles(wd, e.Files)
@@ -1266,6 +1343,11 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 		nf.Close()
 		enf.Close()
 		if err == nil {
+			// bkz. captureToolWithSpinner: exit 0 + boş stdout + izin reddi.
+			if strings.TrimSpace(outTail.String()) == "" && looksLikePermissionDenied(errBuf.String()) {
+				hintPermission(bin, toolKey, meta, rc)
+				return errPermissionDenied
+			}
 			return nil
 		}
 		combined := errBuf.String() + "\n" + outTail.String()
@@ -1279,6 +1361,8 @@ func runTool(toolKey string, rc *ResolvedConfig, input, icon string) error {
 			hintModel(bin, toolKey, meta, rc)
 		case looksLikeAuthFailure(combined):
 			hintAuth(bin, toolKey, meta, rc.Global)
+		case looksLikePermissionDenied(combined):
+			hintPermission(bin, toolKey, meta, rc)
 		default:
 			fmt.Println(styleError.Render("✗ " + bin + L(" hata: ", " error: ") + err.Error()))
 		}
@@ -1344,6 +1428,12 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 		nf.Close()
 		enf.Close()
 		if runErr == nil {
+			// Exit 0 ama stdout boş ve stderr izin reddi diyor: araç
+			// çalışmadı, "başarı" sayılırsa boş plan yazana gider.
+			if strings.TrimSpace(captured.String()) == "" && looksLikePermissionDenied(errBuf.String()) {
+				hintPermission(bin, toolKey, meta, rc)
+				return errPermissionDenied
+			}
 			return nil
 		}
 		combined := errBuf.String() + "\n" + captured.String()
@@ -1357,6 +1447,8 @@ func captureToolWithSpinner(toolKey string, rc *ResolvedConfig, input string, sp
 			hintModel(bin, toolKey, meta, rc)
 		case looksLikeAuthFailure(combined):
 			hintAuth(bin, toolKey, meta, rc.Global)
+		case looksLikePermissionDenied(combined):
+			hintPermission(bin, toolKey, meta, rc)
 		default:
 			// Sessiz çıkmayalım: pair modunda thinker patlarsa kullanıcı
 			// tek satır cem mesajı görmeden exit 1 alıyordu.

@@ -1,6 +1,6 @@
 ---
 name: reference-marketplace-yayin
-description: cem IntelliJ eklentisinin JetBrains Marketplace yayın durumu — repo tarafı hazır, elle yapılacaklar bekliyor
+description: cem IntelliJ eklentisinin JetBrains Marketplace yayın durumu — sayfa 34196, son sürüm ve yayın akışı
 metadata:
   type: reference
 ---
@@ -12,10 +12,12 @@ metadata:
 (`plugins.jetbrains.com/plugin/34196`), ilk yükleme kullanıcı tarafından elle
 yapıldı. `updatePlugins.xml` custom repository akışı yedek olarak duruyor.
 
-**Son yayın:** `20260910.03` (2026-09-10) — GitHub release 32 asset ile çıktı,
-Marketplace'e imzalı zip yüklendi. Marketplace API'si eklenti için hâlâ
-`approve: false` diyor: yeni eklenti moderasyonda, onay gelene kadar
-`/api/plugins/34196/updates` boş liste döner ve sürüm listede görünmez.
+**Son yayın:** `20260911.01` (2026-09-11, `./surum-yayinla.sh` ile) —
+kalıcı ↑/↓ geçmişi düzeltmesi. İlk yayın `20260910.03`'te Marketplace API'si
+`approve: false` diyordu (moderasyon); onay durumu her yayında
+`/api/plugins/34196/updates` ile kontrol edilmeli. 2026-09-11 sonrası
+yayınlanmamış değişiklikler CHANGELOG "Unreleased" başlığında (agy izin
+reddi, renkli süreler, önbellek sorusu) — henüz commit edilmedi.
 
 **Tek komutla yayın:** `./surum-yayinla.sh` (kullanıcı "yayınla" dediğinde
 çalıştırılacak — ayrıntı CLAUDE.tr.md "Git & Release"). Marketplace adımı
